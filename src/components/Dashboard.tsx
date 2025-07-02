@@ -1,155 +1,194 @@
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Wallet, TrendingUp, Calendar } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Users, DollarSign, TrendingUp, Calendar } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface DashboardStats {
+  totalSiswa: number;
+  totalSaldo: number;
+  transaksiHariIni: number;
+  chartData: Array<{
+    bulan: string;
+    setor: number;
+    tarik: number;
+  }>;
+}
 
 const Dashboard = () => {
-  // Mock data for statistics
-  const stats = [
-    {
-      title: "Total Siswa",
-      value: "1,234",
-      icon: Users,
-      color: "bg-blue-500",
-      textColor: "text-blue-600"
-    },
-    {
-      title: "Total Saldo",
-      value: "Rp 15,450,000",
-      icon: Wallet,
-      color: "bg-green-500",
-      textColor: "text-green-600"
-    },
-    {
-      title: "Transaksi Hari Ini",
-      value: "89",
-      icon: TrendingUp,
-      color: "bg-orange-500",
-      textColor: "text-orange-600"
-    },
-    {
-      title: "Rata-rata Saldo",
-      value: "Rp 125,200",
-      icon: Calendar,
-      color: "bg-purple-500",
-      textColor: "text-purple-600"
+  const [stats, setStats] = useState<DashboardStats>({
+    totalSiswa: 0,
+    totalSaldo: 0,
+    transaksiHariIni: 0,
+    chartData: []
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      // Get total students
+      const { data: students } = await supabase
+        .from('students')
+        .select('saldo');
+
+      // Get today's transactions
+      const today = new Date().toISOString().split('T')[0];
+      const { data: todayTransactions } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('tanggal', today);
+
+      // Get monthly transaction data for chart
+      const { data: monthlyData } = await supabase
+        .from('transactions')
+        .select('tanggal, jenis, jumlah')
+        .gte('tanggal', new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
+
+      // Process data
+      const totalSiswa = students?.length || 0;
+      const totalSaldo = students?.reduce((sum, student) => sum + (student.saldo || 0), 0) || 0;
+      const transaksiHariIni = todayTransactions?.length || 0;
+
+      // Process monthly chart data
+      const monthlyStats: { [key: string]: { setor: number; tarik: number } } = {};
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+        'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      ];
+
+      // Initialize all months
+      months.forEach(month => {
+        monthlyStats[month] = { setor: 0, tarik: 0 };
+      });
+
+      // Process transaction data
+      monthlyData?.forEach(transaction => {
+        const month = new Date(transaction.tanggal).getMonth();
+        const monthName = months[month];
+        if (transaction.jenis === 'Setor') {
+          monthlyStats[monthName].setor += transaction.jumlah;
+        } else if (transaction.jenis === 'Tarik') {
+          monthlyStats[monthName].tarik += transaction.jumlah;
+        }
+      });
+
+      const chartData = months.map(month => ({
+        bulan: month,
+        setor: monthlyStats[month].setor,
+        tarik: monthlyStats[month].tarik
+      }));
+
+      setStats({
+        totalSiswa,
+        totalSaldo,
+        transaksiHariIni,
+        chartData
+      });
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setIsLoading(false);
     }
-  ];
+  };
 
-  // Mock data for charts
-  const monthlyData = [
-    { month: 'Jan', setor: 2400, tarik: 1200 },
-    { month: 'Feb', setor: 1398, tarik: 800 },
-    { month: 'Mar', setor: 3800, tarik: 1500 },
-    { month: 'Apr', setor: 3908, tarik: 2000 },
-    { month: 'Mei', setor: 4800, tarik: 1800 },
-    { month: 'Jun', setor: 3490, tarik: 1300 },
-  ];
-
-  const recentTransactions = [
-    { id: 1, nis: "12345", nama: "Ahmad Fauzi", kelas: "5A", jenis: "Setor", jumlah: 50000, tanggal: "2024-07-02" },
-    { id: 2, nis: "12346", nama: "Siti Nurhaliza", kelas: "4B", jenis: "Tarik", jumlah: 25000, tanggal: "2024-07-02" },
-    { id: 3, nis: "12347", nama: "Budi Santoso", kelas: "6A", jenis: "Setor", jumlah: 75000, tanggal: "2024-07-02" },
-    { id: 4, nis: "12348", nama: "Maya Sari", kelas: "3C", jenis: "Setor", jumlah: 30000, tanggal: "2024-07-01" },
-    { id: 5, nis: "12349", nama: "Rizki Pratama", kelas: "5B", jenis: "Tarik", jumlah: 40000, tanggal: "2024-07-01" },
-  ];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Ringkasan sistem tabungan sekolah</p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500">Terakhir diperbarui</p>
-          <p className="text-sm font-medium text-gray-900">{new Date().toLocaleDateString('id-ID')}</p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-600">Ringkasan sistem tabungan sekolah</p>
       </div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className={`text-2xl font-bold ${stat.textColor} mt-1`}>{stat.value}</p>
-                </div>
-                <div className={`${stat.color} p-3 rounded-lg`}>
-                  <stat.icon className="h-6 w-6 text-white" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Transaction Chart */}
         <Card>
-          <CardHeader>
-            <CardTitle>Transaksi Bulanan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value) => `Rp ${value.toLocaleString('id-ID')}`} />
-                <Legend />
-                <Bar dataKey="setor" fill="#3b82f6" name="Setor" />
-                <Bar dataKey="tarik" fill="#ef4444" name="Tarik" />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Siswa</p>
+                <p className="text-3xl font-bold text-blue-600">{stats.totalSiswa}</p>
+              </div>
+              <Users className="h-12 w-12 text-blue-500 opacity-20" />
+            </div>
           </CardContent>
         </Card>
 
-        {/* Recent Transactions */}
         <Card>
-          <CardHeader>
-            <CardTitle>Transaksi Terbaru</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentTransactions.map((transaction) => (
-                <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{transaction.nama}</p>
-                    <p className="text-sm text-gray-600">{transaction.kelas} • {transaction.nis}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`font-medium ${transaction.jenis === 'Setor' ? 'text-green-600' : 'text-red-600'}`}>
-                      {transaction.jenis === 'Setor' ? '+' : '-'}Rp {transaction.jumlah.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-xs text-gray-500">{new Date(transaction.tanggal).toLocaleDateString('id-ID')}</p>
-                  </div>
-                </div>
-              ))}
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Saldo</p>
+                <p className="text-3xl font-bold text-green-600">
+                  Rp {stats.totalSaldo.toLocaleString('id-ID')}
+                </p>
+              </div>
+              <DollarSign className="h-12 w-12 text-green-500 opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Transaksi Hari Ini</p>
+                <p className="text-3xl font-bold text-orange-600">{stats.transaksiHariIni}</p>
+              </div>
+              <Calendar className="h-12 w-12 text-orange-500 opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Rata-rata Saldo</p>
+                <p className="text-3xl font-bold text-purple-600">
+                  Rp {stats.totalSiswa > 0 ? Math.round(stats.totalSaldo / stats.totalSiswa).toLocaleString('id-ID') : 0}
+                </p>
+              </div>
+              <TrendingUp className="h-12 w-12 text-purple-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Trend Chart */}
+      {/* Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Tren Saldo Keseluruhan</CardTitle>
+          <CardTitle>Grafik Transaksi Bulanan</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value) => `Rp ${value.toLocaleString('id-ID')}`} />
-              <Legend />
-              <Line type="monotone" dataKey="setor" stroke="#10b981" strokeWidth={3} name="Total Setor" />
-              <Line type="monotone" dataKey="tarik" stroke="#f59e0b" strokeWidth={3} name="Total Tarik" />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="bulan" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value, name) => [
+                    `Rp ${Number(value).toLocaleString('id-ID')}`,
+                    name === 'setor' ? 'Setor' : 'Tarik'
+                  ]}
+                />
+                <Bar dataKey="setor" fill="#10B981" name="setor" />
+                <Bar dataKey="tarik" fill="#EF4444" name="tarik" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </CardContent>
       </Card>
     </div>

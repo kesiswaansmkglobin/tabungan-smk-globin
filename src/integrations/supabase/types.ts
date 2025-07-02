@@ -9,7 +9,145 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      classes: {
+        Row: {
+          created_at: string
+          id: string
+          nama_kelas: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nama_kelas: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nama_kelas?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      school_data: {
+        Row: {
+          alamat_sekolah: string
+          created_at: string
+          id: string
+          jabatan_pengelola: string
+          kontak_pengelola: string
+          logo_sekolah: string | null
+          nama_pengelola: string
+          nama_sekolah: string
+          tahun_ajaran: string
+          updated_at: string
+        }
+        Insert: {
+          alamat_sekolah: string
+          created_at?: string
+          id?: string
+          jabatan_pengelola: string
+          kontak_pengelola: string
+          logo_sekolah?: string | null
+          nama_pengelola: string
+          nama_sekolah: string
+          tahun_ajaran: string
+          updated_at?: string
+        }
+        Update: {
+          alamat_sekolah?: string
+          created_at?: string
+          id?: string
+          jabatan_pengelola?: string
+          kontak_pengelola?: string
+          logo_sekolah?: string | null
+          nama_pengelola?: string
+          nama_sekolah?: string
+          tahun_ajaran?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      students: {
+        Row: {
+          created_at: string
+          id: string
+          kelas_id: string
+          nama: string
+          nis: string
+          saldo: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kelas_id: string
+          nama: string
+          nis: string
+          saldo?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kelas_id?: string
+          nama?: string
+          nis?: string
+          saldo?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_kelas_id_fkey"
+            columns: ["kelas_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          admin: string
+          created_at: string
+          id: string
+          jenis: string
+          jumlah: number
+          saldo_setelah: number
+          student_id: string
+          tanggal: string
+        }
+        Insert: {
+          admin?: string
+          created_at?: string
+          id?: string
+          jenis: string
+          jumlah: number
+          saldo_setelah: number
+          student_id: string
+          tanggal?: string
+        }
+        Update: {
+          admin?: string
+          created_at?: string
+          id?: string
+          jenis?: string
+          jumlah?: number
+          saldo_setelah?: number
+          student_id?: string
+          tanggal?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

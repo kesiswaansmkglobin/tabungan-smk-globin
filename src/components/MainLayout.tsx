@@ -9,6 +9,7 @@ import DataSiswa from "@/components/DataSiswa";
 import Transaksi from "@/components/Transaksi";
 import Laporan from "@/components/Laporan";
 import RiwayatHarian from "@/components/RiwayatHarian";
+import Pengaturan from "@/components/Pengaturan";
 
 interface MainLayoutProps {
   onLogout: () => void;
@@ -33,6 +34,8 @@ const MainLayout = ({ onLogout }: MainLayoutProps) => {
         return <Laporan />;
       case "riwayat-harian":
         return <RiwayatHarian />;
+      case "pengaturan":
+        return <Pengaturan />;
       default:
         return <Dashboard />;
     }

@@ -7,48 +7,55 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { School, Save, Upload, Image } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SchoolData {
-  namaSekolah: string;
-  alamatSekolah: string;
-  tahunAjaran: string;
-  namaPengelola: string;
-  jabatanPengelola: string;
-  kontakPengelola: string;
-  logoSekolah: string;
+  id?: string;
+  nama_sekolah: string;
+  alamat_sekolah: string;
+  tahun_ajaran: string;
+  nama_pengelola: string;
+  jabatan_pengelola: string;
+  kontak_pengelola: string;
+  logo_sekolah: string;
 }
 
 const DataSekolah = () => {
   const [schoolData, setSchoolData] = useState<SchoolData>({
-    namaSekolah: "",
-    alamatSekolah: "",
-    tahunAjaran: "",
-    namaPengelola: "",
-    jabatanPengelola: "",
-    kontakPengelola: "",
-    logoSekolah: ""
+    nama_sekolah: "",
+    alamat_sekolah: "",
+    tahun_ajaran: "",
+    nama_pengelola: "",
+    jabatan_pengelola: "",
+    kontak_pengelola: "",
+    logo_sekolah: ""
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Load existing school data from localStorage
-    const savedData = localStorage.getItem("schoolData");
-    if (savedData) {
-      setSchoolData(JSON.parse(savedData));
-    } else {
-      // Set default data
-      setSchoolData({
-        namaSekolah: "SD Negeri 1 Contoh",
-        alamatSekolah: "Jl. Pendidikan No. 123, Jakarta Selatan",
-        tahunAjaran: "2024/2025",
-        namaPengelola: "Ibu Siti Rahayu, S.Pd",
-        jabatanPengelola: "Bendahara Sekolah",
-        kontakPengelola: "siti.rahayu@email.com / 0812-3456-7890",
-        logoSekolah: ""
-      });
-    }
+    loadSchoolData();
   }, []);
+
+  const loadSchoolData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('school_data')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (data) {
+        setSchoolData(data);
+      }
+    } catch (error) {
+      console.error('Error loading school data:', error);
+    }
+  };
 
   const handleInputChange = (field: keyof SchoolData, value: string) => {
     setSchoolData(prev => ({
@@ -74,7 +81,7 @@ const DataSekolah = () => {
         const result = e.target?.result as string;
         setSchoolData(prev => ({
           ...prev,
-          logoSekolah: result
+          logo_sekolah: result
         }));
       };
       reader.readAsDataURL(file);
@@ -84,18 +91,51 @@ const DataSekolah = () => {
   const handleSave = async () => {
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    try {
+      const dataToSave = {
+        nama_sekolah: schoolData.nama_sekolah,
+        alamat_sekolah: schoolData.alamat_sekolah,
+        tahun_ajaran: schoolData.tahun_ajaran,
+        nama_pengelola: schoolData.nama_pengelola,
+        jabatan_pengelola: schoolData.jabatan_pengelola,
+        kontak_pengelola: schoolData.kontak_pengelola,
+        logo_sekolah: schoolData.logo_sekolah
+      };
 
-    // Save to localStorage
-    localStorage.setItem("schoolData", JSON.stringify(schoolData));
-    
-    toast({
-      title: "Data Tersimpan",
-      description: "Data sekolah berhasil disimpan",
-    });
-    
-    setIsLoading(false);
+      if (schoolData.id) {
+        // Update existing record
+        const { error } = await supabase
+          .from('school_data')
+          .update(dataToSave)
+          .eq('id', schoolData.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new record
+        const { data, error } = await supabase
+          .from('school_data')
+          .insert([dataToSave])
+          .select()
+          .single();
+
+        if (error) throw error;
+        setSchoolData(prev => ({ ...prev, id: data.id }));
+      }
+      
+      toast({
+        title: "Data Tersimpan",
+        description: "Data sekolah berhasil disimpan",
+      });
+    } catch (error) {
+      console.error('Error saving school data:', error);
+      toast({
+        title: "Error",
+        description: "Gagal menyimpan data sekolah",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -115,32 +155,32 @@ const DataSekolah = () => {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="namaSekolah">Nama Sekolah *</Label>
+              <Label htmlFor="nama_sekolah">Nama Sekolah *</Label>
               <Input
-                id="namaSekolah"
-                value={schoolData.namaSekolah}
-                onChange={(e) => handleInputChange("namaSekolah", e.target.value)}
+                id="nama_sekolah"
+                value={schoolData.nama_sekolah}
+                onChange={(e) => handleInputChange("nama_sekolah", e.target.value)}
                 placeholder="Masukkan nama sekolah"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="tahunAjaran">Tahun Ajaran *</Label>
+              <Label htmlFor="tahun_ajaran">Tahun Ajaran *</Label>
               <Input
-                id="tahunAjaran"
-                value={schoolData.tahunAjaran}
-                onChange={(e) => handleInputChange("tahunAjaran", e.target.value)}
+                id="tahun_ajaran"
+                value={schoolData.tahun_ajaran}
+                onChange={(e) => handleInputChange("tahun_ajaran", e.target.value)}
                 placeholder="2024/2025"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="alamatSekolah">Alamat Sekolah *</Label>
+            <Label htmlFor="alamat_sekolah">Alamat Sekolah *</Label>
             <Textarea
-              id="alamatSekolah"
-              value={schoolData.alamatSekolah}
-              onChange={(e) => handleInputChange("alamatSekolah", e.target.value)}
+              id="alamat_sekolah"
+              value={schoolData.alamat_sekolah}
+              onChange={(e) => handleInputChange("alamat_sekolah", e.target.value)}
               placeholder="Masukkan alamat lengkap sekolah"
               className="min-h-[100px]"
             />
@@ -151,32 +191,32 @@ const DataSekolah = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="namaPengelola">Nama Pengelola *</Label>
+                <Label htmlFor="nama_pengelola">Nama Pengelola *</Label>
                 <Input
-                  id="namaPengelola"
-                  value={schoolData.namaPengelola}
-                  onChange={(e) => handleInputChange("namaPengelola", e.target.value)}
+                  id="nama_pengelola"
+                  value={schoolData.nama_pengelola}
+                  onChange={(e) => handleInputChange("nama_pengelola", e.target.value)}
                   placeholder="Nama lengkap pengelola"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="jabatanPengelola">Jabatan *</Label>
+                <Label htmlFor="jabatan_pengelola">Jabatan *</Label>
                 <Input
-                  id="jabatanPengelola"
-                  value={schoolData.jabatanPengelola}
-                  onChange={(e) => handleInputChange("jabatanPengelola", e.target.value)}
+                  id="jabatan_pengelola"
+                  value={schoolData.jabatan_pengelola}
+                  onChange={(e) => handleInputChange("jabatan_pengelola", e.target.value)}
                   placeholder="Jabatan pengelola"
                 />
               </div>
             </div>
 
             <div className="space-y-2 mt-4">
-              <Label htmlFor="kontakPengelola">Kontak Pengelola *</Label>
+              <Label htmlFor="kontak_pengelola">Kontak Pengelola *</Label>
               <Input
-                id="kontakPengelola"
-                value={schoolData.kontakPengelola}
-                onChange={(e) => handleInputChange("kontakPengelola", e.target.value)}
+                id="kontak_pengelola"
+                value={schoolData.kontak_pengelola}
+                onChange={(e) => handleInputChange("kontak_pengelola", e.target.value)}
                 placeholder="Email / No. HP"
               />
             </div>
@@ -188,9 +228,9 @@ const DataSekolah = () => {
             <div className="space-y-4">
               <div className="flex items-center space-x-4">
                 <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                  {schoolData.logoSekolah ? (
+                  {schoolData.logo_sekolah ? (
                     <img 
-                      src={schoolData.logoSekolah} 
+                      src={schoolData.logo_sekolah} 
                       alt="Logo Sekolah" 
                       className="w-full h-full object-contain rounded-lg"
                     />
