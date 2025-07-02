@@ -7,30 +7,26 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { CreditCard, ArrowUpCircle, ArrowDownCircle, Calendar, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Siswa {
   id: string;
   nis: string;
   nama: string;
-  kelas: string;
+  kelas_id: string;
+  kelas_nama?: string;
   saldo: number;
 }
 
 interface Kelas {
   id: string;
-  namaKelas: string;
+  nama_kelas: string;
 }
 
-interface Transaksi {
-  id: string;
-  tanggal: string;
-  nis: string;
-  nama: string;
-  kelas: string;
-  jenis: "Setor" | "Tarik";
-  jumlah: number;
-  saldoSetelah: number;
-  admin: string;
+interface TodayStats {
+  totalSetor: number;
+  totalTarik: number;
+  jumlahTransaksi: number;
 }
 
 const Transaksi = () => {
@@ -43,14 +39,20 @@ const Transaksi = () => {
   const [jumlahUang, setJumlahUang] = useState("");
   const [tanggalTransaksi, setTanggalTransaksi] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
+  const [todayStats, setTodayStats] = useState<TodayStats>({
+    totalSetor: 0,
+    totalTarik: 0,
+    jumlahTransaksi: 0
+  });
 
   useEffect(() => {
     loadData();
+    loadTodayStats();
   }, []);
 
   useEffect(() => {
     if (selectedKelas) {
-      const siswaByKelas = siswaList.filter(siswa => siswa.kelas === selectedKelas);
+      const siswaByKelas = siswaList.filter(siswa => siswa.kelas_id === selectedKelas);
       setFilteredSiswa(siswaByKelas);
       setSelectedSiswa("");
     } else {
@@ -59,17 +61,69 @@ const Transaksi = () => {
     }
   }, [selectedKelas, siswaList]);
 
-  const loadData = () => {
-    // Load kelas data
-    const kelasData = localStorage.getItem("kelasData");
-    if (kelasData) {
-      setKelasList(JSON.parse(kelasData));
-    }
+  const loadData = async () => {
+    try {
+      // Load kelas data
+      const { data: classes, error: classesError } = await supabase
+        .from('classes')
+        .select('*')
+        .order('nama_kelas');
 
-    // Load siswa data
-    const siswaData = localStorage.getItem("siswaData");
-    if (siswaData) {
-      setSiswaList(JSON.parse(siswaData));
+      if (classesError) throw classesError;
+      setKelasList(classes || []);
+
+      // Load siswa data with kelas info
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select(`
+          *,
+          classes (
+            nama_kelas
+          )
+        `)
+        .order('nama');
+
+      if (studentsError) throw studentsError;
+
+      const siswaWithKelas = (students || []).map(student => ({
+        ...student,
+        kelas_nama: student.classes?.nama_kelas || 'Unknown'
+      }));
+
+      setSiswaList(siswaWithKelas);
+    } catch (error) {
+      console.error('Error loading data:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat data",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadTodayStats = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('jenis, jumlah')
+        .eq('tanggal', today);
+
+      if (error) throw error;
+
+      const stats = (transactions || []).reduce((acc, trans) => {
+        if (trans.jenis === 'Setor') {
+          acc.totalSetor += trans.jumlah;
+        } else if (trans.jenis === 'Tarik') {
+          acc.totalTarik += trans.jumlah;
+        }
+        acc.jumlahTransaksi++;
+        return acc;
+      }, { totalSetor: 0, totalTarik: 0, jumlahTransaksi: 0 });
+
+      setTodayStats(stats);
+    } catch (error) {
+      console.error('Error loading today stats:', error);
     }
   };
 
@@ -128,35 +182,18 @@ const Transaksi = () => {
         : currentSiswa.saldo - jumlah;
 
       // Create transaction record
-      const newTransaksi: Transaksi = {
-        id: Date.now().toString(),
-        tanggal: tanggalTransaksi,
-        nis: currentSiswa.nis,
-        nama: currentSiswa.nama,
-        kelas: currentSiswa.kelas,
-        jenis: jenisTransaksi,
-        jumlah: jumlah,
-        saldoSetelah: newSaldo,
-        admin: "Administrator"
-      };
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert([{
+          student_id: selectedSiswa,
+          jenis: jenisTransaksi,
+          jumlah: jumlah,
+          saldo_setelah: newSaldo,
+          tanggal: tanggalTransaksi,
+          admin: 'Administrator'
+        }]);
 
-      // Update siswa balance
-      const updatedSiswaList = siswaList.map(siswa => 
-        siswa.id === selectedSiswa 
-          ? { ...siswa, saldo: newSaldo }
-          : siswa
-      );
-
-      // Save updated siswa data
-      localStorage.setItem("siswaData", JSON.stringify(updatedSiswaList));
-
-      // Save transaction
-      const existingTransaksi = JSON.parse(localStorage.getItem("transaksiData") || "[]");
-      const updatedTransaksi = [newTransaksi, ...existingTransaksi];
-      localStorage.setItem("transaksiData", JSON.stringify(updatedTransaksi));
-
-      // Update local state
-      setSiswaList(updatedSiswaList);
+      if (transactionError) throw transactionError;
 
       toast({
         title: "Transaksi Berhasil",
@@ -170,10 +207,15 @@ const Transaksi = () => {
       setTanggalTransaksi(new Date().toISOString().split('T')[0]);
       setJenisTransaksi("Setor");
 
-    } catch (error) {
+      // Reload data
+      loadData();
+      loadTodayStats();
+
+    } catch (error: any) {
+      console.error('Error processing transaction:', error);
       toast({
         title: "Error",
-        description: "Terjadi kesalahan saat memproses transaksi",
+        description: error.message || "Terjadi kesalahan saat memproses transaksi",
         variant: "destructive",
       });
     } finally {
@@ -211,8 +253,8 @@ const Transaksi = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {kelasList.map((kelas) => (
-                        <SelectItem key={kelas.id} value={kelas.namaKelas}>
-                          {kelas.namaKelas}
+                        <SelectItem key={kelas.id} value={kelas.id}>
+                          {kelas.nama_kelas}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -324,7 +366,7 @@ const Transaksi = () => {
                       <User className="h-8 w-8 text-white" />
                     </div>
                     <h3 className="font-semibold text-lg">{currentSiswa.nama}</h3>
-                    <p className="text-gray-600">{currentSiswa.kelas}</p>
+                    <p className="text-gray-600">{currentSiswa.kelas_nama}</p>
                   </div>
                   
                   <div className="space-y-3 border-t pt-4">
@@ -383,15 +425,19 @@ const Transaksi = () => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Total Setor:</span>
-                  <span className="font-semibold text-green-600">Rp 250,000</span>
+                  <span className="font-semibold text-green-600">
+                    Rp {todayStats.totalSetor.toLocaleString('id-ID')}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Total Tarik:</span>
-                  <span className="font-semibold text-red-600">Rp 75,000</span>
+                  <span className="font-semibold text-red-600">
+                    Rp {todayStats.totalTarik.toLocaleString('id-ID')}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between border-t pt-3">
                   <span className="text-gray-600">Jumlah Transaksi:</span>
-                  <span className="font-semibold">15 transaksi</span>
+                  <span className="font-semibold">{todayStats.jumlahTransaksi} transaksi</span>
                 </div>
               </div>
             </CardContent>

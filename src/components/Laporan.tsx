@@ -6,112 +6,92 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Download, Calendar, Filter, FileSpreadsheet, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { FileText, Download, Calendar, Filter, TrendingUp, TrendingDown } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-interface Transaksi {
+interface Transaction {
   id: string;
   tanggal: string;
-  nis: string;
-  nama: string;
-  kelas: string;
-  jenis: "Setor" | "Tarik";
+  jenis: string;
   jumlah: number;
-  saldoSetelah: number;
+  saldo_setelah: number;
   admin: string;
+  students: {
+    nis: string;
+    nama: string;
+    classes: {
+      nama_kelas: string;
+    };
+  };
 }
 
-interface LaporanData {
+interface ReportStats {
   totalSetor: number;
   totalTarik: number;
-  saldoAkhir: number;
   jumlahTransaksi: number;
-  transaksi: Transaksi[];
+  netFlow: number;
 }
 
 const Laporan = () => {
-  const [tanggalMulai, setTanggalMulai] = useState(new Date().toISOString().split('T')[0]);
-  const [tanggalSelesai, setTanggalSelesai] = useState(new Date().toISOString().split('T')[0]);
-  const [filterSiswa, setFilterSiswa] = useState("");
-  const [filterKelas, setFilterKelas] = useState("");
-  const [laporanData, setLaporanData] = useState<LaporanData | null>(null);
-  const [siswaList, setSiswaList] = useState<any[]>([]);
-  const [kelasList, setKelasList] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [jenisFilter, setJenisFilter] = useState("");
+  const [kelasFilter, setKelasFilter] = useState("");
+  const [kelasList, setKelasList] = useState<Array<{id: string, nama_kelas: string}>>([]);
+  const [reportStats, setReportStats] = useState<ReportStats>({
+    totalSetor: 0,
+    totalTarik: 0,
+    jumlahTransaksi: 0,
+    netFlow: 0
+  });
 
   useEffect(() => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    const siswaData = localStorage.getItem("siswaData");
-    if (siswaData) {
-      setSiswaList(JSON.parse(siswaData));
-    }
+  useEffect(() => {
+    applyFilters();
+  }, [transactions, dateFrom, dateTo, jenisFilter, kelasFilter]);
 
-    const kelasData = localStorage.getItem("kelasData");
-    if (kelasData) {
-      setKelasList(JSON.parse(kelasData));
-    }
-  };
-
-  const generateLaporan = () => {
-    setIsLoading(true);
-
+  const loadData = async () => {
     try {
-      const transaksiData = JSON.parse(localStorage.getItem("transaksiData") || "[]") as Transaksi[];
-      
-      // Filter transaksi berdasarkan kriteria
-      let filteredTransaksi = transaksiData.filter(transaksi => {
-        const tanggalTransaksi = new Date(transaksi.tanggal);
-        const mulai = new Date(tanggalMulai);
-        const selesai = new Date(tanggalSelesai);
-        
-        // Check date range
-        if (tanggalTransaksi < mulai || tanggalTransaksi > selesai) {
-          return false;
-        }
+      setIsLoading(true);
 
-        // Check siswa filter
-        if (filterSiswa && transaksi.nis !== filterSiswa) {
-          return false;
-        }
+      // Load classes
+      const { data: classes, error: classesError } = await supabase
+        .from('classes')
+        .select('id, nama_kelas')
+        .order('nama_kelas');
 
-        // Check kelas filter
-        if (filterKelas && transaksi.kelas !== filterKelas) {
-          return false;
-        }
+      if (classesError) throw classesError;
+      setKelasList(classes || []);
 
-        return true;
-      });
+      // Load transactions with student and class info
+      const { data: transactionData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          students (
+            nis,
+            nama,
+            classes (
+              nama_kelas
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-      // Calculate summary
-      const totalSetor = filteredTransaksi
-        .filter(t => t.jenis === "Setor")
-        .reduce((sum, t) => sum + t.jumlah, 0);
-
-      const totalTarik = filteredTransaksi
-        .filter(t => t.jenis === "Tarik")
-        .reduce((sum, t) => sum + t.jumlah, 0);
-
-      const saldoAkhir = totalSetor - totalTarik;
-
-      setLaporanData({
-        totalSetor,
-        totalTarik,
-        saldoAkhir,
-        jumlahTransaksi: filteredTransaksi.length,
-        transaksi: filteredTransaksi
-      });
-
-      toast({
-        title: "Laporan Berhasil Dibuat",
-        description: `Ditemukan ${filteredTransaksi.length} transaksi`,
-      });
+      if (transactionsError) throw transactionsError;
+      setTransactions(transactionData || []);
 
     } catch (error) {
+      console.error('Error loading data:', error);
       toast({
         title: "Error",
-        description: "Gagal membuat laporan",
+        description: "Gagal memuat data laporan",
         variant: "destructive",
       });
     } finally {
@@ -119,74 +99,102 @@ const Laporan = () => {
     }
   };
 
-  const exportToPDF = () => {
-    // Create PDF content
-    const pdfContent = `
-      LAPORAN TRANSAKSI TABUNGAN SEKOLAH
-      ====================================
-      
-      Periode: ${new Date(tanggalMulai).toLocaleDateString('id-ID')} - ${new Date(tanggalSelesai).toLocaleDateString('id-ID')}
-      ${filterSiswa ? `Siswa: ${siswaList.find(s => s.nis === filterSiswa)?.nama || filterSiswa}` : ''}
-      ${filterKelas ? `Kelas: ${filterKelas}` : ''}
-      
-      RINGKASAN:
-      - Total Setor: Rp ${laporanData?.totalSetor.toLocaleString('id-ID')}
-      - Total Tarik: Rp ${laporanData?.totalTarik.toLocaleString('id-ID')}
-      - Saldo Akhir: Rp ${laporanData?.saldoAkhir.toLocaleString('id-ID')}
-      - Jumlah Transaksi: ${laporanData?.jumlahTransaksi}
-      
-      DETAIL TRANSAKSI:
-      ${laporanData?.transaksi.map(t => 
-        `${new Date(t.tanggal).toLocaleDateString('id-ID')} | ${t.nama} (${t.nis}) | ${t.jenis} | Rp ${t.jumlah.toLocaleString('id-ID')}`
-      ).join('\n')}
-    `;
+  const applyFilters = () => {
+    let filtered = [...transactions];
 
-    const blob = new Blob([pdfContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `laporan_${tanggalMulai}_${tanggalSelesai}.txt`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    // Filter by date range
+    if (dateFrom) {
+      filtered = filtered.filter(t => t.tanggal >= dateFrom);
+    }
+    if (dateTo) {
+      filtered = filtered.filter(t => t.tanggal <= dateTo);
+    }
 
-    toast({
-      title: "Laporan Diekspor",
-      description: "Laporan berhasil diunduh sebagai file PDF",
-    });
+    // Filter by transaction type
+    if (jenisFilter) {
+      filtered = filtered.filter(t => t.jenis === jenisFilter);
+    }
+
+    // Filter by class
+    if (kelasFilter) {
+      filtered = filtered.filter(t => t.students?.classes?.nama_kelas === kelasFilter);
+    }
+
+    setFilteredTransactions(filtered);
+
+    // Calculate stats
+    const stats = filtered.reduce((acc, trans) => {
+      if (trans.jenis === 'Setor') {
+        acc.totalSetor += trans.jumlah;
+      } else if (trans.jenis === 'Tarik') {
+        acc.totalTarik += trans.jumlah;
+      }
+      acc.jumlahTransaksi++;
+      return acc;
+    }, { totalSetor: 0, totalTarik: 0, jumlahTransaksi: 0, netFlow: 0 });
+
+    stats.netFlow = stats.totalSetor - stats.totalTarik;
+    setReportStats(stats);
+  };
+
+  const resetFilters = () => {
+    setDateFrom("");
+    setDateTo("");
+    setJenisFilter("");
+    setKelasFilter("");
   };
 
   const exportToExcel = () => {
-    if (!laporanData) return;
-
-    const csvContent = [
-      "Tanggal,NIS,Nama,Kelas,Jenis,Jumlah,Saldo Setelah",
-      ...laporanData.transaksi.map(t => 
-        `${t.tanggal},${t.nis},${t.nama},${t.kelas},${t.jenis},${t.jumlah},${t.saldoSetelah}`
-      )
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `laporan_${tanggalMulai}_${tanggalSelesai}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-
-    toast({
-      title: "Laporan Diekspor",
-      description: "Laporan berhasil diunduh sebagai file Excel",
-    });
+    try {
+      const headers = "Tanggal,NIS,Nama,Kelas,Jenis,Jumlah,Saldo Setelah,Admin\n";
+      const csvContent = headers + filteredTransactions.map(trans => 
+        `${trans.tanggal},${trans.students?.nis || ''},${trans.students?.nama || ''},${trans.students?.classes?.nama_kelas || ''},${trans.jenis},${trans.jumlah},${trans.saldo_setelah},${trans.admin}`
+      ).join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `laporan_transaksi_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Laporan Diekspor",
+        description: "Laporan transaksi berhasil diekspor ke CSV",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal mengekspor laporan",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-3">
-        <FileText className="h-8 w-8 text-blue-600" />
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Laporan</h1>
-          <p className="text-gray-600">Buat dan unduh laporan transaksi tabungan</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <FileText className="h-8 w-8 text-blue-600" />
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Laporan</h1>
+            <p className="text-gray-600">Laporan transaksi dan statistik tabungan</p>
+          </div>
         </div>
+
+        <Button onClick={exportToExcel} disabled={filteredTransactions.length === 0}>
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Filter Section */}
@@ -197,218 +205,180 @@ const Laporan = () => {
             Filter Laporan
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="tanggalMulai">Tanggal Mulai</Label>
+              <Label htmlFor="dateFrom">Tanggal Dari</Label>
               <Input
-                id="tanggalMulai"
+                id="dateFrom"
                 type="date"
-                value={tanggalMulai}
-                onChange={(e) => setTanggalMulai(e.target.value)}
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tanggalSelesai">Tanggal Selesai</Label>
+              <Label htmlFor="dateTo">Tanggal Sampai</Label>
               <Input
-                id="tanggalSelesai"
+                id="dateTo"
                 type="date"
-                value={tanggalSelesai}
-                onChange={(e) => setTanggalSelesai(e.target.value)}
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="filterSiswa">Filter Siswa (Opsional)</Label>
-              <Select value={filterSiswa} onValueChange={setFilterSiswa}>
+              <Label htmlFor="jenisFilter">Jenis Transaksi</Label>
+              <Select value={jenisFilter} onValueChange={setJenisFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Semua siswa" />
+                  <SelectValue placeholder="Semua jenis" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Semua Siswa</SelectItem>
-                  {siswaList.map((siswa) => (
-                    <SelectItem key={siswa.id} value={siswa.nis}>
-                      {siswa.nama} ({siswa.nis})
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="">Semua Jenis</SelectItem>
+                  <SelectItem value="Setor">Setor</SelectItem>
+                  <SelectItem value="Tarik">Tarik</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="filterKelas">Filter Kelas (Opsional)</Label>
-              <Select value={filterKelas} onValueChange={setFilterKelas}>
+              <Label htmlFor="kelasFilter">Kelas</Label>
+              <Select value={kelasFilter} onValueChange={setKelasFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Semua kelas" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Semua Kelas</SelectItem>
                   {kelasList.map((kelas) => (
-                    <SelectItem key={kelas.id} value={kelas.namaKelas}>
-                      {kelas.namaKelas}
+                    <SelectItem key={kelas.id} value={kelas.nama_kelas}>
+                      {kelas.nama_kelas}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-
-          <Button 
-            onClick={generateLaporan}
-            disabled={isLoading}
-            className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            {isLoading ? "Membuat Laporan..." : "Buat Laporan"}
-          </Button>
+          <div className="flex justify-end mt-4">
+            <Button variant="outline" onClick={resetFilters}>
+              Reset Filter
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Hasil Laporan */}
-      {laporanData && (
-        <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Setor</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      Rp {laporanData.totalSetor.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  <ArrowUpCircle className="h-8 w-8 text-green-500" />
-                </div>
-              </CardContent>
-            </Card>
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Setor</p>
+                <p className="text-2xl font-bold text-green-600">
+                  Rp {reportStats.totalSetor.toLocaleString('id-ID')}
+                </p>
+              </div>
+              <TrendingUp className="h-12 w-12 text-green-500 opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Tarik</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      Rp {laporanData.totalTarik.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  <ArrowDownCircle className="h-8 w-8 text-red-500" />
-                </div>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Tarik</p>
+                <p className="text-2xl font-bold text-red-600">
+                  Rp {reportStats.totalTarik.toLocaleString('id-ID')}
+                </p>
+              </div>
+              <TrendingDown className="h-12 w-12 text-red-500 opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Saldo Akhir</p>
-                    <p className={`text-2xl font-bold ${laporanData.saldoAkhir >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                      Rp {laporanData.saldoAkhir.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  <FileText className="h-8 w-8 text-blue-500" />
-                </div>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Net Flow</p>
+                <p className={`text-2xl font-bold ${reportStats.netFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  Rp {reportStats.netFlow.toLocaleString('id-ID')}
+                </p>
+              </div>
+              <Calendar className="h-12 w-12 text-blue-500 opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Jumlah Transaksi</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {laporanData.jumlahTransaksi}
-                    </p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-gray-500" />
-                </div>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Transaksi</p>
+                <p className="text-2xl font-bold text-blue-600">{reportStats.jumlahTransaksi}</p>
+              </div>
+              <FileText className="h-12 w-12 text-blue-500 opacity-20" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Transactions Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Riwayat Transaksi</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-4 font-medium">Tanggal</th>
+                  <th className="text-left p-4 font-medium">NIS</th>
+                  <th className="text-left p-4 font-medium">Nama</th>
+                  <th className="text-left p-4 font-medium">Kelas</th>
+                  <th className="text-left p-4 font-medium">Jenis</th>
+                  <th className="text-right p-4 font-medium">Jumlah</th>
+                  <th className="text-right p-4 font-medium">Saldo Setelah</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredTransactions.map((trans) => (
+                  <tr key={trans.id} className="border-b hover:bg-gray-50">
+                    <td className="p-4">{new Date(trans.tanggal).toLocaleDateString('id-ID')}</td>
+                    <td className="p-4 font-mono">{trans.students?.nis || '-'}</td>
+                    <td className="p-4">{trans.students?.nama || '-'}</td>
+                    <td className="p-4">
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                        {trans.students?.classes?.nama_kelas || '-'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded-full text-sm ${
+                        trans.jenis === 'Setor' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {trans.jenis}
+                      </span>
+                    </td>
+                    <td className="p-4 text-right font-medium">
+                      Rp {trans.jumlah.toLocaleString('id-ID')}
+                    </td>
+                    <td className="p-4 text-right font-medium">
+                      Rp {trans.saldo_setelah.toLocaleString('id-ID')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          {/* Export Buttons */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Unduh Laporan</CardTitle>
-                <div className="flex space-x-2">
-                  <Button variant="outline" onClick={exportToPDF}>
-                    <Download className="h-4 w-4 mr-2" />
-                    PDF
-                  </Button>
-                  <Button variant="outline" onClick={exportToExcel}>
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Excel
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          {/* Detail Transaksi */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Detail Transaksi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-4 font-medium">Tanggal</th>
-                      <th className="text-left p-4 font-medium">NIS</th>
-                      <th className="text-left p-4 font-medium">Nama</th>
-                      <th className="text-left p-4 font-medium">Kelas</th>
-                      <th className="text-left p-4 font-medium">Jenis</th>
-                      <th className="text-right p-4 font-medium">Jumlah</th>
-                      <th className="text-right p-4 font-medium">Saldo Setelah</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {laporanData.transaksi.map((transaksi) => (
-                      <tr key={transaksi.id} className="border-b hover:bg-gray-50">
-                        <td className="p-4">{new Date(transaksi.tanggal).toLocaleDateString('id-ID')}</td>
-                        <td className="p-4 font-mono">{transaksi.nis}</td>
-                        <td className="p-4">{transaksi.nama}</td>
-                        <td className="p-4">
-                          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                            {transaksi.kelas}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2 py-1 rounded-full text-sm ${
-                            transaksi.jenis === 'Setor' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {transaksi.jenis}
-                          </span>
-                        </td>
-                        <td className={`p-4 text-right font-medium ${
-                          transaksi.jenis === 'Setor' ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {transaksi.jenis === 'Setor' ? '+' : '-'}Rp {transaksi.jumlah.toLocaleString('id-ID')}
-                        </td>
-                        <td className="p-4 text-right font-medium">
-                          Rp {transaksi.saldoSetelah.toLocaleString('id-ID')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {laporanData.transaksi.length === 0 && (
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">Tidak ada transaksi pada periode ini</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
-      )}
+          {filteredTransactions.length === 0 && (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">Tidak ada transaksi yang ditemukan</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

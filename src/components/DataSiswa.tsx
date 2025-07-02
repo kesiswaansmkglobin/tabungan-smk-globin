@@ -25,19 +25,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
+import StudentImportTemplate from "./StudentImportTemplate";
 
 interface Siswa {
   id: string;
   nis: string;
   nama: string;
-  kelas: string;
+  kelas_id: string;
+  kelas_nama?: string;
   saldo: number;
-  createdAt: string;
+  created_at: string;
 }
 
 interface Kelas {
   id: string;
-  namaKelas: string;
+  nama_kelas: string;
 }
 
 const DataSiswa = () => {
@@ -47,50 +50,75 @@ const DataSiswa = () => {
   const [filterKelas, setFilterKelas] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [editingSiswa, setEditingSiswa] = useState<Siswa | null>(null);
-  const [formData, setFormData] = useState({ nis: "", nama: "", kelas: "" });
+  const [formData, setFormData] = useState({ nis: "", nama: "", kelas_id: "" });
+  const [isLoading, setIsLoading] = useState(true);
+  const [importFile, setImportFile] = useState<File | null>(null);
 
   const itemsPerPage = 10;
 
   useEffect(() => {
-    loadSiswaData();
-    loadKelasData();
+    loadData();
   }, []);
 
-  const loadSiswaData = () => {
-    const savedData = localStorage.getItem("siswaData");
-    if (savedData) {
-      setSiswaList(JSON.parse(savedData));
-    } else {
-      // Default data
-      const defaultSiswa = [
-        { id: "1", nis: "12345", nama: "Ahmad Fauzi", kelas: "1A", saldo: 150000, createdAt: "2024-01-01" },
-        { id: "2", nis: "12346", nama: "Siti Nurhaliza", kelas: "1A", saldo: 125000, createdAt: "2024-01-01" },
-        { id: "3", nis: "12347", nama: "Budi Santoso", kelas: "2A", saldo: 200000, createdAt: "2024-01-01" },
-        { id: "4", nis: "12348", nama: "Maya Sari", kelas: "2A", saldo: 85000, createdAt: "2024-01-01" },
-        { id: "5", nis: "12349", nama: "Rizki Pratama", kelas: "3A", saldo: 175000, createdAt: "2024-01-01" },
-      ];
-      setSiswaList(defaultSiswa);
-      localStorage.setItem("siswaData", JSON.stringify(defaultSiswa));
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      await Promise.all([loadSiswaData(), loadKelasData()]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const loadKelasData = () => {
-    const savedData = localStorage.getItem("kelasData");
-    if (savedData) {
-      setKelasList(JSON.parse(savedData));
+  const loadSiswaData = async () => {
+    try {
+      const { data: students, error } = await supabase
+        .from('students')
+        .select(`
+          *,
+          classes (
+            nama_kelas
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const siswaWithKelas = (students || []).map(student => ({
+        ...student,
+        kelas_nama: student.classes?.nama_kelas || 'Unknown'
+      }));
+
+      setSiswaList(siswaWithKelas);
+    } catch (error) {
+      console.error('Error loading students:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat data siswa",
+        variant: "destructive",
+      });
     }
   };
 
-  const saveSiswaData = (data: Siswa[]) => {
-    localStorage.setItem("siswaData", JSON.stringify(data));
-    setSiswaList(data);
+  const loadKelasData = async () => {
+    try {
+      const { data: classes, error } = await supabase
+        .from('classes')
+        .select('*')
+        .order('nama_kelas');
+
+      if (error) throw error;
+      setKelasList(classes || []);
+    } catch (error) {
+      console.error('Error loading classes:', error);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.nis.trim() || !formData.nama.trim() || !formData.kelas) {
+    if (!formData.nis.trim() || !formData.nama.trim() || !formData.kelas_id) {
       toast({
         title: "Error",
         description: "Semua field harus diisi",
@@ -99,106 +127,203 @@ const DataSiswa = () => {
       return;
     }
 
-    // Check for duplicate NIS
-    const existingNIS = siswaList.find(s => s.nis === formData.nis.trim() && s.id !== editingSiswa?.id);
-    if (existingNIS) {
+    try {
+      if (editingSiswa) {
+        // Update existing siswa
+        const { error } = await supabase
+          .from('students')
+          .update({
+            nis: formData.nis.trim(),
+            nama: formData.nama.trim(),
+            kelas_id: formData.kelas_id
+          })
+          .eq('id', editingSiswa.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Berhasil",
+          description: "Data siswa berhasil diperbarui",
+        });
+      } else {
+        // Add new siswa
+        const { error } = await supabase
+          .from('students')
+          .insert([{
+            nis: formData.nis.trim(),
+            nama: formData.nama.trim(),
+            kelas_id: formData.kelas_id
+          }]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Berhasil",
+          description: "Siswa baru berhasil ditambahkan",
+        });
+      }
+
+      setFormData({ nis: "", nama: "", kelas_id: "" });
+      setEditingSiswa(null);
+      setIsDialogOpen(false);
+      loadData();
+    } catch (error: any) {
+      console.error('Error saving student:', error);
       toast({
         title: "Error",
-        description: "NIS sudah terdaftar",
+        description: error.message || "Gagal menyimpan data siswa",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = (siswa: Siswa) => {
+    setEditingSiswa(siswa);
+    setFormData({ nis: siswa.nis, nama: siswa.nama, kelas_id: siswa.kelas_id });
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('students')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Berhasil",
+        description: "Siswa berhasil dihapus",
+      });
+      loadData();
+    } catch (error: any) {
+      console.error('Error deleting student:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menghapus siswa",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) {
+      toast({
+        title: "Error",
+        description: "Pilih file CSV untuk diimpor",
         variant: "destructive",
       });
       return;
     }
 
-    if (editingSiswa) {
-      // Update existing siswa
-      const updatedList = siswaList.map(siswa =>
-        siswa.id === editingSiswa.id
-          ? { ...siswa, nis: formData.nis.trim(), nama: formData.nama.trim(), kelas: formData.kelas }
-          : siswa
-      );
-      saveSiswaData(updatedList);
+    try {
+      const text = await importFile.text();
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim());
+      
+      if (!headers.includes('NIS') || !headers.includes('Nama Siswa') || !headers.includes('Kelas')) {
+        toast({
+          title: "Error",
+          description: "Format CSV tidak sesuai. Pastikan ada kolom NIS, Nama Siswa, dan Kelas",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const studentsToImport = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        const nis = values[headers.indexOf('NIS')];
+        const nama = values[headers.indexOf('Nama Siswa')];
+        const kelasNama = values[headers.indexOf('Kelas')];
+
+        if (!nis || !nama || !kelasNama) continue;
+
+        // Find kelas_id by nama_kelas
+        const kelas = kelasList.find(k => k.nama_kelas === kelasNama);
+        if (!kelas) {
+          toast({
+            title: "Error",
+            description: `Kelas ${kelasNama} tidak ditemukan. Pastikan kelas sudah dibuat terlebih dahulu.`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        studentsToImport.push({
+          nis,
+          nama,
+          kelas_id: kelas.id
+        });
+      }
+
+      if (studentsToImport.length === 0) {
+        toast({
+          title: "Error",
+          description: "Tidak ada data siswa yang valid untuk diimpor",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('students')
+        .insert(studentsToImport);
+
+      if (error) throw error;
+
       toast({
         title: "Berhasil",
-        description: "Data siswa berhasil diperbarui",
+        description: `${studentsToImport.length} siswa berhasil diimpor`,
       });
-    } else {
-      // Add new siswa
-      const newSiswa: Siswa = {
-        id: Date.now().toString(),
-        nis: formData.nis.trim(),
-        nama: formData.nama.trim(),
-        kelas: formData.kelas,
-        saldo: 0,
-        createdAt: new Date().toISOString(),
-      };
-      saveSiswaData([...siswaList, newSiswa]);
+
+      setImportFile(null);
+      setIsImportDialogOpen(false);
+      loadData();
+    } catch (error: any) {
+      console.error('Error importing students:', error);
       toast({
-        title: "Berhasil",
-        description: "Siswa baru berhasil ditambahkan",
+        title: "Error",
+        description: error.message || "Gagal mengimpor data siswa",
+        variant: "destructive",
       });
     }
-
-    setFormData({ nis: "", nama: "", kelas: "" });
-    setEditingSiswa(null);
-    setIsDialogOpen(false);
   };
 
-  const handleEdit = (siswa: Siswa) => {
-    setEditingSiswa(siswa);
-    setFormData({ nis: siswa.nis, nama: siswa.nama, kelas: siswa.kelas });
-    setIsDialogOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    const updatedList = siswaList.filter(siswa => siswa.id !== id);
-    saveSiswaData(updatedList);
-    toast({
-      title: "Berhasil",
-      description: "Siswa berhasil dihapus",
-    });
-  };
-
-  const downloadTemplate = () => {
-    const csvContent = "NIS,Nama Siswa,Kelas\n12345,Contoh Nama,1A\n12346,Siswa Lain,2B";
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'template_siswa.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Template Diunduh",
-      description: "Template Excel berhasil diunduh",
-    });
-  };
-
-  const exportToExcel = () => {
-    const headers = "NIS,Nama,Kelas,Saldo,Tanggal Daftar\n";
-    const csvContent = headers + siswaList.map(siswa => 
-      `${siswa.nis},${siswa.nama},${siswa.kelas},${siswa.saldo},${new Date(siswa.createdAt).toLocaleDateString('id-ID')}`
-    ).join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'data_siswa.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Data Diekspor",
-      description: "Data siswa berhasil diekspor ke Excel",
-    });
+  const exportToExcel = async () => {
+    try {
+      const headers = "NIS,Nama,Kelas,Saldo,Tanggal Daftar\n";
+      const csvContent = headers + siswaList.map(siswa => 
+        `${siswa.nis},${siswa.nama},${siswa.kelas_nama},${siswa.saldo},${new Date(siswa.created_at).toLocaleDateString('id-ID')}`
+      ).join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'data_siswa.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Data Diekspor",
+        description: "Data siswa berhasil diekspor ke CSV",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Gagal mengekspor data",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredSiswa = siswaList.filter(siswa => {
     const matchesSearch = siswa.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          siswa.nis.includes(searchTerm);
-    const matchesKelas = !filterKelas || siswa.kelas === filterKelas;
+    const matchesKelas = !filterKelas || siswa.kelas_id === filterKelas;
     return matchesSearch && matchesKelas;
   });
 
@@ -207,6 +332,14 @@ const DataSiswa = () => {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -220,10 +353,46 @@ const DataSiswa = () => {
         </div>
 
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={downloadTemplate}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Template
-          </Button>
+          <StudentImportTemplate />
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Import Data Siswa</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="csvFile">File CSV *</Label>
+                  <Input
+                    id="csvFile"
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                  />
+                  <p className="text-sm text-gray-500">
+                    Format: NIS, Nama Siswa, Kelas
+                  </p>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsImportDialogOpen(false)}
+                  >
+                    Batal
+                  </Button>
+                  <Button onClick={handleImport}>
+                    Import
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Button variant="outline" onClick={exportToExcel}>
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -234,7 +403,7 @@ const DataSiswa = () => {
                 className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
                 onClick={() => {
                   setEditingSiswa(null);
-                  setFormData({ nis: "", nama: "", kelas: "" });
+                  setFormData({ nis: "", nama: "", kelas_id: "" });
                 }}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -267,15 +436,15 @@ const DataSiswa = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="kelas">Kelas *</Label>
-                  <Select value={formData.kelas} onValueChange={(value) => setFormData(prev => ({ ...prev, kelas: value }))}>
+                  <Label htmlFor="kelas_id">Kelas *</Label>
+                  <Select value={formData.kelas_id} onValueChange={(value) => setFormData(prev => ({ ...prev, kelas_id: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih kelas" />
                     </SelectTrigger>
                     <SelectContent>
                       {kelasList.map((kelas) => (
-                        <SelectItem key={kelas.id} value={kelas.namaKelas}>
-                          {kelas.namaKelas}
+                        <SelectItem key={kelas.id} value={kelas.id}>
+                          {kelas.nama_kelas}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -323,8 +492,8 @@ const DataSiswa = () => {
                 <SelectContent>
                   <SelectItem value="">Semua Kelas</SelectItem>
                   {kelasList.map((kelas) => (
-                    <SelectItem key={kelas.id} value={kelas.namaKelas}>
-                      {kelas.namaKelas}
+                    <SelectItem key={kelas.id} value={kelas.id}>
+                      {kelas.nama_kelas}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -351,7 +520,7 @@ const DataSiswa = () => {
                     <td className="p-4">{siswa.nama}</td>
                     <td className="p-4">
                       <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                        {siswa.kelas}
+                        {siswa.kelas_nama}
                       </span>
                     </td>
                     <td className="p-4 text-right font-medium">
@@ -377,7 +546,7 @@ const DataSiswa = () => {
                               <AlertDialogTitle>Hapus Siswa</AlertDialogTitle>
                               <AlertDialogDescription>
                                 Apakah Anda yakin ingin menghapus siswa {siswa.nama}? 
-                                Tindakan ini tidak dapat dibatalkan.
+                                Tindakan ini tidak dapat dibatalkan dan akan menghapus semua riwayat transaksi siswa.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

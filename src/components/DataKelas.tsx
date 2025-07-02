@@ -24,12 +24,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Kelas {
   id: string;
-  namaKelas: string;
-  jumlahSiswa: number;
-  createdAt: string;
+  nama_kelas: string;
+  jumlah_siswa: number;
+  created_at: string;
 }
 
 const DataKelas = () => {
@@ -37,39 +38,59 @@ const DataKelas = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingKelas, setEditingKelas] = useState<Kelas | null>(null);
-  const [formData, setFormData] = useState({ namaKelas: "" });
+  const [formData, setFormData] = useState({ nama_kelas: "" });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadKelasData();
   }, []);
 
-  const loadKelasData = () => {
-    const savedData = localStorage.getItem("kelasData");
-    if (savedData) {
-      setKelasList(JSON.parse(savedData));
-    } else {
-      // Default data
-      const defaultKelas = [
-        { id: "1", namaKelas: "1A", jumlahSiswa: 25, createdAt: "2024-01-01" },
-        { id: "2", namaKelas: "1B", jumlahSiswa: 23, createdAt: "2024-01-01" },
-        { id: "3", namaKelas: "2A", jumlahSiswa: 28, createdAt: "2024-01-01" },
-        { id: "4", namaKelas: "2B", jumlahSiswa: 26, createdAt: "2024-01-01" },
-        { id: "5", namaKelas: "3A", jumlahSiswa: 30, createdAt: "2024-01-01" },
-      ];
-      setKelasList(defaultKelas);
-      localStorage.setItem("kelasData", JSON.stringify(defaultKelas));
+  const loadKelasData = async () => {
+    try {
+      setIsLoading(true);
+      const { data: classes, error } = await supabase
+        .from('classes')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Get student count for each class
+      const kelasWithCount = await Promise.all(
+        (classes || []).map(async (kelas) => {
+          const { data: students, error: studentsError } = await supabase
+            .from('students')
+            .select('id')
+            .eq('kelas_id', kelas.id);
+
+          if (studentsError) throw studentsError;
+
+          return {
+            id: kelas.id,
+            nama_kelas: kelas.nama_kelas,
+            jumlah_siswa: students?.length || 0,
+            created_at: kelas.created_at,
+          };
+        })
+      );
+
+      setKelasList(kelasWithCount);
+    } catch (error) {
+      console.error('Error loading classes:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat data kelas",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const saveKelasData = (data: Kelas[]) => {
-    localStorage.setItem("kelasData", JSON.stringify(data));
-    setKelasList(data);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.namaKelas.trim()) {
+    if (!formData.nama_kelas.trim()) {
       toast({
         title: "Error",
         description: "Nama kelas tidak boleh kosong",
@@ -78,56 +99,89 @@ const DataKelas = () => {
       return;
     }
 
-    if (editingKelas) {
-      // Update existing kelas
-      const updatedList = kelasList.map(kelas =>
-        kelas.id === editingKelas.id
-          ? { ...kelas, namaKelas: formData.namaKelas.trim() }
-          : kelas
-      );
-      saveKelasData(updatedList);
+    try {
+      if (editingKelas) {
+        // Update existing kelas
+        const { error } = await supabase
+          .from('classes')
+          .update({ nama_kelas: formData.nama_kelas.trim() })
+          .eq('id', editingKelas.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Berhasil",
+          description: "Data kelas berhasil diperbarui",
+        });
+      } else {
+        // Add new kelas
+        const { error } = await supabase
+          .from('classes')
+          .insert([{ nama_kelas: formData.nama_kelas.trim() }]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Berhasil",
+          description: "Kelas baru berhasil ditambahkan",
+        });
+      }
+
+      setFormData({ nama_kelas: "" });
+      setEditingKelas(null);
+      setIsDialogOpen(false);
+      loadKelasData();
+    } catch (error: any) {
+      console.error('Error saving class:', error);
       toast({
-        title: "Berhasil",
-        description: "Data kelas berhasil diperbarui",
-      });
-    } else {
-      // Add new kelas
-      const newKelas: Kelas = {
-        id: Date.now().toString(),
-        namaKelas: formData.namaKelas.trim(),
-        jumlahSiswa: 0,
-        createdAt: new Date().toISOString(),
-      };
-      saveKelasData([...kelasList, newKelas]);
-      toast({
-        title: "Berhasil",
-        description: "Kelas baru berhasil ditambahkan",
+        title: "Error",
+        description: error.message || "Gagal menyimpan data kelas",
+        variant: "destructive",
       });
     }
-
-    setFormData({ namaKelas: "" });
-    setEditingKelas(null);
-    setIsDialogOpen(false);
   };
 
   const handleEdit = (kelas: Kelas) => {
     setEditingKelas(kelas);
-    setFormData({ namaKelas: kelas.namaKelas });
+    setFormData({ nama_kelas: kelas.nama_kelas });
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    const updatedList = kelasList.filter(kelas => kelas.id !== id);
-    saveKelasData(updatedList);
-    toast({
-      title: "Berhasil",
-      description: "Kelas berhasil dihapus",
-    });
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('classes')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Berhasil",
+        description: "Kelas berhasil dihapus",
+      });
+      loadKelasData();
+    } catch (error: any) {
+      console.error('Error deleting class:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal menghapus kelas",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredKelas = kelasList.filter(kelas =>
-    kelas.namaKelas.toLowerCase().includes(searchTerm.toLowerCase())
+    kelas.nama_kelas.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -146,7 +200,7 @@ const DataKelas = () => {
               className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
               onClick={() => {
                 setEditingKelas(null);
-                setFormData({ namaKelas: "" });
+                setFormData({ nama_kelas: "" });
               }}
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -159,11 +213,11 @@ const DataKelas = () => {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="namaKelas">Nama Kelas *</Label>
+                <Label htmlFor="nama_kelas">Nama Kelas *</Label>
                 <Input
-                  id="namaKelas"
-                  value={formData.namaKelas}
-                  onChange={(e) => setFormData({ namaKelas: e.target.value })}
+                  id="nama_kelas"
+                  value={formData.nama_kelas}
+                  onChange={(e) => setFormData({ nama_kelas: e.target.value })}
                   placeholder="Contoh: 1A, 2B, 3C"
                   required
                 />
@@ -209,7 +263,7 @@ const DataKelas = () => {
               <Card key={kelas.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">{kelas.namaKelas}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">{kelas.nama_kelas}</h3>
                     <div className="flex space-x-1">
                       <Button
                         size="sm"
@@ -228,8 +282,8 @@ const DataKelas = () => {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Hapus Kelas</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Apakah Anda yakin ingin menghapus kelas {kelas.namaKelas}? 
-                              Tindakan ini tidak dapat dibatalkan.
+                              Apakah Anda yakin ingin menghapus kelas {kelas.nama_kelas}? 
+                              Tindakan ini tidak dapat dibatalkan dan akan menghapus semua siswa di kelas ini.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -248,10 +302,10 @@ const DataKelas = () => {
                   <div className="text-sm text-gray-600">
                     <p className="flex items-center">
                       <Users className="h-4 w-4 mr-1" />
-                      {kelas.jumlahSiswa} siswa
+                      {kelas.jumlah_siswa} siswa
                     </p>
                     <p className="mt-1">
-                      Dibuat: {new Date(kelas.createdAt).toLocaleDateString('id-ID')}
+                      Dibuat: {new Date(kelas.created_at).toLocaleDateString('id-ID')}
                     </p>
                   </div>
                 </CardContent>
@@ -292,14 +346,14 @@ const DataKelas = () => {
             <div className="bg-green-50 p-4 rounded-lg">
               <p className="text-sm text-green-600 font-medium">Total Siswa</p>
               <p className="text-2xl font-bold text-green-700">
-                {kelasList.reduce((total, kelas) => total + kelas.jumlahSiswa, 0)}
+                {kelasList.reduce((total, kelas) => total + kelas.jumlah_siswa, 0)}
               </p>
             </div>
             <div className="bg-orange-50 p-4 rounded-lg">
               <p className="text-sm text-orange-600 font-medium">Rata-rata per Kelas</p>
               <p className="text-2xl font-bold text-orange-700">
                 {kelasList.length > 0 
-                  ? Math.round(kelasList.reduce((total, kelas) => total + kelas.jumlahSiswa, 0) / kelasList.length)
+                  ? Math.round(kelasList.reduce((total, kelas) => total + kelas.jumlah_siswa, 0) / kelasList.length)
                   : 0
                 }
               </p>
