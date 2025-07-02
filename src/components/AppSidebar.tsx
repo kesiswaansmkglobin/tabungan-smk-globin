@@ -8,7 +8,8 @@ import {
   FileText, 
   Calendar,
   LogOut,
-  User
+  User,
+  Settings
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +34,7 @@ const menuItems = [
   { title: "Transaksi", key: "transaksi", icon: CreditCard },
   { title: "Laporan", key: "laporan", icon: FileText },
   { title: "Riwayat Harian", key: "riwayat-harian", icon: Calendar },
+  { title: "Pengaturan", key: "pengaturan", icon: Settings },
 ];
 
 interface AppSidebarProps {

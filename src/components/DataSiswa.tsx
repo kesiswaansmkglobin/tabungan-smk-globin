@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, FileSpreadsheet } from "lucide-react";
+import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -59,13 +58,17 @@ const DataSiswa = () => {
   const itemsPerPage = 10;
 
   useEffect(() => {
+    console.log("DataSiswa component mounted, loading data...");
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
       setIsLoading(true);
+      console.log("Loading siswa and kelas data...");
       await Promise.all([loadSiswaData(), loadKelasData()]);
+    } catch (error) {
+      console.error('Error in loadData:', error);
     } finally {
       setIsLoading(false);
     }
@@ -73,6 +76,7 @@ const DataSiswa = () => {
 
   const loadSiswaData = async () => {
     try {
+      console.log("Loading students data from Supabase...");
       const { data: students, error } = await supabase
         .from('students')
         .select(`
@@ -83,14 +87,20 @@ const DataSiswa = () => {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error loading students:', error);
+        throw error;
+      }
+
+      console.log("Students data loaded:", students);
 
       const siswaWithKelas = (students || []).map(student => ({
         ...student,
-        kelas_nama: student.classes?.nama_kelas || 'Unknown'
+        kelas_nama: student.classes?.nama_kelas || 'Kelas tidak ditemukan'
       }));
 
       setSiswaList(siswaWithKelas);
+      console.log("Siswa list updated:", siswaWithKelas);
     } catch (error) {
       console.error('Error loading students:', error);
       toast({
@@ -103,15 +113,26 @@ const DataSiswa = () => {
 
   const loadKelasData = async () => {
     try {
+      console.log("Loading classes data from Supabase...");
       const { data: classes, error } = await supabase
         .from('classes')
         .select('*')
         .order('nama_kelas');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error loading classes:', error);
+        throw error;
+      }
+
+      console.log("Classes data loaded:", classes);
       setKelasList(classes || []);
     } catch (error) {
       console.error('Error loading classes:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat data kelas",
+        variant: "destructive",
+      });
     }
   };
 
@@ -129,7 +150,6 @@ const DataSiswa = () => {
 
     try {
       if (editingSiswa) {
-        // Update existing siswa
         const { error } = await supabase
           .from('students')
           .update({
@@ -146,7 +166,6 @@ const DataSiswa = () => {
           description: "Data siswa berhasil diperbarui",
         });
       } else {
-        // Add new siswa
         const { error } = await supabase
           .from('students')
           .insert([{
@@ -241,7 +260,6 @@ const DataSiswa = () => {
 
         if (!nis || !nama || !kelasNama) continue;
 
-        // Find kelas_id by nama_kelas
         const kelas = kelasList.find(k => k.nama_kelas === kelasNama);
         if (!kelas) {
           toast({
@@ -333,10 +351,18 @@ const DataSiswa = () => {
     currentPage * itemsPerPage
   );
 
+  console.log("Rendering DataSiswa component:", { 
+    isLoading, 
+    siswaListLength: siswaList.length, 
+    kelasListLength: kelasList.length,
+    filteredSiswaLength: filteredSiswa.length 
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="ml-4 text-gray-600">Memuat data siswa...</p>
       </div>
     );
   }
@@ -348,7 +374,7 @@ const DataSiswa = () => {
           <GraduationCap className="h-8 w-8 text-blue-600" />
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Data Siswa</h1>
-            <p className="text-gray-600">Kelola data siswa dan saldo tabungan</p>
+            <p className="text-gray-600">Kelola data siswa dan saldo tabungan ({siswaList.length} siswa)</p>
           </div>
         </div>
 
@@ -574,6 +600,11 @@ const DataSiswa = () => {
               <p className="text-gray-500">
                 {searchTerm || filterKelas ? "Tidak ada siswa yang ditemukan" : "Belum ada data siswa"}
               </p>
+              {siswaList.length === 0 && (
+                <p className="text-sm text-gray-400 mt-2">
+                  Pastikan sudah ada data kelas sebelum menambah siswa
+                </p>
+              )}
             </div>
           )}
 
