@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { School, Lock, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LoginFormProps {
   onLogin: () => void;
 }
 
 const LoginForm = ({ onLogin }: LoginFormProps) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -20,23 +21,40 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simple admin authentication
-    if (username === "admin" && password === "admin123") {
-      localStorage.setItem("adminToken", "authenticated");
-      toast({
-        title: "Login Berhasil",
-        description: "Selamat datang di Sistem Tabungan Sekolah",
+    try {
+      // Login menggunakan Supabase Authentication
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
       });
-      onLogin();
-    } else {
+
+      if (error) {
+        toast({
+          title: "Login Gagal",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.user) {
+        localStorage.setItem("adminToken", "authenticated");
+        toast({
+          title: "Login Berhasil",
+          description: "Selamat datang di Sistem Tabungan Sekolah",
+        });
+        onLogin();
+      }
+    } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Login Gagal",
-        description: "Username atau password salah",
+        description: "Terjadi kesalahan saat login",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (
@@ -52,20 +70,23 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
             Sistem Tabungan Sekolah
           </CardTitle>
           <p className="text-gray-600">Masuk sebagai Administrator</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Gunakan akun: sarimaya@gmail.com
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
-                  placeholder="Masukkan username"
+                  placeholder="sarimaya@gmail.com"
                   required
                 />
               </div>

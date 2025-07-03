@@ -18,6 +18,7 @@ interface DailyTransaction {
   saldo_setelah: number;
   admin: string;
   created_at: string;
+  student_id: string; // Menambahkan student_id yang hilang
   students: {
     nis: string;
     nama: string;
