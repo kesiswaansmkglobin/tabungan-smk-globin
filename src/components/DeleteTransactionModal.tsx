@@ -13,6 +13,7 @@ interface DailyTransaction {
   saldo_setelah: number;
   admin: string;
   created_at: string;
+  student_id: string;
   students: {
     nis: string;
     nama: string;
@@ -37,16 +38,44 @@ const DeleteTransactionModal = ({ isOpen, onClose, transaction, onTransactionDel
 
     setIsLoading(true);
     try {
-      const { error } = await supabase
+      // Get current student data
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .select('saldo')
+        .eq('id', transaction.student_id)
+        .single();
+
+      if (studentError) throw studentError;
+
+      // Calculate new balance after removing this transaction
+      let newSaldo = studentData.saldo;
+      if (transaction.jenis === 'Setor') {
+        // If it was a deposit, subtract the amount
+        newSaldo = studentData.saldo - transaction.jumlah;
+      } else if (transaction.jenis === 'Tarik') {
+        // If it was a withdrawal, add the amount back
+        newSaldo = studentData.saldo + transaction.jumlah;
+      }
+
+      // Update student balance first
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({ saldo: newSaldo })
+        .eq('id', transaction.student_id);
+
+      if (updateError) throw updateError;
+
+      // Delete the transaction
+      const { error: deleteError } = await supabase
         .from('transactions')
         .delete()
         .eq('id', transaction.id);
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
 
       toast({
         title: "Berhasil",
-        description: "Transaksi berhasil dihapus",
+        description: "Transaksi berhasil dihapus dan saldo siswa telah diperbarui",
       });
 
       onTransactionDeleted();
@@ -71,7 +100,7 @@ const DeleteTransactionModal = ({ isOpen, onClose, transaction, onTransactionDel
         <DialogHeader>
           <DialogTitle>Hapus Transaksi</DialogTitle>
           <DialogDescription>
-            Apakah Anda yakin ingin menghapus transaksi ini? Tindakan ini tidak dapat dibatalkan.
+            Apakah Anda yakin ingin menghapus transaksi ini? Saldo siswa akan dikembalikan ke kondisi sebelum transaksi ini. Tindakan ini tidak dapat dibatalkan.
           </DialogDescription>
         </DialogHeader>
         

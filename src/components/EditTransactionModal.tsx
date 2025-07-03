@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ interface DailyTransaction {
   saldo_setelah: number;
   admin: string;
   created_at: string;
+  student_id: string;
   students: {
     nis: string;
     nama: string;
@@ -34,11 +35,21 @@ interface EditTransactionModalProps {
 
 const EditTransactionModal = ({ isOpen, onClose, transaction, onTransactionUpdated }: EditTransactionModalProps) => {
   const [formData, setFormData] = useState({
-    jenis: transaction?.jenis || "",
-    jumlah: transaction?.jumlah || 0,
-    admin: transaction?.admin || ""
+    jenis: "",
+    jumlah: 0,
+    admin: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (transaction) {
+      setFormData({
+        jenis: transaction.jenis,
+        jumlah: transaction.jumlah,
+        admin: transaction.admin
+      });
+    }
+  }, [transaction]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,21 +57,65 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, onTransactionUpdat
 
     setIsLoading(true);
     try {
+      // Get current student data
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .select('saldo')
+        .eq('id', transaction.student_id)
+        .single();
+
+      if (studentError) throw studentError;
+
+      // Reverse the original transaction effect
+      let currentSaldo = studentData.saldo;
+      if (transaction.jenis === 'Setor') {
+        currentSaldo = currentSaldo - transaction.jumlah;
+      } else if (transaction.jenis === 'Tarik') {
+        currentSaldo = currentSaldo + transaction.jumlah;
+      }
+
+      // Apply the new transaction effect
+      let newSaldo = currentSaldo;
+      if (formData.jenis === 'Setor') {
+        newSaldo = currentSaldo + formData.jumlah;
+      } else if (formData.jenis === 'Tarik') {
+        newSaldo = currentSaldo - formData.jumlah;
+      }
+
+      // Check if withdrawal amount exceeds balance
+      if (formData.jenis === 'Tarik' && formData.jumlah > currentSaldo) {
+        toast({
+          title: "Error",
+          description: "Saldo tidak mencukupi untuk penarikan",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update student balance
+      const { error: updateBalanceError } = await supabase
+        .from('students')
+        .update({ saldo: newSaldo })
+        .eq('id', transaction.student_id);
+
+      if (updateBalanceError) throw updateBalanceError;
+
       // Update transaction
-      const { error } = await supabase
+      const { error: updateTransactionError } = await supabase
         .from('transactions')
         .update({
           jenis: formData.jenis,
           jumlah: formData.jumlah,
-          admin: formData.admin
+          admin: formData.admin,
+          saldo_setelah: newSaldo
         })
         .eq('id', transaction.id);
 
-      if (error) throw error;
+      if (updateTransactionError) throw updateTransactionError;
 
       toast({
         title: "Berhasil",
-        description: "Transaksi berhasil diperbarui",
+        description: "Transaksi berhasil diperbarui dan saldo siswa telah disesuaikan",
       });
 
       onTransactionUpdated();

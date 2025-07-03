@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Users, DollarSign, TrendingUp, Calendar } from "lucide-react";
+import { Users, DollarSign, TrendingUp, Calendar, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardStats {
@@ -31,19 +32,21 @@ const Dashboard = () => {
 
   const loadDashboardData = async () => {
     try {
-      // Get total students
+      setIsLoading(true);
+      
+      // Get total students with fresh data
       const { data: students } = await supabase
         .from('students')
         .select('saldo');
 
-      // Get today's transactions
+      // Get today's transactions with fresh data
       const today = new Date().toISOString().split('T')[0];
       const { data: todayTransactions } = await supabase
         .from('transactions')
         .select('*')
         .eq('tanggal', today);
 
-      // Get monthly transaction data for chart
+      // Get monthly transaction data for chart with fresh data
       const { data: monthlyData } = await supabase
         .from('transactions')
         .select('tanggal, jenis, jumlah')
@@ -106,9 +109,15 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Ringkasan sistem tabungan sekolah</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">Ringkasan sistem tabungan sekolah</p>
+        </div>
+        <Button onClick={loadDashboardData} disabled={isLoading}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          {isLoading ? "Memuat..." : "Refresh"}
+        </Button>
       </div>
 
       {/* Statistics Cards */}

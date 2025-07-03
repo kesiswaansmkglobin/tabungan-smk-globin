@@ -72,7 +72,7 @@ const Transaksi = () => {
       if (classesError) throw classesError;
       setKelasList(classes || []);
 
-      // Load siswa data with kelas info
+      // Load siswa data with kelas info - get fresh data
       const { data: students, error: studentsError } = await supabase
         .from('students')
         .select(`
@@ -181,6 +181,14 @@ const Transaksi = () => {
         ? currentSiswa.saldo + jumlah 
         : currentSiswa.saldo - jumlah;
 
+      // Update student balance first
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({ saldo: newSaldo })
+        .eq('id', selectedSiswa);
+
+      if (updateError) throw updateError;
+
       // Create transaction record
       const { error: transactionError } = await supabase
         .from('transactions')
@@ -261,7 +269,6 @@ const Transaksi = () => {
                   </Select>
                 </div>
 
-                {/* Pilih Siswa */}
                 <div className="space-y-2">
                   <Label htmlFor="siswa">2. Pilih Siswa *</Label>
                   <Select 
@@ -282,7 +289,6 @@ const Transaksi = () => {
                   </Select>
                 </div>
 
-                {/* Jenis Transaksi */}
                 <div className="space-y-2">
                   <Label>3. Jenis Transaksi *</Label>
                   <div className="flex space-x-4">
@@ -307,7 +313,6 @@ const Transaksi = () => {
                   </div>
                 </div>
 
-                {/* Jumlah Uang */}
                 <div className="space-y-2">
                   <Label htmlFor="jumlah">4. Jumlah Uang *</Label>
                   <div className="relative">
@@ -325,7 +330,6 @@ const Transaksi = () => {
                   </div>
                 </div>
 
-                {/* Tanggal */}
                 <div className="space-y-2">
                   <Label htmlFor="tanggal">5. Tanggal Transaksi *</Label>
                   <Input
@@ -413,7 +417,6 @@ const Transaksi = () => {
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="flex items-center">
