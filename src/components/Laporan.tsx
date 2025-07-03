@@ -38,8 +38,8 @@ const Laporan = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [jenisFilter, setJenisFilter] = useState("");
-  const [kelasFilter, setKelasFilter] = useState("");
+  const [jenisFilter, setJenisFilter] = useState("all");
+  const [kelasFilter, setKelasFilter] = useState("all");
   const [kelasList, setKelasList] = useState<Array<{id: string, nama_kelas: string}>>([]);
   const [reportStats, setReportStats] = useState<ReportStats>({
     totalSetor: 0,
@@ -111,12 +111,12 @@ const Laporan = () => {
     }
 
     // Filter by transaction type
-    if (jenisFilter) {
+    if (jenisFilter && jenisFilter !== "all") {
       filtered = filtered.filter(t => t.jenis === jenisFilter);
     }
 
     // Filter by class
-    if (kelasFilter) {
+    if (kelasFilter && kelasFilter !== "all") {
       filtered = filtered.filter(t => t.students?.classes?.nama_kelas === kelasFilter);
     }
 
@@ -140,8 +140,8 @@ const Laporan = () => {
   const resetFilters = () => {
     setDateFrom("");
     setDateTo("");
-    setJenisFilter("");
-    setKelasFilter("");
+    setJenisFilter("all");
+    setKelasFilter("all");
   };
 
   const exportToExcel = () => {
@@ -176,6 +176,7 @@ const Laporan = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="ml-4 text-gray-600">Memuat laporan...</p>
       </div>
     );
   }
@@ -232,7 +233,7 @@ const Laporan = () => {
                   <SelectValue placeholder="Semua jenis" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Semua Jenis</SelectItem>
+                  <SelectItem value="all">Semua Jenis</SelectItem>
                   <SelectItem value="Setor">Setor</SelectItem>
                   <SelectItem value="Tarik">Tarik</SelectItem>
                 </SelectContent>
@@ -245,7 +246,7 @@ const Laporan = () => {
                   <SelectValue placeholder="Semua kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Semua Kelas</SelectItem>
+                  <SelectItem value="all">Semua Kelas</SelectItem>
                   {kelasList.map((kelas) => (
                     <SelectItem key={kelas.id} value={kelas.nama_kelas}>
                       {kelas.nama_kelas}
@@ -374,7 +375,9 @@ const Laporan = () => {
           {filteredTransactions.length === 0 && (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Tidak ada transaksi yang ditemukan</p>
+              <p className="text-gray-500">
+                {transactions.length === 0 ? "Belum ada transaksi" : "Tidak ada transaksi yang sesuai dengan filter"}
+              </p>
             </div>
           )}
         </CardContent>

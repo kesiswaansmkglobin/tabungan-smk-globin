@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ const DataSiswa = () => {
   const [siswaList, setSiswaList] = useState<Siswa[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterKelas, setFilterKelas] = useState("");
+  const [filterKelas, setFilterKelas] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -69,6 +70,11 @@ const DataSiswa = () => {
       await Promise.all([loadSiswaData(), loadKelasData()]);
     } catch (error) {
       console.error('Error in loadData:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat data",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -341,7 +347,7 @@ const DataSiswa = () => {
   const filteredSiswa = siswaList.filter(siswa => {
     const matchesSearch = siswa.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          siswa.nis.includes(searchTerm);
-    const matchesKelas = !filterKelas || siswa.kelas_id === filterKelas;
+    const matchesKelas = filterKelas === "all" || siswa.kelas_id === filterKelas;
     return matchesSearch && matchesKelas;
   });
 
@@ -475,6 +481,11 @@ const DataSiswa = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {kelasList.length === 0 && (
+                    <p className="text-sm text-orange-600">
+                      Belum ada kelas tersedia. Silakan tambah kelas terlebih dahulu.
+                    </p>
+                  )}
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button 
@@ -487,6 +498,7 @@ const DataSiswa = () => {
                   <Button 
                     type="submit"
                     className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
+                    disabled={kelasList.length === 0}
                   >
                     {editingSiswa ? "Perbarui" : "Simpan"}
                   </Button>
@@ -516,7 +528,7 @@ const DataSiswa = () => {
                   <SelectValue placeholder="Filter kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Semua Kelas</SelectItem>
+                  <SelectItem value="all">Semua Kelas</SelectItem>
                   {kelasList.map((kelas) => (
                     <SelectItem key={kelas.id} value={kelas.id}>
                       {kelas.nama_kelas}
@@ -598,7 +610,7 @@ const DataSiswa = () => {
             <div className="text-center py-12">
               <GraduationCap className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500">
-                {searchTerm || filterKelas ? "Tidak ada siswa yang ditemukan" : "Belum ada data siswa"}
+                {searchTerm || filterKelas !== "all" ? "Tidak ada siswa yang ditemukan" : "Belum ada data siswa"}
               </p>
               {siswaList.length === 0 && (
                 <p className="text-sm text-gray-400 mt-2">
