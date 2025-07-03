@@ -22,6 +22,8 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -44,6 +46,9 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProps) {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
   const handleLogout = () => {
     localStorage.removeItem("adminToken");
     localStorage.removeItem("adminUser");
@@ -57,16 +62,21 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
   const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
 
   return (
-    <Sidebar className="border-r border-gray-200">
+    <Sidebar className="border-r border-gray-200" collapsible="icon">
       <SidebarHeader className="border-b border-gray-200 p-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg flex items-center justify-center">
-            <School className="h-6 w-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <School className="h-6 w-6 text-white" />
+            </div>
+            {!isCollapsed && (
+              <div>
+                <h2 className="font-bold text-gray-900">Tabungan Sekolah</h2>
+                <p className="text-sm text-gray-600">Admin Panel</p>
+              </div>
+            )}
           </div>
-          <div>
-            <h2 className="font-bold text-gray-900">Tabungan Sekolah</h2>
-            <p className="text-sm text-gray-600">Admin Panel</p>
-          </div>
+          <SidebarTrigger className="ml-auto" />
         </div>
       </SidebarHeader>
 
@@ -80,9 +90,10 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
                   <SidebarMenuButton 
                     onClick={() => setActiveTab(item.key)}
                     className={activeTab === item.key ? "bg-blue-100 text-blue-700 font-medium" : "hover:bg-gray-100"}
+                    tooltip={isCollapsed ? item.title : undefined}
                   >
                     <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                    {!isCollapsed && <span>{item.title}</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -92,23 +103,25 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
       </SidebarContent>
 
       <SidebarFooter className="border-t border-gray-200 p-4">
-        <div className="flex items-center space-x-3 mb-3">
-          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} mb-3`}>
+          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
             <User className="h-4 w-4 text-gray-600" />
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">{adminUser.name || "Administrator"}</p>
-            <p className="text-xs text-gray-500">Admin</p>
-          </div>
+          {!isCollapsed && (
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">{adminUser.name || "Administrator"}</p>
+              <p className="text-xs text-gray-500">Admin</p>
+            </div>
+          )}
         </div>
         <Button 
           onClick={handleLogout}
           variant="outline" 
-          size="sm" 
-          className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50"
+          size={isCollapsed ? "icon" : "sm"}
+          className={`${isCollapsed ? 'w-8 h-8 p-0' : 'w-full justify-start'} text-red-600 border-red-200 hover:bg-red-50`}
         >
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
+          <LogOut className="h-4 w-4" />
+          {!isCollapsed && <span className="ml-2">Logout</span>}
         </Button>
       </SidebarFooter>
     </Sidebar>

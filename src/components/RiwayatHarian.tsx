@@ -1,11 +1,14 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Calendar, ArrowUpCircle, ArrowDownCircle, RefreshCw } from "lucide-react";
+import { Calendar, ArrowUpCircle, ArrowDownCircle, RefreshCw, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import EditTransactionModal from "./EditTransactionModal";
+import DeleteTransactionModal from "./DeleteTransactionModal";
 
 interface DailyTransaction {
   id: string;
@@ -41,6 +44,9 @@ const RiwayatHarian = () => {
     netFlow: 0
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<DailyTransaction | null>(null);
 
   useEffect(() => {
     loadDailyData();
@@ -96,6 +102,16 @@ const RiwayatHarian = () => {
     }
   };
 
+  const handleEditTransaction = (transaction: DailyTransaction) => {
+    setSelectedTransaction(transaction);
+    setEditModalOpen(true);
+  };
+
+  const handleDeleteTransaction = (transaction: DailyTransaction) => {
+    setSelectedTransaction(transaction);
+    setDeleteModalOpen(true);
+  };
+
   const goToToday = () => {
     setSelectedDate(new Date().toISOString().split('T')[0]);
   };
@@ -138,8 +154,8 @@ const RiwayatHarian = () => {
           <CardTitle>Pilih Tanggal</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-4">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <div className="flex-1 w-full">
               <Label htmlFor="selectedDate">Tanggal</Label>
               <Input
                 id="selectedDate"
@@ -147,16 +163,17 @@ const RiwayatHarian = () => {
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
                 max={new Date().toISOString().split('T')[0]}
+                className="w-full"
               />
             </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={goToPreviousDay}>
-                ← Hari Sebelumnya
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={goToPreviousDay} size="sm">
+                ← Sebelumnya
               </Button>
-              <Button variant="outline" onClick={goToNextDay} disabled={isFutureDate}>
-                Hari Berikutnya →
+              <Button variant="outline" onClick={goToNextDay} disabled={isFutureDate} size="sm">
+                Berikutnya →
               </Button>
-              <Button onClick={goToToday} disabled={isToday}>
+              <Button onClick={goToToday} disabled={isToday} size="sm">
                 Hari Ini
               </Button>
             </div>
@@ -165,57 +182,57 @@ const RiwayatHarian = () => {
       </Card>
 
       {/* Daily Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Setor</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-lg lg:text-2xl font-bold text-green-600">
                   Rp {dailyStats.totalSetor.toLocaleString('id-ID')}
                 </p>
               </div>
-              <ArrowUpCircle className="h-12 w-12 text-green-500 opacity-20" />
+              <ArrowUpCircle className="h-8 w-8 lg:h-12 lg:w-12 text-green-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Tarik</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-lg lg:text-2xl font-bold text-red-600">
                   Rp {dailyStats.totalTarik.toLocaleString('id-ID')}
                 </p>
               </div>
-              <ArrowDownCircle className="h-12 w-12 text-red-500 opacity-20" />
+              <ArrowDownCircle className="h-8 w-8 lg:h-12 lg:w-12 text-red-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Net Flow</p>
-                <p className={`text-2xl font-bold ${dailyStats.netFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-lg lg:text-2xl font-bold ${dailyStats.netFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   Rp {dailyStats.netFlow.toLocaleString('id-ID')}
                 </p>
               </div>
-              <Calendar className="h-12 w-12 text-blue-500 opacity-20" />
+              <Calendar className="h-8 w-8 lg:h-12 lg:w-12 text-blue-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Transaksi</p>
-                <p className="text-2xl font-bold text-blue-600">{dailyStats.jumlahTransaksi}</p>
+                <p className="text-lg lg:text-2xl font-bold text-blue-600">{dailyStats.jumlahTransaksi}</p>
               </div>
-              <Calendar className="h-12 w-12 text-blue-500 opacity-20" />
+              <Calendar className="h-8 w-8 lg:h-12 lg:w-12 text-blue-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
@@ -243,34 +260,35 @@ const RiwayatHarian = () => {
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-4 font-medium">Waktu</th>
-                    <th className="text-left p-4 font-medium">NIS</th>
-                    <th className="text-left p-4 font-medium">Nama</th>
-                    <th className="text-left p-4 font-medium">Kelas</th>
-                    <th className="text-left p-4 font-medium">Jenis</th>
-                    <th className="text-right p-4 font-medium">Jumlah</th>
-                    <th className="text-right p-4 font-medium">Saldo Setelah</th>
-                    <th className="text-left p-4 font-medium">Admin</th>
+                    <th className="text-left p-2 lg:p-4 font-medium text-sm">Waktu</th>
+                    <th className="text-left p-2 lg:p-4 font-medium text-sm">NIS</th>
+                    <th className="text-left p-2 lg:p-4 font-medium text-sm">Nama</th>
+                    <th className="text-left p-2 lg:p-4 font-medium text-sm">Kelas</th>
+                    <th className="text-left p-2 lg:p-4 font-medium text-sm">Jenis</th>
+                    <th className="text-right p-2 lg:p-4 font-medium text-sm">Jumlah</th>
+                    <th className="text-right p-2 lg:p-4 font-medium text-sm">Saldo Setelah</th>
+                    <th className="text-left p-2 lg:p-4 font-medium text-sm">Admin</th>
+                    <th className="text-center p-2 lg:p-4 font-medium text-sm">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {transactions.map((trans) => (
                     <tr key={trans.id} className="border-b hover:bg-gray-50">
-                      <td className="p-4">
+                      <td className="p-2 lg:p-4 text-sm">
                         {new Date(trans.created_at).toLocaleTimeString('id-ID', {
                           hour: '2-digit',
                           minute: '2-digit'
                         })}
                       </td>
-                      <td className="p-4 font-mono">{trans.students?.nis || '-'}</td>
-                      <td className="p-4">{trans.students?.nama || '-'}</td>
-                      <td className="p-4">
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                      <td className="p-2 lg:p-4 font-mono text-sm">{trans.students?.nis || '-'}</td>
+                      <td className="p-2 lg:p-4 text-sm">{trans.students?.nama || '-'}</td>
+                      <td className="p-2 lg:p-4">
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
                           {trans.students?.classes?.nama_kelas || '-'}
                         </span>
                       </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded-full text-sm ${
+                      <td className="p-2 lg:p-4">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
                           trans.jenis === 'Setor' 
                             ? 'bg-green-100 text-green-800' 
                             : 'bg-red-100 text-red-800'
@@ -278,13 +296,33 @@ const RiwayatHarian = () => {
                           {trans.jenis}
                         </span>
                       </td>
-                      <td className="p-4 text-right font-medium">
+                      <td className="p-2 lg:p-4 text-right font-medium text-sm">
                         Rp {trans.jumlah.toLocaleString('id-ID')}
                       </td>
-                      <td className="p-4 text-right font-medium">
+                      <td className="p-2 lg:p-4 text-right font-medium text-sm">
                         Rp {trans.saldo_setelah.toLocaleString('id-ID')}
                       </td>
-                      <td className="p-4 text-sm text-gray-600">{trans.admin}</td>
+                      <td className="p-2 lg:p-4 text-sm text-gray-600">{trans.admin}</td>
+                      <td className="p-2 lg:p-4">
+                        <div className="flex items-center justify-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditTransaction(trans)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteTransaction(trans)}
+                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -302,6 +340,21 @@ const RiwayatHarian = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Modals */}
+      <EditTransactionModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        transaction={selectedTransaction}
+        onTransactionUpdated={loadDailyData}
+      />
+
+      <DeleteTransactionModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        transaction={selectedTransaction}
+        onTransactionDeleted={loadDailyData}
+      />
     </div>
   );
 };
