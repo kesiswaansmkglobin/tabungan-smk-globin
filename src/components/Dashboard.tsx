@@ -34,27 +34,51 @@ const Dashboard = () => {
     try {
       setIsLoading(true);
       
-      // Get total students with fresh data
-      const { data: students } = await supabase
+      // Get total students with fresh data and force refresh
+      const { data: students, error: studentsError } = await supabase
         .from('students')
-        .select('saldo');
+        .select('saldo')
+        .order('created_at');
+
+      if (studentsError) {
+        console.error('Error loading students:', studentsError);
+      }
 
       // Get today's transactions with fresh data
       const today = new Date().toISOString().split('T')[0];
-      const { data: todayTransactions } = await supabase
+      const { data: todayTransactions, error: transactionsError } = await supabase
         .from('transactions')
         .select('*')
-        .eq('tanggal', today);
+        .eq('tanggal', today)
+        .order('created_at');
+
+      if (transactionsError) {
+        console.error('Error loading today transactions:', transactionsError);
+      }
 
       // Get monthly transaction data for chart with fresh data
-      const { data: monthlyData } = await supabase
+      const { data: monthlyData, error: monthlyError } = await supabase
         .from('transactions')
         .select('tanggal, jenis, jumlah')
-        .gte('tanggal', new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
+        .gte('tanggal', new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0])
+        .order('tanggal');
 
-      // Process data
+      if (monthlyError) {
+        console.error('Error loading monthly data:', monthlyError);
+      }
+
+      // Process data with proper null checking
       const totalSiswa = students?.length || 0;
-      const totalSaldo = students?.reduce((sum, student) => sum + (student.saldo || 0), 0) || 0;
+      
+      // Calculate total balance from actual student records, ensuring we get real numbers
+      let totalSaldo = 0;
+      if (students && students.length > 0) {
+        totalSaldo = students.reduce((sum, student) => {
+          const saldo = Number(student.saldo) || 0;
+          return sum + saldo;
+        }, 0);
+      }
+      
       const transaksiHariIni = todayTransactions?.length || 0;
 
       // Process monthly chart data
@@ -70,21 +94,27 @@ const Dashboard = () => {
       });
 
       // Process transaction data
-      monthlyData?.forEach(transaction => {
-        const month = new Date(transaction.tanggal).getMonth();
-        const monthName = months[month];
-        if (transaction.jenis === 'Setor') {
-          monthlyStats[monthName].setor += transaction.jumlah;
-        } else if (transaction.jenis === 'Tarik') {
-          monthlyStats[monthName].tarik += transaction.jumlah;
-        }
-      });
+      if (monthlyData) {
+        monthlyData.forEach(transaction => {
+          const month = new Date(transaction.tanggal).getMonth();
+          const monthName = months[month];
+          const amount = Number(transaction.jumlah) || 0;
+          
+          if (transaction.jenis === 'Setor') {
+            monthlyStats[monthName].setor += amount;
+          } else if (transaction.jenis === 'Tarik') {
+            monthlyStats[monthName].tarik += amount;
+          }
+        });
+      }
 
       const chartData = months.map(month => ({
         bulan: month,
         setor: monthlyStats[month].setor,
         tarik: monthlyStats[month].tarik
       }));
+
+      console.log('Dashboard stats calculated:', { totalSiswa, totalSaldo, transaksiHariIni });
 
       setStats({
         totalSiswa,

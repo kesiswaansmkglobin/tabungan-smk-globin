@@ -70,9 +70,6 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
             Sistem Tabungan Sekolah
           </CardTitle>
           <p className="text-gray-600">Masuk sebagai Administrator</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Gunakan akun: sarimaya@gmail.com
-          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -86,7 +83,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
-                  placeholder="sarimaya@gmail.com"
+                  placeholder="Masukkan email"
                   required
                 />
               </div>
