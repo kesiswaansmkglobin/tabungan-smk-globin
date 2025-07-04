@@ -1,12 +1,11 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
-import { Calendar, ArrowUpCircle, ArrowDownCircle, RefreshCw, Edit, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Calendar, Edit, Trash2, RefreshCw } from "lucide-react";
+import { useRealtimeData } from "@/hooks/useRealtimeData";
 import EditTransactionModal from "./EditTransactionModal";
 import DeleteTransactionModal from "./DeleteTransactionModal";
 
@@ -18,7 +17,7 @@ interface DailyTransaction {
   saldo_setelah: number;
   admin: string;
   created_at: string;
-  student_id: string; // Menambahkan student_id yang hilang
+  student_id: string;
   students: {
     nis: string;
     nama: string;
@@ -28,80 +27,28 @@ interface DailyTransaction {
   };
 }
 
-interface DailyStats {
-  totalSetor: number;
-  totalTarik: number;
-  jumlahTransaksi: number;
-  netFlow: number;
-}
-
 const RiwayatHarian = () => {
+  const { transactions, refreshData, isLoading } = useRealtimeData();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [transactions, setTransactions] = useState<DailyTransaction[]>([]);
-  const [dailyStats, setDailyStats] = useState<DailyStats>({
-    totalSetor: 0,
-    totalTarik: 0,
-    jumlahTransaksi: 0,
-    netFlow: 0
-  });
-  const [isLoading, setIsLoading] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<DailyTransaction | null>(null);
 
-  useEffect(() => {
-    loadDailyData();
-  }, [selectedDate]);
+  // Filter transactions by selected date
+  const dailyTransactions = transactions.filter(t => t.tanggal === selectedDate);
 
-  const loadDailyData = async () => {
-    try {
-      setIsLoading(true);
-
-      const { data: transactionData, error } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          students (
-            nis,
-            nama,
-            classes (
-              nama_kelas
-            )
-          )
-        `)
-        .eq('tanggal', selectedDate)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const dailyTransactions = transactionData || [];
-      setTransactions(dailyTransactions);
-
-      // Calculate daily stats
-      const stats = dailyTransactions.reduce((acc, trans) => {
-        if (trans.jenis === 'Setor') {
-          acc.totalSetor += trans.jumlah;
-        } else if (trans.jenis === 'Tarik') {
-          acc.totalTarik += trans.jumlah;
-        }
-        acc.jumlahTransaksi++;
-        return acc;
-      }, { totalSetor: 0, totalTarik: 0, jumlahTransaksi: 0, netFlow: 0 });
-
-      stats.netFlow = stats.totalSetor - stats.totalTarik;
-      setDailyStats(stats);
-
-    } catch (error) {
-      console.error('Error loading daily data:', error);
-      toast({
-        title: "Error",
-        description: "Gagal memuat data riwayat harian",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+  // Calculate daily stats
+  const dailyStats = dailyTransactions.reduce((acc, trans) => {
+    if (trans.jenis === 'Setor') {
+      acc.totalSetor += trans.jumlah;
+    } else if (trans.jenis === 'Tarik') {
+      acc.totalTarik += trans.jumlah;
     }
-  };
+    acc.jumlahTransaksi++;
+    return acc;
+  }, { totalSetor: 0, totalTarik: 0, jumlahTransaksi: 0, netFlow: 0 });
+
+  dailyStats.netFlow = dailyStats.totalSetor - dailyStats.totalTarik;
 
   const handleEditTransaction = (transaction: DailyTransaction) => {
     setSelectedTransaction(transaction);
@@ -143,7 +90,7 @@ const RiwayatHarian = () => {
           </div>
         </div>
 
-        <Button onClick={loadDailyData} disabled={isLoading}>
+        <Button onClick={refreshData} disabled={isLoading}>
           <RefreshCw className="h-4 w-4 mr-2" />
           {isLoading ? "Memuat..." : "Refresh"}
         </Button>
@@ -193,7 +140,6 @@ const RiwayatHarian = () => {
                   Rp {dailyStats.totalSetor.toLocaleString('id-ID')}
                 </p>
               </div>
-              <ArrowUpCircle className="h-8 w-8 lg:h-12 lg:w-12 text-green-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
@@ -207,7 +153,6 @@ const RiwayatHarian = () => {
                   Rp {dailyStats.totalTarik.toLocaleString('id-ID')}
                 </p>
               </div>
-              <ArrowDownCircle className="h-8 w-8 lg:h-12 lg:w-12 text-red-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
@@ -221,7 +166,6 @@ const RiwayatHarian = () => {
                   Rp {dailyStats.netFlow.toLocaleString('id-ID')}
                 </p>
               </div>
-              <Calendar className="h-8 w-8 lg:h-12 lg:w-12 text-blue-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
@@ -233,7 +177,6 @@ const RiwayatHarian = () => {
                 <p className="text-sm font-medium text-gray-600">Total Transaksi</p>
                 <p className="text-lg lg:text-2xl font-bold text-blue-600">{dailyStats.jumlahTransaksi}</p>
               </div>
-              <Calendar className="h-8 w-8 lg:h-12 lg:w-12 text-blue-500 opacity-20" />
             </div>
           </CardContent>
         </Card>
@@ -273,7 +216,7 @@ const RiwayatHarian = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((trans) => (
+                  {dailyTransactions.map((trans) => (
                     <tr key={trans.id} className="border-b hover:bg-gray-50">
                       <td className="p-2 lg:p-4 text-sm">
                         {new Date(trans.created_at).toLocaleTimeString('id-ID', {
@@ -329,7 +272,7 @@ const RiwayatHarian = () => {
                 </tbody>
               </table>
 
-              {transactions.length === 0 && (
+              {dailyTransactions.length === 0 && (
                 <div className="text-center py-12">
                   <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">
@@ -347,14 +290,14 @@ const RiwayatHarian = () => {
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         transaction={selectedTransaction}
-        onTransactionUpdated={loadDailyData}
+        onTransactionUpdated={refreshData}
       />
 
       <DeleteTransactionModal
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
         transaction={selectedTransaction}
-        onTransactionDeleted={loadDailyData}
+        onTransactionDeleted={refreshData}
       />
     </div>
   );
