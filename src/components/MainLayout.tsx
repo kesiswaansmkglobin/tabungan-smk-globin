@@ -10,6 +10,9 @@ import Transaksi from "@/components/Transaksi";
 import Laporan from "@/components/Laporan";
 import RiwayatHarian from "@/components/RiwayatHarian";
 import Pengaturan from "@/components/Pengaturan";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Menu } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface MainLayoutProps {
   onLogout: () => void;
@@ -49,9 +52,30 @@ const MainLayout = ({ onLogout }: MainLayoutProps) => {
           setActiveTab={setActiveTab}
           onLogout={onLogout}
         />
-        <main className="flex-1 p-6">
-          {renderContent()}
-        </main>
+        <div className="flex-1 flex flex-col">
+          {/* Mobile Header with Sidebar Trigger */}
+          <header className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <SidebarTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </SidebarTrigger>
+              <div className="flex items-center space-x-2">
+                <img 
+                  src="/lovable-uploads/70e205f3-a154-4080-aafb-efcf72ea7c09.png" 
+                  alt="Logo SMK Globin" 
+                  className="h-6 w-6 object-contain"
+                />
+                <h1 className="font-bold text-gray-900 text-sm">SMK Globin</h1>
+              </div>
+            </div>
+          </header>
+          
+          <main className="flex-1 p-4 md:p-6">
+            {renderContent()}
+          </main>
+        </div>
       </div>
     </SidebarProvider>
   );

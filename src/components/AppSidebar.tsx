@@ -21,7 +21,6 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProps) {
-  const { state } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
 
   const handleLogout = () => {
@@ -56,6 +55,12 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
       description: "Anda telah keluar dari sistem",
     });
     onLogout();
+  };
+
+  const handleMenuClick = (key: string) => {
+    setActiveTab(key);
+    // Close mobile sidebar after selection
+    setOpenMobile(false);
   };
 
   const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
@@ -79,7 +84,6 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
               </div>
             )}
           </div>
-          <SidebarTrigger className="ml-auto" />
         </div>
       </SidebarHeader>
 
@@ -91,7 +95,7 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton 
-                    onClick={() => setActiveTab(item.key)}
+                    onClick={() => handleMenuClick(item.key)}
                     className={activeTab === item.key ? "bg-blue-100 text-blue-700 font-medium" : "hover:bg-gray-100"}
                     tooltip={isCollapsed ? item.title : undefined}
                   >
