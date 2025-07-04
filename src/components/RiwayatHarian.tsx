@@ -9,30 +9,12 @@ import { useRealtimeData } from "@/hooks/useRealtimeData";
 import EditTransactionModal from "./EditTransactionModal";
 import DeleteTransactionModal from "./DeleteTransactionModal";
 
-interface DailyTransaction {
-  id: string;
-  tanggal: string;
-  jenis: string;
-  jumlah: number;
-  saldo_setelah: number;
-  admin: string;
-  created_at: string;
-  student_id: string;
-  students?: {
-    nis: string;
-    nama: string;
-    classes: {
-      nama_kelas: string;
-    };
-  };
-}
-
 const RiwayatHarian = () => {
   const { transactions, refreshData, isLoading } = useRealtimeData();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [selectedTransaction, setSelectedTransaction] = useState<DailyTransaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
 
   // Filter transactions by selected date
   const dailyTransactions = transactions.filter(t => t.tanggal === selectedDate);
@@ -50,12 +32,12 @@ const RiwayatHarian = () => {
 
   dailyStats.netFlow = dailyStats.totalSetor - dailyStats.totalTarik;
 
-  const handleEditTransaction = (transaction: DailyTransaction) => {
+  const handleEditTransaction = (transaction: any) => {
     setSelectedTransaction(transaction);
     setEditModalOpen(true);
   };
 
-  const handleDeleteTransaction = (transaction: DailyTransaction) => {
+  const handleDeleteTransaction = (transaction: any) => {
     setSelectedTransaction(transaction);
     setDeleteModalOpen(true);
   };
@@ -252,7 +234,7 @@ const RiwayatHarian = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleEditTransaction(trans as DailyTransaction)}
+                            onClick={() => handleEditTransaction(trans)}
                             className="h-8 w-8 p-0"
                           >
                             <Edit className="h-4 w-4" />
@@ -260,7 +242,7 @@ const RiwayatHarian = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteTransaction(trans as DailyTransaction)}
+                            onClick={() => handleDeleteTransaction(trans)}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
