@@ -18,7 +18,7 @@ interface DailyTransaction {
   admin: string;
   created_at: string;
   student_id: string;
-  students: {
+  students?: {
     nis: string;
     nama: string;
     classes: {
@@ -252,7 +252,7 @@ const RiwayatHarian = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleEditTransaction(trans)}
+                            onClick={() => handleEditTransaction(trans as DailyTransaction)}
                             className="h-8 w-8 p-0"
                           >
                             <Edit className="h-4 w-4" />
@@ -260,7 +260,7 @@ const RiwayatHarian = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDeleteTransaction(trans)}
+                            onClick={() => handleDeleteTransaction(trans as DailyTransaction)}
                             className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                           >
                             <Trash2 className="h-4 w-4" />
