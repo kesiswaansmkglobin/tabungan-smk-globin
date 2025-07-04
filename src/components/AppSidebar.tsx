@@ -1,7 +1,6 @@
 
 import { 
   LayoutDashboard, 
-  School, 
   Users, 
   GraduationCap, 
   CreditCard, 
@@ -30,7 +29,7 @@ import { toast } from "@/hooks/use-toast";
 
 const menuItems = [
   { title: "Dashboard", key: "dashboard", icon: LayoutDashboard },
-  { title: "Data Sekolah", key: "data-sekolah", icon: School },
+  { title: "Data Sekolah", key: "data-sekolah", icon: Users },
   { title: "Data Kelas", key: "data-kelas", icon: Users },
   { title: "Data Siswa", key: "data-siswa", icon: GraduationCap },
   { title: "Transaksi", key: "transaksi", icon: CreditCard },
@@ -66,12 +65,16 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
       <SidebarHeader className="border-b border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-              <School className="h-6 w-6 text-white" />
+            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+              <img 
+                src="/lovable-uploads/70e205f3-a154-4080-aafb-efcf72ea7c09.png" 
+                alt="Logo SMK Globin" 
+                className="h-8 w-8 object-contain"
+              />
             </div>
             {!isCollapsed && (
               <div>
-                <h2 className="font-bold text-gray-900">Tabungan Sekolah</h2>
+                <h2 className="font-bold text-gray-900">SMK Globin</h2>
                 <p className="text-sm text-gray-600">Admin Panel</p>
               </div>
             )}

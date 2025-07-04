@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { School, Lock, User } from "lucide-react";
+import { Lock, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface LoginFormProps {
@@ -41,7 +41,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
         localStorage.setItem("adminToken", "authenticated");
         toast({
           title: "Login Berhasil",
-          description: "Selamat datang di Sistem Tabungan Sekolah",
+          description: "Selamat datang di Sistem Tabungan SMK Globin",
         });
         onLogin();
       }
@@ -62,12 +62,16 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-gradient-to-r from-blue-600 to-green-600 rounded-full">
-              <School className="h-8 w-8 text-white" />
+            <div className="p-3 bg-white rounded-full shadow-lg">
+              <img 
+                src="/lovable-uploads/70e205f3-a154-4080-aafb-efcf72ea7c09.png" 
+                alt="Logo SMK Globin" 
+                className="h-16 w-16 object-contain"
+              />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-gray-900">
-            Sistem Tabungan Sekolah
+            Tabungan SMK Globin
           </CardTitle>
           <p className="text-gray-600">Masuk sebagai Administrator</p>
         </CardHeader>
