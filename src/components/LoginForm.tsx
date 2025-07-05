@@ -22,6 +22,8 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
     setIsLoading(true);
 
     try {
+      console.log('Attempting login with email:', email);
+      
       // Login menggunakan Supabase Authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
@@ -29,6 +31,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
       });
 
       if (error) {
+        console.error('Login error:', error);
         toast({
           title: "Login Gagal",
           description: error.message,
@@ -38,11 +41,19 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
       }
 
       if (data.user) {
+        console.log('Login successful, user:', data.user.email);
         localStorage.setItem("adminToken", "authenticated");
+        localStorage.setItem("adminUser", JSON.stringify({
+          name: data.user.email,
+          email: data.user.email
+        }));
+        
         toast({
           title: "Login Berhasil",
           description: "Selamat datang di Sistem Tabungan SMK Globin",
         });
+        
+        // Call onLogin callback
         onLogin();
       }
     } catch (error) {

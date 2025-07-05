@@ -12,7 +12,6 @@ import RiwayatHarian from "@/components/RiwayatHarian";
 import Pengaturan from "@/components/Pengaturan";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface MainLayoutProps {
   onLogout: () => void;
@@ -56,10 +55,8 @@ const MainLayout = ({ onLogout }: MainLayoutProps) => {
           {/* Mobile Header with Sidebar Trigger */}
           <header className="md:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <SidebarTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Menu className="h-4 w-4" />
-                </Button>
+              <SidebarTrigger className="h-8 w-8 p-0 hover:bg-gray-100 border-none bg-transparent">
+                <Menu className="h-4 w-4" />
               </SidebarTrigger>
               <div className="flex items-center space-x-2">
                 <img 

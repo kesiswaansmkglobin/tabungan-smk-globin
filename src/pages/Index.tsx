@@ -16,6 +16,8 @@ const Index = () => {
         const { data: { session } } = await supabase.auth.getSession();
         const adminToken = localStorage.getItem("adminToken");
         
+        console.log('Auth check - Session:', !!session, 'AdminToken:', !!adminToken);
+        
         setIsLoggedIn(!!(session || adminToken));
       } catch (error) {
         console.error('Auth check error:', error);
@@ -30,11 +32,17 @@ const Index = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state change:', event, !!session);
         if (event === 'SIGNED_IN' && session) {
           localStorage.setItem("adminToken", "authenticated");
+          localStorage.setItem("adminUser", JSON.stringify({
+            name: session.user.email,
+            email: session.user.email
+          }));
           setIsLoggedIn(true);
         } else if (event === 'SIGNED_OUT') {
           localStorage.removeItem("adminToken");
+          localStorage.removeItem("adminUser");
           setIsLoggedIn(false);
         }
       }
@@ -43,14 +51,21 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const handleLogin = () => {
+    console.log('Login handler called');
+    setIsLoggedIn(true);
+  };
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
       localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
       setIsLoggedIn(false);
     } catch (error) {
       console.error('Logout error:', error);
       localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
       setIsLoggedIn(false);
     }
   };
@@ -66,8 +81,10 @@ const Index = () => {
     );
   }
 
+  console.log('Current login state:', isLoggedIn);
+
   if (!isLoggedIn) {
-    return <LoginForm onLogin={() => setIsLoggedIn(true)} />;
+    return <LoginForm onLogin={handleLogin} />;
   }
 
   return <MainLayout onLogout={handleLogout} />;
