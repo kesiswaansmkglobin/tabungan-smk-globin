@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +37,7 @@ const TransactionForm = ({ students, onTransactionComplete }: TransactionFormPro
   const [selectedSiswa, setSelectedSiswa] = useState("");
   const [jenisTransaksi, setJenisTransaksi] = useState<"Setor" | "Tarik">("Setor");
   const [jumlahUang, setJumlahUang] = useState("");
+  const [keterangan, setKeterangan] = useState("");
   const [tanggalTransaksi, setTanggalTransaksi] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -79,7 +80,7 @@ const TransactionForm = ({ students, onTransactionComplete }: TransactionFormPro
     if (!selectedKelas || !selectedSiswa || !jumlahUang || !tanggalTransaksi) {
       toast({
         title: "Error",
-        description: "Semua field harus diisi",
+        description: "Semua field harus diisi kecuali keterangan",
         variant: "destructive",
       });
       return;
@@ -136,6 +137,7 @@ const TransactionForm = ({ students, onTransactionComplete }: TransactionFormPro
           jumlah: jumlah,
           saldo_setelah: newSaldo,
           tanggal: tanggalTransaksi,
+          keterangan: keterangan || null,
           admin: 'Administrator'
         }]);
 
@@ -150,6 +152,7 @@ const TransactionForm = ({ students, onTransactionComplete }: TransactionFormPro
       setSelectedKelas("");
       setSelectedSiswa("");
       setJumlahUang("");
+      setKeterangan("");
       setTanggalTransaksi(new Date().toISOString().split('T')[0]);
       setJenisTransaksi("Setor");
 
@@ -253,7 +256,22 @@ const TransactionForm = ({ students, onTransactionComplete }: TransactionFormPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tanggal">5. Tanggal Transaksi *</Label>
+            <Label htmlFor="keterangan">5. Keterangan</Label>
+            <Textarea
+              id="keterangan"
+              value={keterangan}
+              onChange={(e) => setKeterangan(e.target.value)}
+              placeholder="Contoh: Uang saku, Bayar buku, Jajan kantin, dll..."
+              className="resize-none"
+              rows={3}
+            />
+            <p className="text-sm text-gray-500">
+              Keterangan opsional untuk menjelaskan tujuan transaksi
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tanggal">6. Tanggal Transaksi *</Label>
             <Input
               id="tanggal"
               type="date"

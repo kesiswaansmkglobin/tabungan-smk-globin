@@ -114,6 +114,7 @@ export type Database = {
           id: string
           jenis: string
           jumlah: number
+          keterangan: string | null
           saldo_setelah: number
           student_id: string
           tanggal: string
@@ -124,6 +125,7 @@ export type Database = {
           id?: string
           jenis: string
           jumlah: number
+          keterangan?: string | null
           saldo_setelah: number
           student_id: string
           tanggal?: string
@@ -134,6 +136,7 @@ export type Database = {
           id?: string
           jenis?: string
           jumlah?: number
+          keterangan?: string | null
           saldo_setelah?: number
           student_id?: string
           tanggal?: string
