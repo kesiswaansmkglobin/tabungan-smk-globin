@@ -9,8 +9,6 @@ import TodayStats from "./transaksi/TodayStats";
 const Transaksi = () => {
   const { students, refreshData } = useRealtimeData();
   const [selectedSiswa, setSelectedSiswa] = useState("");
-  const [jenisTransaksi, setJenisTransaksi] = useState<"Setor" | "Tarik">("Setor");
-  const [jumlahUang, setJumlahUang] = useState("");
 
   const getCurrentSiswa = () => {
     return students.find(siswa => siswa.id === selectedSiswa);
@@ -42,8 +40,8 @@ const Transaksi = () => {
         <div>
           <StudentInfo 
             student={getCurrentSiswa() || null}
-            jenisTransaksi={jenisTransaksi}
-            jumlahUang={jumlahUang}
+            jenisTransaksi="Setor"
+            jumlahUang=""
           />
           
           <div className="mt-6">

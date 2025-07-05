@@ -48,22 +48,40 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
   const isCollapsed = state === "collapsed";
 
   const handleLogout = () => {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminUser");
-    toast({
-      title: "Logout Berhasil",
-      description: "Anda telah keluar dari sistem",
-    });
-    onLogout();
+    try {
+      localStorage.removeItem("adminToken");
+      localStorage.removeItem("adminUser");
+      toast({
+        title: "Logout Berhasil",
+        description: "Anda telah keluar dari sistem",
+      });
+      onLogout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still proceed with logout even if there's an error
+      onLogout();
+    }
   };
 
   const handleMenuClick = (key: string) => {
     setActiveTab(key);
     // Close mobile sidebar after selection
-    setOpenMobile(false);
+    if (setOpenMobile) {
+      setOpenMobile(false);
+    }
   };
 
-  const adminUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
+  const getAdminUser = () => {
+    try {
+      const adminUserData = localStorage.getItem("adminUser");
+      return adminUserData ? JSON.parse(adminUserData) : {};
+    } catch (error) {
+      console.error('Error parsing admin user data:', error);
+      return {};
+    }
+  };
+
+  const adminUser = getAdminUser();
 
   return (
     <Sidebar className="border-r border-gray-200" collapsible="icon">

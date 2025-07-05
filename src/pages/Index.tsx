@@ -1,6 +1,5 @@
 
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
 import LoginForm from "@/components/LoginForm";
 import MainLayout from "@/components/MainLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,6 +56,7 @@ const Index = () => {
   };
 
   const handleLogout = async () => {
+    setIsLoading(true);
     try {
       await supabase.auth.signOut();
       localStorage.removeItem("adminToken");
@@ -64,9 +64,12 @@ const Index = () => {
       setIsLoggedIn(false);
     } catch (error) {
       console.error('Logout error:', error);
+      // Still proceed with logout even if Supabase fails
       localStorage.removeItem("adminToken");
       localStorage.removeItem("adminUser");
       setIsLoggedIn(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
