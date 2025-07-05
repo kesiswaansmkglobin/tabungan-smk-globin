@@ -1,12 +1,12 @@
 
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import { useRealtimeData } from "@/hooks/useRealtimeData";
+import { useOptimizedRealtimeData } from "@/hooks/useOptimizedRealtimeData";
 import DashboardStats from "./dashboard/DashboardStats";
 import MonthlyChart from "./dashboard/MonthlyChart";
 
 const Dashboard = () => {
-  const { dashboardStats, isLoading, refreshData } = useRealtimeData();
+  const { dashboardStats, isLoading, refreshData } = useOptimizedRealtimeData();
 
   if (isLoading) {
     return (

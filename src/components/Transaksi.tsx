@@ -1,13 +1,13 @@
 
 import { useState } from "react";
 import { CreditCard } from "lucide-react";
-import { useRealtimeData } from "@/hooks/useRealtimeData";
+import { useOptimizedRealtimeData } from "@/hooks/useOptimizedRealtimeData";
 import TransactionForm from "./transaksi/TransactionForm";
 import StudentInfo from "./transaksi/StudentInfo";
 import TodayStats from "./transaksi/TodayStats";
 
 const Transaksi = () => {
-  const { students, refreshData } = useRealtimeData();
+  const { students, refreshData } = useOptimizedRealtimeData();
   const [selectedSiswa, setSelectedSiswa] = useState("");
 
   const getCurrentSiswa = () => {
