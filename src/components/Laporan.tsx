@@ -40,7 +40,9 @@ const Laporan = () => {
   const [dateTo, setDateTo] = useState("");
   const [jenisFilter, setJenisFilter] = useState("all");
   const [kelasFilter, setKelasFilter] = useState("all");
+  const [siswaFilter, setSiswaFilter] = useState("all");
   const [kelasList, setKelasList] = useState<Array<{id: string, nama_kelas: string}>>([]);
+  const [siswaList, setSiswaList] = useState<Array<{id: string, nis: string, nama: string}>>([]);
   const [reportStats, setReportStats] = useState<ReportStats>({
     totalSetor: 0,
     totalTarik: 0,
@@ -54,7 +56,7 @@ const Laporan = () => {
 
   useEffect(() => {
     applyFilters();
-  }, [transactions, dateFrom, dateTo, jenisFilter, kelasFilter]);
+  }, [transactions, dateFrom, dateTo, jenisFilter, kelasFilter, siswaFilter]);
 
   const loadData = async () => {
     try {
@@ -68,6 +70,15 @@ const Laporan = () => {
 
       if (classesError) throw classesError;
       setKelasList(classes || []);
+
+      // Load students
+      const { data: students, error: studentsError } = await supabase
+        .from('students')
+        .select('id, nis, nama')
+        .order('nama');
+
+      if (studentsError) throw studentsError;
+      setSiswaList(students || []);
 
       // Load transactions with student and class info
       const { data: transactionData, error: transactionsError } = await supabase
@@ -120,6 +131,11 @@ const Laporan = () => {
       filtered = filtered.filter(t => t.students?.classes?.nama_kelas === kelasFilter);
     }
 
+    // Filter by student
+    if (siswaFilter && siswaFilter !== "all") {
+      filtered = filtered.filter(t => t.students?.nis === siswaFilter);
+    }
+
     setFilteredTransactions(filtered);
 
     // Calculate stats
@@ -142,6 +158,7 @@ const Laporan = () => {
     setDateTo("");
     setJenisFilter("all");
     setKelasFilter("all");
+    setSiswaFilter("all");
   };
 
   const exportToExcel = () => {
@@ -250,6 +267,24 @@ const Laporan = () => {
                   {kelasList.map((kelas) => (
                     <SelectItem key={kelas.id} value={kelas.nama_kelas}>
                       {kelas.nama_kelas}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="siswaFilter">Pilih Siswa</Label>
+              <Select value={siswaFilter} onValueChange={setSiswaFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Semua siswa" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Siswa</SelectItem>
+                  {siswaList.map((siswa) => (
+                    <SelectItem key={siswa.id} value={siswa.nis}>
+                      {siswa.nis} - {siswa.nama}
                     </SelectItem>
                   ))}
                 </SelectContent>
