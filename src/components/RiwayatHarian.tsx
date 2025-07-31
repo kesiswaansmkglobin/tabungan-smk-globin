@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, Edit, Trash2, RefreshCw } from "lucide-react";
+import { Calendar, Edit, Trash2, RefreshCw, Download } from "lucide-react";
 import { useRealtimeData } from "@/hooks/useRealtimeData";
 import EditTransactionModal from "./EditTransactionModal";
 import DeleteTransactionModal from "./DeleteTransactionModal";
@@ -61,6 +61,40 @@ const RiwayatHarian = () => {
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
   const isFutureDate = new Date(selectedDate) > new Date();
 
+  const downloadCSV = () => {
+    const headers = ['Waktu', 'NIS', 'Nama', 'Kelas', 'Jenis', 'Jumlah', 'Saldo Setelah', 'Admin', 'Keterangan'];
+    
+    const csvData = dailyTransactions.map(trans => [
+      new Date(trans.created_at).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      trans.students?.nis || '-',
+      trans.students?.nama || '-',
+      trans.students?.classes?.nama_kelas || '-',
+      trans.jenis,
+      trans.jumlah,
+      trans.saldo_setelah,
+      trans.admin,
+      (trans as any).keterangan || '-'
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `riwayat-harian-${selectedDate}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -72,10 +106,20 @@ const RiwayatHarian = () => {
           </div>
         </div>
 
-        <Button onClick={refreshData} disabled={isLoading}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          {isLoading ? "Memuat..." : "Refresh"}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={downloadCSV} 
+            disabled={dailyTransactions.length === 0}
+            variant="outline"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Unduh CSV
+          </Button>
+          <Button onClick={refreshData} disabled={isLoading}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            {isLoading ? "Memuat..." : "Refresh"}
+          </Button>
+        </div>
       </div>
 
       {/* Date Navigation */}
