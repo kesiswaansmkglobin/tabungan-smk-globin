@@ -9,6 +9,8 @@ import TodayStats from "./transaksi/TodayStats";
 const Transaksi = () => {
   const { students, refreshData } = useOptimizedRealtimeData();
   const [selectedSiswa, setSelectedSiswa] = useState("");
+  const [jenisTransaksiPreview, setJenisTransaksiPreview] = useState<"Setor" | "Tarik">("Setor");
+  const [jumlahUangPreview, setJumlahUangPreview] = useState("");
 
   const getCurrentSiswa = () => {
     return students.find(siswa => siswa.id === selectedSiswa);
@@ -34,14 +36,19 @@ const Transaksi = () => {
           <TransactionForm 
             students={students} 
             onTransactionComplete={handleTransactionComplete}
+            onPreviewChange={({ selectedSiswaId, jenisTransaksi, jumlahUang }) => {
+              setSelectedSiswa(selectedSiswaId);
+              setJenisTransaksiPreview(jenisTransaksi);
+              setJumlahUangPreview(jumlahUang);
+            }}
           />
         </div>
 
         <div>
           <StudentInfo 
             student={getCurrentSiswa() || null}
-            jenisTransaksi="Setor"
-            jumlahUang=""
+            jenisTransaksi={jenisTransaksiPreview}
+            jumlahUang={jumlahUangPreview}
           />
           
           <div className="mt-6">

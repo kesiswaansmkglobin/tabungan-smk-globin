@@ -1,4 +1,4 @@
-
+import { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
@@ -18,9 +18,10 @@ interface Siswa {
 interface TransactionFormProps {
   students: Siswa[];
   onTransactionComplete: () => void;
+  onPreviewChange?: (state: { selectedSiswaId: string; jenisTransaksi: "Setor" | "Tarik"; jumlahUang: string }) => void;
 }
 
-const TransactionForm = ({ students, onTransactionComplete }: TransactionFormProps) => {
+const TransactionForm = ({ students, onTransactionComplete, onPreviewChange }: TransactionFormProps) => {
   const {
     kelasList,
     filteredSiswa,
@@ -39,6 +40,10 @@ const TransactionForm = ({ students, onTransactionComplete }: TransactionFormPro
     isLoading,
     processTransaction
   } = useTransactionForm({ students, onTransactionComplete });
+
+  useEffect(() => {
+    onPreviewChange?.({ selectedSiswaId: selectedSiswa, jenisTransaksi, jumlahUang });
+  }, [selectedSiswa, jenisTransaksi, jumlahUang, onPreviewChange]);
 
   const handleSubmitTransaksi = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload } from "lucide-react";
+import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,8 @@ const DataSiswa = () => {
   const [formData, setFormData] = useState({ nis: "", nama: "", kelas_id: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [sortBy, setSortBy] = useState<'nis' | 'nama' | 'kelas' | 'saldo'>('nama');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const itemsPerPage = 10;
 
@@ -343,6 +345,11 @@ const DataSiswa = () => {
       });
     }
   };
+  const handleSort = (column: 'nis' | 'nama' | 'kelas' | 'saldo') => {
+    setSortOrder(prev => (sortBy === column ? (prev === 'asc' ? 'desc' : 'asc') : 'asc'));
+    setSortBy(column);
+    setCurrentPage(1);
+  };
 
   const filteredSiswa = siswaList.filter(siswa => {
     const matchesSearch = siswa.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -350,9 +357,32 @@ const DataSiswa = () => {
     const matchesKelas = filterKelas === "all" || siswa.kelas_id === filterKelas;
     return matchesSearch && matchesKelas;
   });
+  const sortedSiswa = [...filteredSiswa].sort((a, b) => {
+    let aVal: any;
+    let bVal: any;
+    switch (sortBy) {
+      case 'nis':
+        aVal = a.nis; bVal = b.nis; break;
+      case 'nama':
+        aVal = a.nama; bVal = b.nama; break;
+      case 'kelas':
+        aVal = a.kelas_nama || ''; bVal = b.kelas_nama || ''; break;
+      case 'saldo':
+        aVal = a.saldo; bVal = b.saldo; break;
+    }
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      const cmp = aVal.localeCompare(bVal, 'id', { sensitivity: 'base' });
+      return sortOrder === 'asc' ? cmp : -cmp;
+    }
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+    const cmp = String(aVal).localeCompare(String(bVal));
+    return sortOrder === 'asc' ? cmp : -cmp;
+  });
 
-  const totalPages = Math.ceil(filteredSiswa.length / itemsPerPage);
-  const paginatedSiswa = filteredSiswa.slice(
+  const totalPages = Math.ceil(sortedSiswa.length / itemsPerPage);
+  const paginatedSiswa = sortedSiswa.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -544,10 +574,30 @@ const DataSiswa = () => {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left p-4 font-medium">NIS</th>
-                  <th className="text-left p-4 font-medium">Nama</th>
-                  <th className="text-left p-4 font-medium">Kelas</th>
-                  <th className="text-right p-4 font-medium">Saldo</th>
+                  <th className="text-left p-4 font-medium">
+                    <button className="inline-flex items-center gap-1" onClick={() => handleSort('nis')}>
+                      NIS
+                      <ArrowUpDown className="h-4 w-4 opacity-60" />
+                    </button>
+                  </th>
+                  <th className="text-left p-4 font-medium">
+                    <button className="inline-flex items-center gap-1" onClick={() => handleSort('nama')}>
+                      Nama
+                      <ArrowUpDown className="h-4 w-4 opacity-60" />
+                    </button>
+                  </th>
+                  <th className="text-left p-4 font-medium">
+                    <button className="inline-flex items-center gap-1" onClick={() => handleSort('kelas')}>
+                      Kelas
+                      <ArrowUpDown className="h-4 w-4 opacity-60" />
+                    </button>
+                  </th>
+                  <th className="text-right p-4 font-medium">
+                    <button className="inline-flex items-center gap-1 justify-end w-full" onClick={() => handleSort('saldo')}>
+                      Saldo
+                      <ArrowUpDown className="h-4 w-4 opacity-60" />
+                    </button>
+                  </th>
                   <th className="text-center p-4 font-medium">Aksi</th>
                 </tr>
               </thead>

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, Edit, Trash2, RefreshCw, Download } from "lucide-react";
+import { Calendar, Edit, Trash2, RefreshCw, Download, Search } from "lucide-react";
 import { useRealtimeData } from "@/hooks/useRealtimeData";
 import EditTransactionModal from "./EditTransactionModal";
 import DeleteTransactionModal from "./DeleteTransactionModal";
@@ -15,9 +15,17 @@ const RiwayatHarian = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Filter transactions by selected date
   const dailyTransactions = transactions.filter(t => t.tanggal === selectedDate);
+  const filteredTransactions = dailyTransactions.filter((t) => {
+    const q = searchTerm.toLowerCase();
+    const name = t.students?.nama?.toLowerCase() || "";
+    const nis = t.students?.nis || "";
+    const kelas = t.students?.classes?.nama_kelas?.toLowerCase() || "";
+    return name.includes(q) || nis.includes(searchTerm) || kelas.includes(q);
+  });
 
   // Calculate daily stats
   const dailyStats = dailyTransactions.reduce((acc, trans) => {
@@ -63,8 +71,8 @@ const RiwayatHarian = () => {
 
   const downloadCSV = () => {
     const headers = ['Waktu', 'NIS', 'Nama', 'Kelas', 'Jenis', 'Jumlah', 'Saldo Setelah', 'Admin', 'Keterangan'];
-    
-    const csvData = dailyTransactions.map(trans => [
+    const source = filteredTransactions;
+    const csvData = source.map(trans => [
       new Date(trans.created_at).toLocaleTimeString('id-ID', {
         hour: '2-digit',
         minute: '2-digit'
@@ -106,10 +114,19 @@ const RiwayatHarian = () => {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Cari NIS atau Nama..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-56"
+            />
+          </div>
           <Button 
             onClick={downloadCSV} 
-            disabled={dailyTransactions.length === 0}
+            disabled={filteredTransactions.length === 0}
             variant="outline"
           >
             <Download className="h-4 w-4 mr-2" />
@@ -242,7 +259,7 @@ const RiwayatHarian = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {dailyTransactions.map((trans) => (
+                  {filteredTransactions.map((trans) => (
                     <tr key={trans.id} className="border-b hover:bg-gray-50">
                       <td className="p-2 lg:p-4 text-sm">
                         {new Date(trans.created_at).toLocaleTimeString('id-ID', {
@@ -298,11 +315,11 @@ const RiwayatHarian = () => {
                 </tbody>
               </table>
 
-              {dailyTransactions.length === 0 && (
+              {filteredTransactions.length === 0 && (
                 <div className="text-center py-12">
                   <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">
-                    Tidak ada transaksi pada tanggal {new Date(selectedDate).toLocaleDateString('id-ID')}
+                    Tidak ada transaksi yang cocok pada tanggal {new Date(selectedDate).toLocaleDateString('id-ID')}
                   </p>
                 </div>
               )}
