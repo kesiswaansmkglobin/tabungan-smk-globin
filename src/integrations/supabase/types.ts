@@ -123,6 +123,7 @@ export type Database = {
           saldo_setelah: number
           student_id: string
           tanggal: string
+          updated_at: string
         }
         Insert: {
           admin?: string
@@ -134,6 +135,7 @@ export type Database = {
           saldo_setelah: number
           student_id: string
           tanggal?: string
+          updated_at?: string
         }
         Update: {
           admin?: string
@@ -145,6 +147,7 @@ export type Database = {
           saldo_setelah?: number
           student_id?: string
           tanggal?: string
+          updated_at?: string
         }
         Relationships: [
           {
