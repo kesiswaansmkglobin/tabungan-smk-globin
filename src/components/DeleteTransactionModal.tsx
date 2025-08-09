@@ -38,44 +38,55 @@ const DeleteTransactionModal = ({ isOpen, onClose, transaction, onTransactionDel
 
     setIsLoading(true);
     try {
-      // Get current student data
+      // Fetch current student balance
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .select('saldo')
         .eq('id', transaction.student_id)
         .single();
-
       if (studentError) throw studentError;
 
-      // Calculate new balance after removing this transaction
-      let newSaldo = studentData.saldo;
-      if (transaction.jenis === 'Setor') {
-        // If it was a deposit, subtract the amount
-        newSaldo = studentData.saldo - transaction.jumlah;
-      } else if (transaction.jenis === 'Tarik') {
-        // If it was a withdrawal, add the amount back
-        newSaldo = studentData.saldo + transaction.jumlah;
+      // Determine the effect of the transaction to remove and delta to apply
+      const effect = transaction.jenis === 'Setor' ? transaction.jumlah : -transaction.jumlah;
+      const delta = -effect; // removing the transaction shifts all subsequent saldo_setelah by -effect
+
+      // 1) Shift saldo_setelah for all subsequent transactions of the same student
+      const { data: subsequentTx, error: subsequentError } = await supabase
+        .from('transactions')
+        .select('id, saldo_setelah, created_at')
+        .eq('student_id', transaction.student_id)
+        .gt('created_at', transaction.created_at)
+        .order('created_at', { ascending: true });
+      if (subsequentError) throw subsequentError;
+
+      if (subsequentTx && subsequentTx.length > 0 && delta !== 0) {
+        await Promise.all(
+          subsequentTx.map((t) =>
+            supabase
+              .from('transactions')
+              .update({ saldo_setelah: t.saldo_setelah + delta })
+              .eq('id', t.id)
+          )
+        );
       }
 
-      // Update student balance first
+      // 2) Update student balance
       const { error: updateError } = await supabase
         .from('students')
-        .update({ saldo: newSaldo })
+        .update({ saldo: studentData.saldo + delta })
         .eq('id', transaction.student_id);
-
       if (updateError) throw updateError;
 
-      // Delete the transaction
+      // 3) Delete the transaction
       const { error: deleteError } = await supabase
         .from('transactions')
         .delete()
         .eq('id', transaction.id);
-
       if (deleteError) throw deleteError;
 
       toast({
-        title: "Berhasil",
-        description: "Transaksi berhasil dihapus dan saldo siswa telah diperbarui",
+        title: 'Berhasil',
+        description: 'Transaksi berhasil dihapus dan saldo serta riwayat telah disesuaikan',
       });
 
       onTransactionDeleted();
@@ -83,9 +94,9 @@ const DeleteTransactionModal = ({ isOpen, onClose, transaction, onTransactionDel
     } catch (error) {
       console.error('Error deleting transaction:', error);
       toast({
-        title: "Error",
-        description: "Gagal menghapus transaksi",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Gagal menghapus transaksi',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);

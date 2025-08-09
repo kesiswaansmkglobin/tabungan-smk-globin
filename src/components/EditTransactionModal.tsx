@@ -57,65 +57,73 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, onTransactionUpdat
 
     setIsLoading(true);
     try {
-      // Get current student data
+      // Fetch current student balance
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .select('saldo')
         .eq('id', transaction.student_id)
         .single();
-
       if (studentError) throw studentError;
 
-      // Reverse the original transaction effect
-      let currentSaldo = studentData.saldo;
-      if (transaction.jenis === 'Setor') {
-        currentSaldo = currentSaldo - transaction.jumlah;
-      } else if (transaction.jenis === 'Tarik') {
-        currentSaldo = currentSaldo + transaction.jumlah;
-      }
+      // Compute delta effect between old and new transaction
+      const oldEffect = transaction.jenis === 'Setor' ? transaction.jumlah : -transaction.jumlah;
+      const newEffect = formData.jenis === 'Setor' ? formData.jumlah : -formData.jumlah;
+      const delta = newEffect - oldEffect; // shift to apply to this and all subsequent transactions
 
-      // Apply the new transaction effect
-      let newSaldo = currentSaldo;
-      if (formData.jenis === 'Setor') {
-        newSaldo = currentSaldo + formData.jumlah;
-      } else if (formData.jenis === 'Tarik') {
-        newSaldo = currentSaldo - formData.jumlah;
-      }
-
-      // Check if withdrawal amount exceeds balance
-      if (formData.jenis === 'Tarik' && formData.jumlah > currentSaldo) {
+      // Validate that the new saldo after this edited transaction is not negative
+      const saldoSebelumTransaksi = transaction.saldo_setelah - oldEffect; // saldo before original transaction
+      const saldoSetelahBaru = saldoSebelumTransaksi + newEffect;
+      if (saldoSetelahBaru < 0) {
         toast({
-          title: "Error",
-          description: "Saldo tidak mencukupi untuk penarikan",
-          variant: "destructive",
+          title: 'Error',
+          description: 'Saldo tidak mencukupi setelah perubahan ini',
+          variant: 'destructive',
         });
         return;
       }
 
-      // Update student balance
-      const { error: updateBalanceError } = await supabase
-        .from('students')
-        .update({ saldo: newSaldo })
-        .eq('id', transaction.student_id);
-
-      if (updateBalanceError) throw updateBalanceError;
-
-      // Update transaction
-      const { error: updateTransactionError } = await supabase
+      // 1) Update the edited transaction fields and its saldo_setelah
+      const { error: updateEditedError } = await supabase
         .from('transactions')
         .update({
           jenis: formData.jenis,
           jumlah: formData.jumlah,
           admin: formData.admin,
-          saldo_setelah: newSaldo
+          saldo_setelah: transaction.saldo_setelah + delta,
         })
         .eq('id', transaction.id);
+      if (updateEditedError) throw updateEditedError;
 
-      if (updateTransactionError) throw updateTransactionError;
+      // 2) Shift saldo_setelah for all subsequent transactions of the same student
+      const { data: subsequentTx, error: subsequentError } = await supabase
+        .from('transactions')
+        .select('id, saldo_setelah, created_at')
+        .eq('student_id', transaction.student_id)
+        .gt('created_at', transaction.created_at)
+        .order('created_at', { ascending: true });
+      if (subsequentError) throw subsequentError;
+
+      if (subsequentTx && subsequentTx.length > 0 && delta !== 0) {
+        await Promise.all(
+          subsequentTx.map((t) =>
+            supabase
+              .from('transactions')
+              .update({ saldo_setelah: t.saldo_setelah + delta })
+              .eq('id', t.id)
+          )
+        );
+      }
+
+      // 3) Update student's saldo by the same delta
+      const { error: updateStudentError } = await supabase
+        .from('students')
+        .update({ saldo: studentData.saldo + delta })
+        .eq('id', transaction.student_id);
+      if (updateStudentError) throw updateStudentError;
 
       toast({
-        title: "Berhasil",
-        description: "Transaksi berhasil diperbarui dan saldo siswa telah disesuaikan",
+        title: 'Berhasil',
+        description: 'Transaksi berhasil diperbarui dan saldo telah disesuaikan',
       });
 
       onTransactionUpdated();
@@ -123,9 +131,9 @@ const EditTransactionModal = ({ isOpen, onClose, transaction, onTransactionUpdat
     } catch (error) {
       console.error('Error updating transaction:', error);
       toast({
-        title: "Error",
-        description: "Gagal memperbarui transaksi",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Gagal memperbarui transaksi',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
