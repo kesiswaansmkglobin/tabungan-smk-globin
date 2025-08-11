@@ -88,7 +88,7 @@ const Pengaturan = () => {
   const handleRestoreDatabase = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json';
+    input.accept = '.json,application/json';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
@@ -98,29 +98,52 @@ const Pengaturan = () => {
         const text = await file.text();
         const backup = JSON.parse(text);
 
-        // Restore data in correct order
-        if (backup.school_data?.length > 0) {
-          await supabase.from('school_data').insert(backup.school_data);
+        const stats = { school_data: 0, classes: 0, students: 0, transactions: 0 };
+        const isArray = (x: any) => Array.isArray(x);
+
+        // Restore in safe order with UPSERT so IDs are preserved and conflicts handled
+        if (isArray(backup.school_data) && backup.school_data.length > 0) {
+          const { error } = await supabase
+            .from('school_data')
+            .upsert(backup.school_data, { onConflict: 'id', ignoreDuplicates: false });
+          if (error) throw error;
+          stats.school_data = backup.school_data.length;
         }
-        if (backup.classes?.length > 0) {
-          await supabase.from('classes').insert(backup.classes);
+
+        if (isArray(backup.classes) && backup.classes.length > 0) {
+          const { error } = await supabase
+            .from('classes')
+            .upsert(backup.classes, { onConflict: 'id', ignoreDuplicates: false });
+          if (error) throw error;
+          stats.classes = backup.classes.length;
         }
-        if (backup.students?.length > 0) {
-          await supabase.from('students').insert(backup.students);
+
+        if (isArray(backup.students) && backup.students.length > 0) {
+          const { error } = await supabase
+            .from('students')
+            .upsert(backup.students, { onConflict: 'id', ignoreDuplicates: false });
+          if (error) throw error;
+          stats.students = backup.students.length;
         }
-        if (backup.transactions?.length > 0) {
-          await supabase.from('transactions').insert(backup.transactions);
+
+        if (isArray(backup.transactions) && backup.transactions.length > 0) {
+          const { error } = await supabase
+            .from('transactions')
+            .upsert(backup.transactions, { onConflict: 'id', ignoreDuplicates: false });
+          if (error) throw error;
+          stats.transactions = backup.transactions.length;
         }
 
         toast({
-          title: "Restore Berhasil",
-          description: "Database berhasil dipulihkan dari backup",
+          title: 'Restore Berhasil',
+          description: `Dipulihkan: ${stats.classes} kelas, ${stats.students} siswa, ${stats.transactions} transaksi, data sekolah: ${stats.school_data}`,
         });
-      } catch (error) {
+      } catch (error: any) {
+        console.error('Restore error:', error);
         toast({
-          title: "Restore Gagal",
-          description: "Terjadi kesalahan saat restore database",
-          variant: "destructive",
+          title: 'Restore Gagal',
+          description: error?.message || 'Terjadi kesalahan saat restore database',
+          variant: 'destructive',
         });
       } finally {
         setIsLoading(false);
