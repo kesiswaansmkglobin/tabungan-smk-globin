@@ -99,9 +99,10 @@ const Pengaturan = () => {
         const backup = JSON.parse(text);
 
         const stats = { school_data: 0, classes: 0, students: 0, transactions: 0 };
+        const skipped = { students: 0, transactions: 0 };
         const isArray = (x: any) => Array.isArray(x);
 
-        // Restore in safe order with UPSERT so IDs are preserved and conflicts handled
+        // 1) school_data
         if (isArray(backup.school_data) && backup.school_data.length > 0) {
           const { error } = await supabase
             .from('school_data')
@@ -110,33 +111,72 @@ const Pengaturan = () => {
           stats.school_data = backup.school_data.length;
         }
 
+        // 2) classes
+        let validClassIds = new Set<string>();
         if (isArray(backup.classes) && backup.classes.length > 0) {
           const { error } = await supabase
             .from('classes')
             .upsert(backup.classes, { onConflict: 'id', ignoreDuplicates: false });
           if (error) throw error;
           stats.classes = backup.classes.length;
+          // Fetch to ensure which class IDs exist (handle any failed rows silently)
+          const classIds = backup.classes.map((c: any) => c.id);
+          const { data: existingClasses } = await supabase
+            .from('classes')
+            .select('id')
+            .in('id', classIds);
+          validClassIds = new Set((existingClasses || []).map((c: any) => c.id));
         }
 
+        // 3) students (filter by valid kelas_id)
+        let validStudentIds = new Set<string>();
         if (isArray(backup.students) && backup.students.length > 0) {
-          const { error } = await supabase
-            .from('students')
-            .upsert(backup.students, { onConflict: 'id', ignoreDuplicates: false });
-          if (error) throw error;
-          stats.students = backup.students.length;
+          const studentsSrc: any[] = backup.students;
+          const studentsFiltered = validClassIds.size
+            ? studentsSrc.filter((s: any) => validClassIds.has(s.kelas_id))
+            : studentsSrc; // if no classes in backup, let DB validate
+          skipped.students = studentsSrc.length - studentsFiltered.length;
+
+          if (studentsFiltered.length > 0) {
+            const { error } = await supabase
+              .from('students')
+              .upsert(studentsFiltered, { onConflict: 'id', ignoreDuplicates: false });
+            if (error) throw error;
+            stats.students = studentsFiltered.length;
+            const studentIds = studentsFiltered.map((s: any) => s.id);
+            const { data: existingStudents } = await supabase
+              .from('students')
+              .select('id')
+              .in('id', studentIds);
+            validStudentIds = new Set((existingStudents || []).map((s: any) => s.id));
+          }
         }
 
+        // 4) transactions (filter by valid student_id)
         if (isArray(backup.transactions) && backup.transactions.length > 0) {
-          const { error } = await supabase
-            .from('transactions')
-            .upsert(backup.transactions, { onConflict: 'id', ignoreDuplicates: false });
-          if (error) throw error;
-          stats.transactions = backup.transactions.length;
+          const txSrc: any[] = backup.transactions;
+          const txFiltered = validStudentIds.size
+            ? txSrc.filter((t: any) => validStudentIds.has(t.student_id))
+            : txSrc; // if no students restored, let DB validate
+          skipped.transactions = txSrc.length - txFiltered.length;
+
+          if (txFiltered.length > 0) {
+            const { error } = await supabase
+              .from('transactions')
+              .upsert(txFiltered, { onConflict: 'id', ignoreDuplicates: false });
+            if (error) throw error;
+            stats.transactions = txFiltered.length;
+          }
         }
+
+        const skippedMsg = [
+          skipped.students ? `${skipped.students} siswa dilewati (kelas tidak ada)` : null,
+          skipped.transactions ? `${skipped.transactions} transaksi dilewati (siswa tidak ada)` : null,
+        ].filter(Boolean).join(', ');
 
         toast({
           title: 'Restore Berhasil',
-          description: `Dipulihkan: ${stats.classes} kelas, ${stats.students} siswa, ${stats.transactions} transaksi, data sekolah: ${stats.school_data}`,
+          description: `Dipulihkan: ${stats.classes} kelas, ${stats.students} siswa, ${stats.transactions} transaksi, data sekolah: ${stats.school_data}${skippedMsg ? ` — Catatan: ${skippedMsg}` : ''}`,
         });
       } catch (error: any) {
         console.error('Restore error:', error);
