@@ -65,6 +65,22 @@ const DataSiswa = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-siswa-kelas')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const loadData = async () => {
     try {
       setIsLoading(true);

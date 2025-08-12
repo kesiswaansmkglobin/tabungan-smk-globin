@@ -45,34 +45,45 @@ const DataKelas = () => {
     loadKelasData();
   }, []);
 
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-kelas-siswa')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'classes' }, () => {
+        loadKelasData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'students' }, () => {
+        loadKelasData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const loadKelasData = async () => {
     try {
       setIsLoading(true);
-      const { data: classes, error } = await supabase
-        .from('classes')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [{ data: classes, error: classesError }, { data: studentsAll, error: studentsError }] = await Promise.all([
+        supabase.from('classes').select('*').order('created_at', { ascending: false }),
+        supabase.from('students').select('id, kelas_id')
+      ]);
 
-      if (error) throw error;
+      if (classesError) throw classesError;
+      if (studentsError) throw studentsError;
 
-      // Get student count for each class
-      const kelasWithCount = await Promise.all(
-        (classes || []).map(async (kelas) => {
-          const { data: students, error: studentsError } = await supabase
-            .from('students')
-            .select('id')
-            .eq('kelas_id', kelas.id);
+      const countByClass = new Map<string, number>();
+      (studentsAll || []).forEach((s: any) => {
+        const k = s.kelas_id as string;
+        countByClass.set(k, (countByClass.get(k) || 0) + 1);
+      });
 
-          if (studentsError) throw studentsError;
-
-          return {
-            id: kelas.id,
-            nama_kelas: kelas.nama_kelas,
-            jumlah_siswa: students?.length || 0,
-            created_at: kelas.created_at,
-          };
-        })
-      );
+      const kelasWithCount = (classes || []).map((kelas: any) => ({
+        id: kelas.id,
+        nama_kelas: kelas.nama_kelas,
+        jumlah_siswa: countByClass.get(kelas.id) || 0,
+        created_at: kelas.created_at,
+      }));
 
       setKelasList(kelasWithCount);
     } catch (error) {
@@ -86,7 +97,6 @@ const DataKelas = () => {
       setIsLoading(false);
     }
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
