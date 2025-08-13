@@ -86,11 +86,19 @@ const DataKelas = () => {
       }));
 
       setKelasList(kelasWithCount);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading classes:', error);
+      
+      let errorMessage = "Gagal memuat data kelas";
+      if (error.message && error.message.includes('row-level security policy')) {
+        errorMessage = "Anda tidak memiliki akses untuk melihat data kelas. Pastikan Anda login sebagai admin.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Gagal memuat data kelas",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -143,9 +151,17 @@ const DataKelas = () => {
       loadKelasData();
     } catch (error: any) {
       console.error('Error saving class:', error);
+      
+      let errorMessage = "Gagal menyimpan data kelas";
+      if (error.message && error.message.includes('row-level security policy')) {
+        errorMessage = "Anda tidak memiliki akses untuk mengelola data kelas. Pastikan Anda login sebagai admin.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Gagal menyimpan data kelas",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -173,9 +189,17 @@ const DataKelas = () => {
       loadKelasData();
     } catch (error: any) {
       console.error('Error deleting class:', error);
+      
+      let errorMessage = "Gagal menghapus kelas";
+      if (error.message && error.message.includes('row-level security policy')) {
+        errorMessage = "Anda tidak memiliki akses untuk menghapus data kelas. Pastikan Anda login sebagai admin.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Gagal menghapus kelas",
+        description: errorMessage,
         variant: "destructive",
       });
     }
