@@ -48,19 +48,11 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
   const isCollapsed = state === "collapsed";
 
   const handleLogout = () => {
-    try {
-      localStorage.removeItem("adminToken");
-      localStorage.removeItem("adminUser");
-      toast({
-        title: "Logout Berhasil",
-        description: "Anda telah keluar dari sistem",
-      });
-      onLogout();
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Still proceed with logout even if there's an error
-      onLogout();
-    }
+    toast({
+      title: "Logout Berhasil",
+      description: "Anda telah keluar dari sistem",
+    });
+    onLogout();
   };
 
   const handleMenuClick = (key: string) => {
@@ -71,17 +63,8 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
     }
   };
 
-  const getAdminUser = () => {
-    try {
-      const adminUserData = localStorage.getItem("adminUser");
-      return adminUserData ? JSON.parse(adminUserData) : {};
-    } catch (error) {
-      console.error('Error parsing admin user data:', error);
-      return {};
-    }
-  };
-
-  const adminUser = getAdminUser();
+  // Note: In a real app, you would get user data from Supabase session
+  const adminUser = { name: "Administrator", email: "admin@smkglobin.sch.id" };
 
   return (
     <Sidebar className="border-r border-gray-200" collapsible="icon">

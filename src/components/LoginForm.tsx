@@ -42,18 +42,13 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
 
       if (data.user) {
         console.log('Login successful, user:', data.user.email);
-        localStorage.setItem("adminToken", "authenticated");
-        localStorage.setItem("adminUser", JSON.stringify({
-          name: data.user.email,
-          email: data.user.email
-        }));
         
         toast({
           title: "Login Berhasil",
           description: "Selamat datang di Sistem Tabungan SMK Globin",
         });
         
-        // Call onLogin callback
+        // onLogin callback will be triggered by auth state change
         onLogin();
       }
     } catch (error) {

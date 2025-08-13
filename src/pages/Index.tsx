@@ -9,43 +9,23 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check authentication state
-    const checkAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const adminToken = localStorage.getItem("adminToken");
-        
-        console.log('Auth check - Session:', !!session, 'AdminToken:', !!adminToken);
-        
-        setIsLoggedIn(!!(session || adminToken));
-      } catch (error) {
-        console.error('Auth check error:', error);
-        setIsLoggedIn(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-
-    // Listen for auth changes
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         console.log('Auth state change:', event, !!session);
-        if (event === 'SIGNED_IN' && session) {
-          localStorage.setItem("adminToken", "authenticated");
-          localStorage.setItem("adminUser", JSON.stringify({
-            name: session.user.email,
-            email: session.user.email
-          }));
-          setIsLoggedIn(true);
-        } else if (event === 'SIGNED_OUT') {
-          localStorage.removeItem("adminToken");
-          localStorage.removeItem("adminUser");
-          setIsLoggedIn(false);
+        setIsLoggedIn(!!session);
+        if (!session) {
+          setIsLoading(false);
         }
       }
     );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', !!session);
+      setIsLoggedIn(!!session);
+      setIsLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -59,14 +39,10 @@ const Index = () => {
     setIsLoading(true);
     try {
       await supabase.auth.signOut();
-      localStorage.removeItem("adminToken");
-      localStorage.removeItem("adminUser");
       setIsLoggedIn(false);
     } catch (error) {
       console.error('Logout error:', error);
       // Still proceed with logout even if Supabase fails
-      localStorage.removeItem("adminToken");
-      localStorage.removeItem("adminUser");
       setIsLoggedIn(false);
     } finally {
       setIsLoading(false);
