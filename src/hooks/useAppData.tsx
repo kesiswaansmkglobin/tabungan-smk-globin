@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -43,26 +42,23 @@ interface DashboardStats {
   }>;
 }
 
-interface UseRealtimeDataReturn {
+interface UseAppDataReturn {
   students: Student[];
   transactions: Transaction[];
   dashboardStats: DashboardStats;
   isLoading: boolean;
   refreshData: () => Promise<void>;
+  refreshStudents: () => Promise<void>;
+  refreshTransactions: () => Promise<void>;
 }
 
-export const useRealtimeData = (): UseRealtimeDataReturn => {
+// Optimized hook that combines and improves the previous two hooks
+export const useAppData = (): UseAppDataReturn => {
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
-    totalSiswa: 0,
-    totalSaldo: 0,
-    transaksiHariIni: 0,
-    chartData: []
-  });
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadStudents = async () => {
+  const loadStudents = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('students')
@@ -77,18 +73,24 @@ export const useRealtimeData = (): UseRealtimeDataReturn => {
       if (error) throw error;
       setStudents(data || []);
       return data || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading students:', error);
+      
+      let errorMessage = "Gagal memuat data siswa";
+      if (error.message && error.message.includes('row-level security policy')) {
+        errorMessage = "Anda tidak memiliki akses untuk melihat data siswa. Pastikan Anda login sebagai admin.";
+      }
+      
       toast({
         title: "Error",
-        description: "Gagal memuat data siswa",
+        description: errorMessage,
         variant: "destructive",
       });
       return [];
     }
-  };
+  }, []);
 
-  const loadTransactions = async () => {
+  const loadTransactions = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('transactions')
@@ -107,23 +109,30 @@ export const useRealtimeData = (): UseRealtimeDataReturn => {
       if (error) throw error;
       setTransactions(data || []);
       return data || [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading transactions:', error);
+      
+      let errorMessage = "Gagal memuat data transaksi";
+      if (error.message && error.message.includes('row-level security policy')) {
+        errorMessage = "Anda tidak memiliki akses untuk melihat data transaksi. Pastikan Anda login sebagai admin.";
+      }
+      
       toast({
         title: "Error",
-        description: "Gagal memuat data transaksi",
+        description: errorMessage,
         variant: "destructive",
       });
       return [];
     }
-  };
+  }, []);
 
-  const calculateDashboardStats = (studentsData: Student[], transactionsData: Transaction[]) => {
-    const totalSiswa = studentsData.length;
-    const totalSaldo = studentsData.reduce((sum, student) => sum + (Number(student.saldo) || 0), 0);
+  // Memoized dashboard stats calculation
+  const dashboardStats = useMemo(() => {
+    const totalSiswa = students.length;
+    const totalSaldo = students.reduce((sum, student) => sum + (Number(student.saldo) || 0), 0);
     
     const today = new Date().toISOString().split('T')[0];
-    const todayTransactions = transactionsData.filter(t => t.tanggal === today);
+    const todayTransactions = transactions.filter(t => t.tanggal === today);
     const transaksiHariIni = todayTransactions.length;
 
     // Calculate monthly chart data
@@ -135,7 +144,7 @@ export const useRealtimeData = (): UseRealtimeDataReturn => {
     });
 
     const currentYear = new Date().getFullYear();
-    const yearTransactions = transactionsData.filter(t => 
+    const yearTransactions = transactions.filter(t => 
       new Date(t.tanggal).getFullYear() === currentYear
     );
 
@@ -157,34 +166,40 @@ export const useRealtimeData = (): UseRealtimeDataReturn => {
       tarik: monthlyStats[month].tarik
     }));
 
-    setDashboardStats({
+    return {
       totalSiswa,
       totalSaldo,
       transaksiHariIni,
       chartData
-    });
-  };
+    };
+  }, [students, transactions]);
 
-  const refreshData = async () => {
+  const refreshStudents = useCallback(async () => {
+    await loadStudents();
+  }, [loadStudents]);
+
+  const refreshTransactions = useCallback(async () => {
+    await loadTransactions();
+  }, [loadTransactions]);
+
+  const refreshData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [studentsData, transactionsData] = await Promise.all([
+      await Promise.all([
         loadStudents(),
         loadTransactions()
       ]);
-      
-      calculateDashboardStats(studentsData, transactionsData);
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [loadStudents, loadTransactions]);
 
   useEffect(() => {
     refreshData();
 
-    // Set up real-time subscriptions
+    // Optimized real-time subscriptions - more granular updates
     const studentsChannel = supabase
       .channel('students-changes')
       .on(
@@ -194,9 +209,10 @@ export const useRealtimeData = (): UseRealtimeDataReturn => {
           schema: 'public',
           table: 'students'
         },
-        () => {
-          console.log('Students table changed, refreshing data...');
-          refreshData();
+        (payload) => {
+          console.log('Students table changed:', payload.eventType);
+          // Only refresh students data, not everything
+          refreshStudents();
         }
       )
       .subscribe();
@@ -210,9 +226,27 @@ export const useRealtimeData = (): UseRealtimeDataReturn => {
           schema: 'public',
           table: 'transactions'
         },
-        () => {
-          console.log('Transactions table changed, refreshing data...');
+        (payload) => {
+          console.log('Transactions table changed:', payload.eventType);
+          // Refresh both because transactions affect student balances
           refreshData();
+        }
+      )
+      .subscribe();
+
+    const classesChannel = supabase
+      .channel('classes-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'classes'
+        },
+        (payload) => {
+          console.log('Classes table changed:', payload.eventType);
+          // Only refresh students to get updated class names
+          refreshStudents();
         }
       )
       .subscribe();
@@ -220,14 +254,17 @@ export const useRealtimeData = (): UseRealtimeDataReturn => {
     return () => {
       supabase.removeChannel(studentsChannel);
       supabase.removeChannel(transactionsChannel);
+      supabase.removeChannel(classesChannel);
     };
-  }, []);
+  }, [refreshData, refreshStudents]);
 
   return {
     students,
     transactions,
     dashboardStats,
     isLoading,
-    refreshData
+    refreshData,
+    refreshStudents,
+    refreshTransactions
   };
 };
