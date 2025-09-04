@@ -186,6 +186,51 @@ export type Database = {
           },
         ]
       }
+      wali_kelas: {
+        Row: {
+          created_at: string
+          id: string
+          kelas_id: string
+          nama: string
+          nip: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kelas_id: string
+          nama: string
+          nip?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kelas_id?: string
+          nama?: string
+          nip?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wali_kelas_kelas_id_fkey"
+            columns: ["kelas_id"]
+            isOneToOne: true
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wali_kelas_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -195,13 +240,21 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_wali_kelas_class_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_wali_kelas: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "student"
+      app_role: "admin" | "teacher" | "student" | "wali_kelas"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -329,7 +382,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "teacher", "student"],
+      app_role: ["admin", "teacher", "student", "wali_kelas"],
     },
   },
 } as const

@@ -16,6 +16,8 @@ export const LazyTransaksi = React.lazy(() => import('./Transaksi'));
 export const LazyLaporan = React.lazy(() => import('./Laporan'));
 export const LazyRiwayatHarian = React.lazy(() => import('./RiwayatHarian'));
 export const LazyPengaturan = React.lazy(() => import('./Pengaturan'));
+export const LazyPengguna = React.lazy(() => import('./Pengguna'));
+export const LazyWaliKelasView = React.lazy(() => import('./WaliKelasView'));
 
 // HOC for wrapping lazy components
 export const withLazyLoading = <P extends object>(Component: React.ComponentType<P>) => {

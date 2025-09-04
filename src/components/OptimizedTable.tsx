@@ -5,7 +5,7 @@ import { ChevronUp, ChevronDown, Search } from 'lucide-react';
 import { debounce } from '@/utils/performance';
 
 interface Column<T> {
-  key: keyof T;
+  key: keyof T | string;
   label: string;
   sortable?: boolean;
   render?: (value: any, item: T) => React.ReactNode;
@@ -15,21 +15,33 @@ interface Column<T> {
 interface OptimizedTableProps<T> {
   data: T[];
   columns: Column<T>[];
+  actions?: Array<{
+    label: string;
+    icon?: React.ComponentType<any>;
+    onClick: (item: T) => void;
+    variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
+    className?: string;
+  }>;
   searchable?: boolean;
   searchFields?: (keyof T)[];
   pageSize?: number;
   className?: string;
   onRowClick?: (item: T) => void;
+  loading?: boolean;
+  emptyMessage?: string;
 }
 
 export function OptimizedTable<T extends Record<string, any>>({
   data,
   columns,
+  actions = [],
   searchable = true,
   searchFields = [],
   pageSize = 50,
   className = '',
-  onRowClick
+  onRowClick,
+  loading = false,
+  emptyMessage = "Tidak ada data yang ditemukan"
 }: OptimizedTableProps<T>) {
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<keyof T | null>(null);
@@ -121,52 +133,86 @@ export function OptimizedTable<T extends Record<string, any>>({
 
       {/* Table */}
       <div className="overflow-x-auto border rounded-lg">
-        <table className="w-full border-collapse bg-card">
-          <thead>
-            <tr className="border-b border-border bg-muted/50">
-              {columns.map((column) => (
-                <th
-                  key={String(column.key)}
-                  className={`text-left p-4 font-medium text-sm ${
-                    column.sortable ? 'cursor-pointer hover:bg-muted/70 select-none' : ''
-                  }`}
-                  style={{ width: column.width }}
-                  onClick={column.sortable ? () => handleSort(column.key) : undefined}
-                >
-                  <div className="flex items-center gap-2">
-                    {column.label}
-                    {column.sortable && <SortIcon field={column.key} />}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedData.map((item, index) => (
-              <tr
-                key={index}
-                className={`border-b border-border hover:bg-muted/30 transition-colors ${
-                  onRowClick ? 'cursor-pointer' : ''
-                }`}
-                onClick={onRowClick ? () => onRowClick(item) : undefined}
-              >
-                {columns.map((column) => (
-                  <td key={String(column.key)} className="p-4 text-sm">
-                    {column.render 
-                      ? column.render(item[column.key], item)
-                      : String(item[column.key] || '-')
-                    }
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {paginatedData.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            Tidak ada data yang ditemukan
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
+        ) : (
+          <>
+            <table className="w-full border-collapse bg-card">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  {columns.map((column) => (
+                    <th
+                      key={String(column.key)}
+                      className={`text-left p-4 font-medium text-sm ${
+                        column.sortable ? 'cursor-pointer hover:bg-muted/70 select-none' : ''
+                      }`}
+                      style={{ width: column.width }}
+                      onClick={column.sortable ? () => handleSort(column.key) : undefined}
+                    >
+                      <div className="flex items-center gap-2">
+                        {column.label}
+                        {column.sortable && <SortIcon field={column.key} />}
+                      </div>
+                    </th>
+                  ))}
+                  {actions.length > 0 && (
+                    <th className="text-left p-4 font-medium text-sm w-32">
+                      Aksi
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedData.map((item, index) => (
+                  <tr
+                    key={index}
+                    className={`border-b border-border hover:bg-muted/30 transition-colors ${
+                      onRowClick ? 'cursor-pointer' : ''
+                    }`}
+                    onClick={onRowClick ? () => onRowClick(item) : undefined}
+                  >
+                    {columns.map((column) => (
+                      <td key={String(column.key)} className="p-4 text-sm">
+                        {column.render 
+                          ? column.render(item[column.key], item)
+                          : String(item[column.key] || '-')
+                        }
+                      </td>
+                    ))}
+                    {actions.length > 0 && (
+                      <td className="p-4 text-sm">
+                        <div className="flex gap-2">
+                          {actions.map((action, actionIndex) => (
+                            <Button
+                              key={actionIndex}
+                              variant={action.variant || 'ghost'}
+                              size="sm"
+                              className={action.className}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                action.onClick(item);
+                              }}
+                            >
+                              {action.icon && <action.icon className="w-4 h-4" />}
+                              {!action.icon && action.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {paginatedData.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                {emptyMessage}
+              </div>
+            )}
+          </>
         )}
       </div>
 

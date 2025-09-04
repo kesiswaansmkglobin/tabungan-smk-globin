@@ -1,8 +1,9 @@
 
 import React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { supabase } from "@/integrations/supabase/client";
 import Dashboard from "@/components/Dashboard";
 import { 
   LazyDataSekolah, 
@@ -12,6 +13,8 @@ import {
   LazyLaporan, 
   LazyRiwayatHarian, 
   LazyPengaturan,
+  LazyPengguna,
+  LazyWaliKelasView,
   withLazyLoading 
 } from "@/components/LazyComponents";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -24,6 +27,34 @@ interface MainLayoutProps {
 
 const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+          if (profile) {
+            setUserRole(profile.role);
+            // Set initial tab based on role
+            if (profile.role === 'wali_kelas') {
+              setActiveTab('wali-kelas-view');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+
+    fetchUserRole();
+  }, []);
 
   const renderContent = React.useCallback(() => {
     switch (activeTab) {
@@ -35,6 +66,10 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
         return withLazyLoading(LazyDataKelas)({});
       case "data-siswa":
         return withLazyLoading(LazyDataSiswa)({});
+      case "pengguna":
+        return withLazyLoading(LazyPengguna)({});
+      case "wali-kelas-view":
+        return withLazyLoading(LazyWaliKelasView)({});
       case "transaksi":
         return withLazyLoading(LazyTransaksi)({});
       case "laporan":

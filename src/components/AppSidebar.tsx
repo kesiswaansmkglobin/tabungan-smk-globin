@@ -1,4 +1,3 @@
-
 import { 
   LayoutDashboard, 
   Users, 
@@ -25,16 +24,23 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
-const menuItems = [
+const adminMenuItems = [
   { title: "Dashboard", key: "dashboard", icon: LayoutDashboard },
   { title: "Data Sekolah", key: "data-sekolah", icon: Users },
   { title: "Data Kelas", key: "data-kelas", icon: Users },
   { title: "Data Siswa", key: "data-siswa", icon: GraduationCap },
+  { title: "Pengguna", key: "pengguna", icon: User },
   { title: "Transaksi", key: "transaksi", icon: CreditCard },
   { title: "Laporan", key: "laporan", icon: FileText },
   { title: "Riwayat Harian", key: "riwayat-harian", icon: Calendar },
   { title: "Pengaturan", key: "pengaturan", icon: Settings },
+];
+
+const waliKelasMenuItems = [
+  { title: "Dashboard Kelas", key: "wali-kelas-view", icon: LayoutDashboard },
 ];
 
 interface AppSidebarProps {
@@ -46,6 +52,38 @@ interface AppSidebarProps {
 export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProps) {
   const { state, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const [userProfile, setUserProfile] = useState<{
+    name: string;
+    email: string;
+    role: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email, role')
+            .eq('id', user.id)
+            .single();
+
+          if (profile) {
+            setUserProfile({
+              name: profile.full_name || profile.email || "User",
+              email: profile.email || user.email || "",
+              role: profile.role || "admin"
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   const handleLogout = () => {
     toast({
@@ -63,8 +101,23 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
     }
   };
 
-  // Note: In a real app, you would get user data from Supabase session
-  const adminUser = { name: "Administrator", email: "admin@smkglobin.sch.id" };
+  // Get menu items based on user role
+  const getMenuItems = () => {
+    if (userProfile?.role === 'wali_kelas') {
+      return waliKelasMenuItems;
+    }
+    return adminMenuItems;
+  };
+
+  // Get panel title based on user role
+  const getPanelTitle = () => {
+    if (userProfile?.role === 'wali_kelas') {
+      return "Panel Wali Kelas";
+    }
+    return "Admin Panel";
+  };
+
+  const menuItems = getMenuItems();
 
   return (
     <Sidebar className="border-r border-gray-200" collapsible="icon">
@@ -81,7 +134,7 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
             {!isCollapsed && (
               <div>
                 <h2 className="font-bold text-gray-900">SMK Globin</h2>
-                <p className="text-sm text-gray-600">Admin Panel</p>
+                <p className="text-sm text-gray-600">{getPanelTitle()}</p>
               </div>
             )}
           </div>
@@ -117,8 +170,11 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
           </div>
           {!isCollapsed && (
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">{adminUser.name || "Administrator"}</p>
-              <p className="text-xs text-gray-500">Admin</p>
+              <p className="text-sm font-medium text-gray-900">{userProfile?.name || "User"}</p>
+              <p className="text-xs text-gray-500">
+                {userProfile?.role === 'wali_kelas' ? 'Wali Kelas' : 
+                 userProfile?.role === 'admin' ? 'Admin' : 'User'}
+              </p>
             </div>
           )}
         </div>

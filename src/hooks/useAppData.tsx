@@ -42,9 +42,15 @@ interface DashboardStats {
   }>;
 }
 
+interface Class {
+  id: string;
+  nama_kelas: string;
+}
+
 interface UseAppDataReturn {
   students: Student[];
   transactions: Transaction[];
+  classes: Class[];
   dashboardStats: DashboardStats;
   isLoading: boolean;
   refreshData: () => Promise<void>;
@@ -56,7 +62,35 @@ interface UseAppDataReturn {
 export const useAppData = (): UseAppDataReturn => {
   const [students, setStudents] = useState<Student[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const loadClasses = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*')
+        .order('nama_kelas');
+
+      if (error) throw error;
+      setClasses(data || []);
+      return data || [];
+    } catch (error: any) {
+      console.error('Error loading classes:', error);
+      
+      let errorMessage = "Gagal memuat data kelas";
+      if (error.message && error.message.includes('row-level security policy')) {
+        errorMessage = "Anda tidak memiliki akses untuk melihat data kelas. Pastikan Anda login sebagai admin.";
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return [];
+    }
+  }, []);
 
   const loadStudents = useCallback(async () => {
     try {
@@ -186,6 +220,7 @@ export const useAppData = (): UseAppDataReturn => {
     setIsLoading(true);
     try {
       await Promise.all([
+        loadClasses(),
         loadStudents(),
         loadTransactions()
       ]);
@@ -194,7 +229,7 @@ export const useAppData = (): UseAppDataReturn => {
     } finally {
       setIsLoading(false);
     }
-  }, [loadStudents, loadTransactions]);
+  }, [loadClasses, loadStudents, loadTransactions]);
 
   useEffect(() => {
     refreshData();
@@ -261,6 +296,7 @@ export const useAppData = (): UseAppDataReturn => {
   return {
     students,
     transactions,
+    classes,
     dashboardStats,
     isLoading,
     refreshData,
