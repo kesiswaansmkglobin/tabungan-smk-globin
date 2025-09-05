@@ -50,7 +50,7 @@ export default function WaliKelasView() {
         .from('wali_kelas')
         .select(`
           nama,
-          classes:kelas_id (nama_kelas)
+          classes!kelas_id (nama_kelas)
         `)
         .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
         .single();
@@ -83,7 +83,7 @@ export default function WaliKelasView() {
         .from('transactions')
         .select(`
           id, tanggal, jenis, jumlah, saldo_setelah, keterangan, admin,
-          students:student_id (nama, nis)
+          students!student_id (nama, nis)
         `)
         .order('tanggal', { ascending: false })
         .limit(50);

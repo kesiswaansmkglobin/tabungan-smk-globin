@@ -89,14 +89,30 @@ export default function Pengguna() {
 
   const fetchProfiles = async () => {
     try {
-      const { data, error } = await supabase
+      // Get all profiles with admin role
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('role', 'admin')
         .order('full_name');
 
-      if (error) throw error;
-      setProfiles(data || []);
+      if (profilesError) throw profilesError;
+
+      // Get existing wali kelas user_ids to exclude them
+      const { data: waliKelasData, error: waliKelasError } = await supabase
+        .from('wali_kelas')
+        .select('user_id');
+
+      if (waliKelasError) throw waliKelasError;
+
+      const assignedUserIds = waliKelasData?.map(wk => wk.user_id) || [];
+      
+      // Filter out users who are already assigned as wali kelas
+      const availableProfiles = profilesData?.filter(profile => 
+        !assignedUserIds.includes(profile.id)
+      ) || [];
+
+      setProfiles(availableProfiles);
     } catch (error) {
       console.error('Error fetching profiles:', error);
     }
@@ -193,7 +209,7 @@ export default function Pengguna() {
       setIsDialogOpen(false);
       setEditingId(null);
       setFormData({ nama: "", nip: "", kelas_id: "", user_id: "", email: "", password: "" });
-      fetchWaliKelas();
+      await Promise.all([fetchWaliKelas(), fetchProfiles()]);
     } catch (error: any) {
       console.error('Error saving wali kelas:', error);
       toast({
@@ -233,7 +249,7 @@ export default function Pengguna() {
         title: "Berhasil",
         description: "Wali kelas berhasil dihapus"
       });
-      fetchWaliKelas();
+      await Promise.all([fetchWaliKelas(), fetchProfiles()]);
     } catch (error: any) {
       console.error('Error deleting wali kelas:', error);
       toast({
