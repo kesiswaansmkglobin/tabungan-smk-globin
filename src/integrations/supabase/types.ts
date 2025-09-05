@@ -216,6 +216,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_wali_kelas_class"
+            columns: ["kelas_id"]
+            isOneToOne: true
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "wali_kelas_kelas_id_fkey"
             columns: ["kelas_id"]
             isOneToOne: true
