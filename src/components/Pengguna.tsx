@@ -212,9 +212,18 @@ export default function Pengguna() {
       await Promise.all([fetchWaliKelas(), fetchProfiles()]);
     } catch (error: any) {
       console.error('Error saving wali kelas:', error);
+      
+      let errorMessage = "Gagal menyimpan data wali kelas";
+      
+      if (error.message?.includes('duplicate key') || error.message?.includes('wali_kelas_user_id_key')) {
+        errorMessage = "Pengguna ini sudah menjadi wali kelas. Silakan pilih pengguna lain.";
+      } else if (error.message?.includes('violates unique constraint')) {
+        errorMessage = "Data yang dimasukkan sudah ada. Periksa kembali data Anda.";
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Gagal menyimpan data wali kelas",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
