@@ -70,8 +70,8 @@ export default function Pengguna() {
         .from('wali_kelas')
         .select(`
           *,
-          profiles:user_id (email, role),
-          classes:kelas_id (nama_kelas)
+          profiles!user_id (email, role),
+          classes!kelas_id (nama_kelas)
         `)
         .order('nama');
 
@@ -252,12 +252,12 @@ export default function Pengguna() {
     { 
       key: "kelas", 
       label: "Kelas",
-      render: (row: WaliKelas) => row.classes?.nama_kelas
+      render: (row: WaliKelas) => row.classes?.nama_kelas || '-'
     },
     { 
       key: "email", 
       label: "Email",
-      render: (row: WaliKelas) => row.profiles?.email
+      render: (row: WaliKelas) => row.profiles?.email || '-'
     }
   ];
 
