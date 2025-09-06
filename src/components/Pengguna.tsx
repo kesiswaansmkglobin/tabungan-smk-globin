@@ -71,18 +71,25 @@ export default function Pengguna() {
         .select(`
           *,
           profiles!user_id (email, role),
-          classes!wali_kelas_kelas_id_fkey (nama_kelas)
+          classes (nama_kelas)
         `)
         .order('nama');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+      }
+      
       console.log('Raw wali kelas data:', data);
-      const filteredData = (data || []).map(item => ({
+      
+      // Properly handle the data structure
+      const processedData = (data || []).map(item => ({
         ...item,
         classes: item.classes || { nama_kelas: 'Kelas tidak ditemukan' },
         profiles: item.profiles || { email: 'Email tidak tersedia', role: 'admin' as const }
       }));
-      setWaliKelasList(filteredData);
+      
+      setWaliKelasList(processedData);
     } catch (error) {
       console.error('Error fetching wali kelas:', error);
       toast({
