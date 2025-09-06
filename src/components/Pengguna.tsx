@@ -71,7 +71,7 @@ export default function Pengguna() {
         .select(`
           *,
           profiles!user_id (email, role),
-          classes!kelas_id (nama_kelas)
+          classes!wali_kelas_kelas_id_fkey (nama_kelas)
         `)
         .order('nama');
 
@@ -219,6 +219,12 @@ export default function Pengguna() {
         errorMessage = "Pengguna ini sudah menjadi wali kelas. Silakan pilih pengguna lain.";
       } else if (error.message?.includes('violates unique constraint')) {
         errorMessage = "Data yang dimasukkan sudah ada. Periksa kembali data Anda.";
+      } else if (error.message?.includes('Email address') && error.message?.includes('invalid')) {
+        errorMessage = "Format email tidak valid. Pastikan menggunakan format email yang benar (contoh: nama@domain.com).";
+      } else if (error.message?.includes('email_address_invalid')) {
+        errorMessage = "Format email tidak valid. Pastikan menggunakan format email yang benar (contoh: nama@domain.com).";
+      } else if (error.__isAuthError) {
+        errorMessage = "Gagal membuat akun pengguna. Periksa format email dan password.";
       }
       
       toast({
