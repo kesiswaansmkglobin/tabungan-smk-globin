@@ -76,7 +76,13 @@ export default function Pengguna() {
         .order('nama');
 
       if (error) throw error;
-      setWaliKelasList(data || []);
+      console.log('Raw wali kelas data:', data);
+      const filteredData = (data || []).map(item => ({
+        ...item,
+        classes: item.classes || { nama_kelas: 'Kelas tidak ditemukan' },
+        profiles: item.profiles || { email: 'Email tidak tersedia', role: 'admin' as const }
+      }));
+      setWaliKelasList(filteredData);
     } catch (error) {
       console.error('Error fetching wali kelas:', error);
       toast({
@@ -285,12 +291,12 @@ export default function Pengguna() {
     { 
       key: "kelas", 
       label: "Kelas",
-      render: (row: WaliKelas) => row.classes?.nama_kelas || '-'
+      render: (row: WaliKelas) => row.classes?.nama_kelas || 'Kelas tidak ditemukan'
     },
     { 
       key: "email", 
       label: "Email",
-      render: (row: WaliKelas) => row.profiles?.email || '-'
+      render: (row: WaliKelas) => row.profiles?.email || 'Email tidak tersedia'
     }
   ];
 
