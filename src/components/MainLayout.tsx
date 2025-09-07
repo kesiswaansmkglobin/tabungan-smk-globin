@@ -15,6 +15,7 @@ import {
   LazyPengaturan,
   LazyPengguna,
   LazyWaliKelasView,
+  LazyWaliKelasDataSiswa,
   withLazyLoading 
 } from "@/components/LazyComponents";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -70,6 +71,8 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
         return withLazyLoading(LazyPengguna)({});
       case "wali-kelas-view":
         return withLazyLoading(LazyWaliKelasView)({});
+      case "wali-kelas-data-siswa":
+        return withLazyLoading(LazyWaliKelasDataSiswa)({});
       case "transaksi":
         return withLazyLoading(LazyTransaksi)({});
       case "laporan":

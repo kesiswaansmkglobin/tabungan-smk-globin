@@ -21,10 +21,14 @@ interface Student {
 interface Transaction {
   id: string;
   jumlah: number;
-  jenis: 'Setor' | 'Tarik';
+  jenis: string;
   tanggal: string;
   saldo_setelah: number;
   keterangan: string | null;
+  admin: string;
+  created_at: string;
+  updated_at: string;
+  student_id: string;
 }
 
 export default function WaliKelasDataSiswa() {

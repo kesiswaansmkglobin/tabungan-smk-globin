@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('wali_kelas')
           .select(`
             *,
-            classes (nama_kelas)
+            classes!wali_kelas_kelas_id_fkey (nama_kelas)
           `)
           .eq('user_id', userId)
           .single();

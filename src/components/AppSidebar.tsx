@@ -41,6 +41,7 @@ const adminMenuItems = [
 
 const waliKelasMenuItems = [
   { title: "Dashboard Kelas", key: "wali-kelas-view", icon: LayoutDashboard },
+  { title: "Data Siswa", key: "wali-kelas-data-siswa", icon: GraduationCap },
 ];
 
 interface AppSidebarProps {

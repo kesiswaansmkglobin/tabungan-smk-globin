@@ -70,8 +70,8 @@ export default function Pengguna() {
         .from('wali_kelas')
         .select(`
           *,
-          profiles!user_id (email, role),
-          classes (nama_kelas)
+          profiles!wali_kelas_user_id_fkey (email, role),
+          classes!wali_kelas_kelas_id_fkey (nama_kelas)
         `)
         .order('nama');
 
