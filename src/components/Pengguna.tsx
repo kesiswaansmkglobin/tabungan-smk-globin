@@ -177,27 +177,29 @@ export default function Pengguna() {
         let userId = formData.user_id;
         
         if (!userId && formData.email && formData.password) {
-          const { data: authData, error: authError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: formData.password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/`
-            }
+          // Create confirmed user using edge function
+          const { data: sessionData } = await supabase.auth.getSession();
+          
+          const response = await fetch('/functions/v1/create-confirmed-user', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${sessionData.session?.access_token}`,
+            },
+            body: JSON.stringify({
+              email: formData.email,
+              password: formData.password,
+              full_name: formData.nama
+            })
           });
 
-          if (authError) throw authError;
-          if (!authData.user) throw new Error('Failed to create user');
+          const result = await response.json();
           
-          userId = authData.user.id;
-
-          // Update the profile name and role
-          await supabase
-            .from('profiles')
-            .update({ 
-              full_name: formData.nama,
-              role: 'wali_kelas'
-            })
-            .eq('id', userId);
+          if (!result.success) {
+            throw new Error(result.error || 'Failed to create user');
+          }
+          
+          userId = result.user_id;
         }
 
         if (!userId) {
