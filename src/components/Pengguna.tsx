@@ -82,12 +82,20 @@ export default function Pengguna() {
       
       console.log('Raw wali kelas data:', data);
       
-      // Properly handle the data structure
-      const processedData = (data || []).map(item => ({
-        ...item,
-        classes: item.classes || { nama_kelas: 'Kelas tidak ditemukan' },
-        profiles: item.profiles || { email: 'Email tidak tersedia', role: 'admin' as const }
-      }));
+      // Properly handle the data structure with better error checking
+      const processedData = (data || []).map(item => {
+        if (!item) return null;
+        
+        return {
+          ...item,
+          classes: item.classes && typeof item.classes === 'object' && 'nama_kelas' in item.classes
+            ? item.classes 
+            : { nama_kelas: 'Kelas tidak ditemukan' },
+          profiles: item.profiles && typeof item.profiles === 'object' && 'email' in item.profiles
+            ? item.profiles 
+            : { email: 'Email tidak tersedia', role: 'admin' as const }
+        };
+      }).filter(Boolean) as WaliKelas[];
       
       setWaliKelasList(processedData);
     } catch (error) {
@@ -298,12 +306,18 @@ export default function Pengguna() {
     { 
       key: "kelas", 
       label: "Kelas",
-      render: (row: WaliKelas) => row.classes?.nama_kelas || 'Kelas tidak ditemukan'
+      render: (row: WaliKelas) => {
+        if (!row || !row.classes) return 'Kelas tidak ditemukan';
+        return row.classes.nama_kelas || 'Kelas tidak ditemukan';
+      }
     },
     { 
       key: "email", 
       label: "Email",
-      render: (row: WaliKelas) => row.profiles?.email || 'Email tidak tersedia'
+      render: (row: WaliKelas) => {
+        if (!row || !row.profiles) return 'Email tidak tersedia';
+        return row.profiles.email || 'Email tidak tersedia';
+      }
     }
   ];
 
@@ -317,7 +331,11 @@ export default function Pengguna() {
     {
       label: "Hapus",
       icon: Trash2,
-      onClick: (row: WaliKelas) => handleDelete(row.id),
+      onClick: (row: WaliKelas) => {
+        if (row && row.id) {
+          handleDelete(row.id);
+        }
+      },
       variant: "ghost" as const,
       className: "text-destructive hover:text-destructive"
     }
