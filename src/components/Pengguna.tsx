@@ -180,7 +180,7 @@ export default function Pengguna() {
           // Create confirmed user using edge function
           const { data: sessionData } = await supabase.auth.getSession();
           
-          const response = await fetch('/functions/v1/create-confirmed-user', {
+          const response = await fetch('https://nrkeyhmkygarlkvbhkwf.supabase.co/functions/v1/create-confirmed-user', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
