@@ -66,6 +66,7 @@ export default function Pengguna() {
 
   const fetchWaliKelas = async () => {
     try {
+      console.log('Fetching wali kelas data...');
       const { data, error } = await supabase
         .from('wali_kelas')
         .select(`
@@ -86,6 +87,8 @@ export default function Pengguna() {
       const processedData = (data || []).map(item => {
         if (!item) return null;
         
+        console.log('Processing item:', item);
+        
         return {
           ...item,
           classes: item.classes && typeof item.classes === 'object' && 'nama_kelas' in item.classes
@@ -97,6 +100,7 @@ export default function Pengguna() {
         };
       }).filter(Boolean) as WaliKelas[];
       
+      console.log('Processed wali kelas data:', processedData);
       setWaliKelasList(processedData);
     } catch (error) {
       console.error('Error fetching wali kelas:', error);
@@ -110,6 +114,7 @@ export default function Pengguna() {
 
   const fetchProfiles = async () => {
     try {
+      console.log('Fetching profiles...');
       // Get all profiles with admin role
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -118,6 +123,8 @@ export default function Pengguna() {
         .order('full_name');
 
       if (profilesError) throw profilesError;
+      
+      console.log('Available admin profiles:', profilesData);
 
       // Get existing wali kelas user_ids to exclude them
       const { data: waliKelasData, error: waliKelasError } = await supabase
@@ -127,12 +134,14 @@ export default function Pengguna() {
       if (waliKelasError) throw waliKelasError;
 
       const assignedUserIds = waliKelasData?.map(wk => wk.user_id) || [];
+      console.log('Already assigned user IDs:', assignedUserIds);
       
       // Filter out users who are already assigned as wali kelas
       const availableProfiles = profilesData?.filter(profile => 
         !assignedUserIds.includes(profile.id)
       ) || [];
 
+      console.log('Available profiles for wali kelas:', availableProfiles);
       setProfiles(availableProfiles);
     } catch (error) {
       console.error('Error fetching profiles:', error);
@@ -146,10 +155,13 @@ export default function Pengguna() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Form submitted with data:', formData);
+    
     try {
       setLoading(true);
 
       if (editingId) {
+        console.log('Updating existing wali kelas:', editingId);
         // Update existing wali kelas
         const { error } = await supabase
           .from('wali_kelas')
@@ -173,36 +185,39 @@ export default function Pengguna() {
           description: "Data wali kelas berhasil diperbarui"
         });
       } else {
+        console.log('Creating new wali kelas');
         // Create new user account if needed
         let userId = formData.user_id;
         
         if (!userId && formData.email && formData.password) {
+          console.log('Creating new user with email:', formData.email);
           // Create confirmed user using edge function
-          const { data: sessionData } = await supabase.auth.getSession();
-          
-          const response = await fetch('https://nrkeyhmkygarlkvbhkwf.supabase.co/functions/v1/create-confirmed-user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionData.session?.access_token}`,
-            },
-            body: JSON.stringify({
+          const { data, error: functionError } = await supabase.functions.invoke('create-confirmed-user', {
+            body: {
               email: formData.email,
               password: formData.password,
               full_name: formData.nama
-            })
+            }
           });
 
-          const result = await response.json();
-          
-          if (!result.success) {
-            throw new Error(result.error || 'Failed to create user');
+          console.log('Edge function response:', { data, error: functionError });
+
+          if (functionError) {
+            console.error('Edge function error:', functionError);
+            throw new Error(functionError.message || 'Failed to create user');
           }
           
-          userId = result.user_id;
+          if (!data?.success) {
+            console.error('Function returned error:', data);
+            throw new Error(data?.error || 'Failed to create user');
+          }
+          
+          userId = data.user_id;
+          console.log('Created user with ID:', userId);
         }
 
         if (!userId) {
+          console.log('Using existing user ID:', formData.user_id);
           // Update existing profile role
           await supabase
             .from('profiles')
@@ -211,6 +226,7 @@ export default function Pengguna() {
           userId = formData.user_id;
         }
 
+        console.log('Creating wali_kelas record for user:', userId);
         // Create wali kelas record
         const { error } = await supabase
           .from('wali_kelas')
@@ -221,8 +237,12 @@ export default function Pengguna() {
             user_id: userId
           });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error inserting wali_kelas:', error);
+          throw error;
+        }
 
+        console.log('Successfully created wali_kelas record');
         toast({
           title: "Berhasil",
           description: "Wali kelas berhasil ditambahkan"
