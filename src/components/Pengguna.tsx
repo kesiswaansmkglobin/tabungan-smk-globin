@@ -71,8 +71,8 @@ export default function Pengguna() {
         .from('wali_kelas')
         .select(`
           *,
-          profiles!wali_kelas_user_id_fkey (email, role),
-          classes!wali_kelas_kelas_id_fkey (nama_kelas)
+          profiles:user_id (email, role, full_name),
+          classes:kelas_id (nama_kelas)
         `)
         .order('nama');
 
@@ -89,15 +89,32 @@ export default function Pengguna() {
         
         console.log('Processing item:', item);
         
-        return {
+        const processedItem = {
           ...item,
-          classes: item.classes && typeof item.classes === 'object' && 'nama_kelas' in item.classes
-            ? item.classes 
-            : { nama_kelas: 'Kelas tidak ditemukan' },
-          profiles: item.profiles && typeof item.profiles === 'object' && 'email' in item.profiles
-            ? item.profiles 
-            : { email: 'Email tidak tersedia', role: 'admin' as const }
+          classes: { nama_kelas: 'Kelas tidak ditemukan' },
+          profiles: { email: 'Email tidak tersedia', role: 'wali_kelas' as const }
         };
+        
+        // Safely assign classes if data exists
+        if (item.classes && item.classes !== null && typeof item.classes === 'object') {
+          const classData = item.classes as any;
+          if (classData.nama_kelas) {
+            processedItem.classes = { nama_kelas: classData.nama_kelas };
+          }
+        }
+        
+        // Safely assign profiles if data exists
+        if (item.profiles && item.profiles !== null && typeof item.profiles === 'object') {
+          const profileData = item.profiles as any;
+          if (profileData.email) {
+            processedItem.profiles = {
+              email: profileData.email,
+              role: 'wali_kelas' as const
+            };
+          }
+        }
+        
+        return processedItem;
       }).filter(Boolean) as WaliKelas[];
       
       console.log('Processed wali kelas data:', processedData);
