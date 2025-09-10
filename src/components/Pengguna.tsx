@@ -187,12 +187,15 @@ export default function Pengguna() {
         
         if (!userId && formData.email && formData.password) {
           console.log('Creating new user with email:', formData.email);
-          // Create confirmed user using edge function
+          // Create confirmed user and wali_kelas record using edge function
           const { data, error: functionError } = await supabase.functions.invoke('create-confirmed-user', {
             body: {
               email: formData.email,
               password: formData.password,
-              full_name: formData.nama
+              full_name: formData.nama,
+              kelas_id: formData.kelas_id,
+              nama: formData.nama,
+              nip: formData.nip || null
             }
           });
 
@@ -220,25 +223,48 @@ export default function Pengguna() {
             .update({ role: 'wali_kelas' })
             .eq('id', formData.user_id);
           userId = formData.user_id;
+          
+          // Create or update wali_kelas record for existing user
+          const { data: existingWaliKelas } = await supabase
+            .from('wali_kelas')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (!existingWaliKelas) {
+            // Create new wali_kelas record
+            const { error } = await supabase
+              .from('wali_kelas')
+              .insert({
+                nama: formData.nama,
+                nip: formData.nip || null,
+                kelas_id: formData.kelas_id,
+                user_id: userId
+              });
+
+            if (error) {
+              console.error('Error inserting wali_kelas:', error);
+              throw error;
+            }
+          } else {
+            // Update existing wali_kelas record
+            const { error } = await supabase
+              .from('wali_kelas')
+              .update({
+                nama: formData.nama,
+                nip: formData.nip || null,
+                kelas_id: formData.kelas_id
+              })
+              .eq('user_id', userId);
+
+            if (error) {
+              console.error('Error updating wali_kelas:', error);
+              throw error;
+            }
+          }
         }
 
-        console.log('Creating wali_kelas record for user:', userId);
-        // Create wali kelas record
-        const { error } = await supabase
-          .from('wali_kelas')
-          .insert({
-            nama: formData.nama,
-            nip: formData.nip || null,
-            kelas_id: formData.kelas_id,
-            user_id: userId
-          });
-
-        if (error) {
-          console.error('Error inserting wali_kelas:', error);
-          throw error;
-        }
-
-        console.log('Successfully created wali_kelas record');
+        console.log('Successfully created/updated wali_kelas record');
         toast({
           title: "Berhasil",
           description: "Wali kelas berhasil ditambahkan"
