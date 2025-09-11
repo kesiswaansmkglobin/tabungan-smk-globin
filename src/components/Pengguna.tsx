@@ -70,9 +70,21 @@ export default function Pengguna() {
       const { data, error } = await supabase
         .from('wali_kelas')
         .select(`
-          *,
-          profiles!wali_kelas_user_id_fkey (email, role, full_name),
-          classes!wali_kelas_kelas_id_fkey (nama_kelas)
+          id,
+          nama,
+          nip,
+          kelas_id,
+          user_id,
+          created_at,
+          updated_at,
+          profiles:user_id (
+            email,
+            role,
+            full_name
+          ),
+          classes:kelas_id (
+            nama_kelas
+          )
         `)
         .order('nama');
 
@@ -83,7 +95,7 @@ export default function Pengguna() {
       
       console.log('Raw wali kelas data:', data);
       
-      // Properly handle the data structure with better error checking
+      // Properly handle the data structure
       const processedData = (data || []).map(item => {
         if (!item) return null;
         
@@ -111,11 +123,11 @@ export default function Pengguna() {
   const fetchProfiles = async () => {
     try {
       console.log('Fetching profiles...');
-      // Get all profiles with admin role
+      // Get all profiles with admin role or no specific role (for new user creation)
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('role', 'admin')
+        .in('role', ['admin'])
         .order('full_name');
 
       if (profilesError) throw profilesError;
@@ -141,6 +153,11 @@ export default function Pengguna() {
       setProfiles(availableProfiles);
     } catch (error) {
       console.error('Error fetching profiles:', error);
+      toast({
+        title: "Error",
+        description: "Gagal memuat data profil pengguna",
+        variant: "destructive"
+      });
     }
   };
 
