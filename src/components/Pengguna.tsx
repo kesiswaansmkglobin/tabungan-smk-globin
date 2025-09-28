@@ -77,12 +77,12 @@ export default function Pengguna() {
           user_id,
           created_at,
           updated_at,
-          profiles:user_id (
+          profiles:profiles!wali_kelas_user_id_fkey (
             email,
             role,
             full_name
           ),
-          classes:classes!fk_wali_kelas_class (
+          classes:classes!wali_kelas_kelas_id_fkey (
             nama_kelas
           )
         `)
