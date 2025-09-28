@@ -146,7 +146,10 @@ export default function WaliKelasDataSiswa() {
     { 
       key: "tanggal", 
       label: "Tanggal",
-      render: (row: Transaction) => new Date(row.tanggal).toLocaleDateString('id-ID')
+      render: (row: Transaction) => {
+        const date = new Date(row.tanggal);
+        return isNaN(date.getTime()) ? 'Tanggal tidak valid' : date.toLocaleDateString('id-ID');
+      }
     },
     { 
       key: "jenis", 

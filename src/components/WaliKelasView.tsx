@@ -45,27 +45,36 @@ export default function WaliKelasView() {
 
   const fetchWaliKelasData = async () => {
     try {
-      // Get wali kelas info
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Get wali kelas info with proper relation
       const { data: waliData, error: waliError } = await supabase
         .from('wali_kelas')
         .select(`
           nama,
-          classes!kelas_id (nama_kelas)
+          kelas_id,
+          classes:classes!wali_kelas_kelas_id_fkey (
+            nama_kelas
+          )
         `)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('user_id', user.id)
         .single();
 
       if (waliError) throw waliError;
       
+      const kelasInfo = waliData.classes || { nama_kelas: 'Kelas tidak ditemukan' };
+      
       setWaliInfo({
         nama: waliData.nama,
-        kelas_nama: waliData.classes?.nama_kelas || ''
+        kelas_nama: kelasInfo.nama_kelas
       });
 
-      // Get students in the class
+      // Get students in the class using kelas_id
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
         .select('id, nama, nis, saldo')
+        .eq('kelas_id', waliData.kelas_id)
         .order('nama');
 
       if (studentsError) throw studentsError;
@@ -78,18 +87,25 @@ export default function WaliKelasView() {
 
       setStats({ totalStudents, totalSaldo, averageSaldo });
 
-      // Get recent transactions for the class
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select(`
-          id, tanggal, jenis, jumlah, saldo_setelah, keterangan, admin,
-          students!student_id (nama, nis)
-        `)
-        .order('tanggal', { ascending: false })
-        .limit(50);
+      // Get recent transactions for students in this class
+      const studentIds = studentsData?.map(s => s.id) || [];
+      
+      if (studentIds.length > 0) {
+        const { data: transactionsData, error: transactionsError } = await supabase
+          .from('transactions')
+          .select(`
+            id, tanggal, jenis, jumlah, saldo_setelah, keterangan, admin,
+            students:student_id (nama, nis)
+          `)
+          .in('student_id', studentIds)
+          .order('tanggal', { ascending: false })
+          .limit(50);
 
-      if (transactionsError) throw transactionsError;
-      setTransactions(transactionsData || []);
+        if (transactionsError) throw transactionsError;
+        setTransactions(transactionsData || []);
+      } else {
+        setTransactions([]);
+      }
 
     } catch (error: any) {
       console.error('Error fetching wali kelas data:', error);
@@ -132,7 +148,10 @@ export default function WaliKelasView() {
     { 
       key: "tanggal", 
       label: "Tanggal",
-      render: (row: Transaction) => new Date(row.tanggal).toLocaleDateString('id-ID')
+      render: (row: Transaction) => {
+        const date = new Date(row.tanggal);
+        return isNaN(date.getTime()) ? 'Tanggal tidak valid' : date.toLocaleDateString('id-ID');
+      }
     },
     { 
       key: "siswa", 

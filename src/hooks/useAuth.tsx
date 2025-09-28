@@ -55,16 +55,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: waliKelasData, error: waliKelasError } = await supabase
           .from('wali_kelas')
           .select(`
-            *,
-            classes!wali_kelas_kelas_id_fkey (nama_kelas)
+            id,
+            nama,
+            nip,
+            kelas_id,
+            classes:classes!wali_kelas_kelas_id_fkey (
+              nama_kelas
+            )
           `)
           .eq('user_id', userId)
           .single();
 
         if (waliKelasError) {
           console.error('Error fetching wali kelas info:', waliKelasError);
-        } else {
-          setWaliKelasInfo(waliKelasData);
+        } else if (waliKelasData) {
+          setWaliKelasInfo({
+            ...waliKelasData,
+            classes: waliKelasData.classes || { nama_kelas: 'Kelas tidak ditemukan' }
+          });
         }
       } else {
         setWaliKelasInfo(null);

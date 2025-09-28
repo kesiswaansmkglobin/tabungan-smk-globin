@@ -132,7 +132,7 @@ export default function Pengguna() {
         .filter(Boolean) as WaliKelas[];
       
       
-      console.log('Processed wali kelas data:', processedData);
+      console.log('Final processed wali kelas data:', processedData);
       setWaliKelasList(processedData);
     } catch (error) {
       console.error('Error fetching wali kelas:', error);
