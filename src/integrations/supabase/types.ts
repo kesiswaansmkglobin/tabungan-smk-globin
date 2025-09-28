@@ -108,6 +108,7 @@ export type Database = {
           kelas_id: string
           nama: string
           nis: string
+          password: string | null
           saldo: number
           updated_at: string
         }
@@ -117,6 +118,7 @@ export type Database = {
           kelas_id: string
           nama: string
           nis: string
+          password?: string | null
           saldo?: number
           updated_at?: string
         }
@@ -126,6 +128,7 @@ export type Database = {
           kelas_id?: string
           nama?: string
           nis?: string
+          password?: string | null
           saldo?: number
           updated_at?: string
         }
@@ -243,6 +246,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      authenticate_student: {
+        Args: { student_nis: string; student_password: string }
+        Returns: Json
+      }
       create_confirmed_user: {
         Args: { user_email: string; user_name: string; user_password: string }
         Returns: string
@@ -250,6 +257,19 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_student_transactions: {
+        Args: { student_nis: string }
+        Returns: {
+          admin: string
+          created_at: string
+          id: string
+          jenis: string
+          jumlah: number
+          keterangan: string
+          saldo_setelah: number
+          tanggal: string
+        }[]
       }
       get_wali_kelas_class_id: {
         Args: Record<PropertyKey, never>

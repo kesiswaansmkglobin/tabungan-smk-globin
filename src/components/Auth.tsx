@@ -5,13 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Eye, EyeOff, LogIn, User, Lock } from "lucide-react";
+import { Eye, EyeOff, LogIn, User, Lock, GraduationCap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface AuthProps {
   onAuth: () => void;
 }
 
 export default function Auth({ onAuth }: AuthProps) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -135,11 +137,25 @@ export default function Auth({ onAuth }: AuthProps) {
               {loading ? "Memproses..." : (
                 <>
                   <LogIn className="w-4 h-4 mr-2" />
-                  Masuk
+                  Masuk sebagai Admin/Wali Kelas
                 </>
               )}
             </Button>
           </form>
+          
+          <div className="mt-6 pt-6 border-t border-border">
+            <p className="text-sm text-muted-foreground text-center mb-3">
+              Atau
+            </p>
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => navigate('/student')}
+            >
+              <GraduationCap className="w-4 h-4 mr-2" />
+              Masuk sebagai Siswa
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
