@@ -77,12 +77,12 @@ export default function Pengguna() {
           user_id,
           created_at,
           updated_at,
-          profiles:profiles!wali_kelas_user_id_fkey (
+          profiles:user_id (
             email,
             role,
             full_name
           ),
-          classes:classes!wali_kelas_kelas_id_fkey (
+          classes:classes!fk_wali_kelas_class (
             nama_kelas
           )
         `)
@@ -95,18 +95,53 @@ export default function Pengguna() {
       
       console.log('Raw wali kelas data:', data);
       
-      // Properly handle the data structure
-      const processedData = (data || []).map(item => {
-        if (!item) return null;
-        
-        console.log('Processing item:', item);
-        
-        return {
-          ...item,
-          classes: item.classes || { nama_kelas: 'Kelas tidak ditemukan' },
-          profiles: item.profiles || { email: 'Email tidak tersedia', role: 'wali_kelas' as const }
-        };
-      }).filter(Boolean) as WaliKelas[];
+      // Properly handle the data structure with fallback loading for missing relations
+      const waliRaw = (data || []) as any[];
+
+      const missingProfileIds = waliRaw
+        .filter((item: any) => item && !item.profiles && item.user_id)
+        .map((i: any) => i.user_id);
+      const missingClassIds = waliRaw
+        .filter((item: any) => item && !item.classes && item.kelas_id)
+        .map((i: any) => i.kelas_id);
+
+      let profilesMap = new Map<string, any>();
+      let classesMap = new Map<string, any>();
+
+      if (missingProfileIds.length || missingClassIds.length) {
+        const [profilesRes, classesRes] = await Promise.all([
+          missingProfileIds.length
+            ? supabase
+                .from('profiles')
+                .select('id, email, role, full_name')
+                .in('id', missingProfileIds)
+            : Promise.resolve({ data: [] as any[] }),
+          missingClassIds.length
+            ? supabase
+                .from('classes')
+                .select('id, nama_kelas')
+                .in('id', missingClassIds)
+            : Promise.resolve({ data: [] as any[] }),
+        ]);
+
+        profilesMap = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
+        classesMap = new Map((classesRes.data || []).map((c: any) => [c.id, c]));
+      }
+
+      const processedData = waliRaw
+        .map((item: any) => {
+          if (!item) return null;
+
+          return {
+            ...item,
+            classes:
+              item.classes ?? classesMap.get(item.kelas_id) ?? { nama_kelas: 'Kelas tidak ditemukan' },
+            profiles:
+              item.profiles ?? profilesMap.get(item.user_id) ?? { email: 'Email tidak tersedia', role: 'wali_kelas' as const },
+          };
+        })
+        .filter(Boolean) as WaliKelas[];
+      
       
       console.log('Processed wali kelas data:', processedData);
       setWaliKelasList(processedData);
