@@ -122,6 +122,11 @@ export default function WaliKelasDataSiswa() {
   }
 
   const formatCurrency = (n?: number | null) => `Rp ${Number(n ?? 0).toLocaleString('id-ID')}`;
+  const safeFormatDate = (dateInput?: string | null) => {
+    if (!dateInput) return '-';
+    const d = new Date(`${dateInput}T00:00:00`);
+    return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('id-ID');
+  };
 
   const columns = [
     { key: "nis", label: "NIS" },
@@ -129,7 +134,7 @@ export default function WaliKelasDataSiswa() {
     { 
       key: "saldo", 
       label: "Saldo",
-      render: (row: Student) => formatCurrency(row.saldo)
+      render: (value: number) => formatCurrency(value)
     }
   ];
 
@@ -146,33 +151,32 @@ export default function WaliKelasDataSiswa() {
     { 
       key: "tanggal", 
       label: "Tanggal",
-      render: (row: Transaction) => {
-        const date = new Date(row.tanggal);
-        return isNaN(date.getTime()) ? 'Tanggal tidak valid' : date.toLocaleDateString('id-ID');
-      }
+      render: (value: string) => safeFormatDate(value)
     },
     { 
       key: "jenis", 
       label: "Jenis",
-      render: (row: Transaction) => (
-        <span className={`px-2 py-1 rounded text-xs font-medium ${
-          row.jenis === 'Setor' 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-red-100 text-red-800'
-        }`}>
-          {row.jenis}
-        </span>
-      )
+      render: (value: string) => {
+        const normalized = String(value || '').toLowerCase();
+        const isSetor = normalized === 'setor';
+        return (
+          <span className={`px-2 py-1 rounded text-xs font-medium ${
+            isSetor ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {isSetor ? 'Setor' : 'Tarik'}
+          </span>
+        );
+      }
     },
     { 
       key: "jumlah", 
       label: "Jumlah",
-      render: (row: Transaction) => formatCurrency(row.jumlah)
+      render: (value: number) => formatCurrency(Number(value || 0))
     },
     { 
       key: "saldo_setelah", 
       label: "Saldo Setelah",
-      render: (row: Transaction) => formatCurrency(row.saldo_setelah)
+      render: (value: number) => formatCurrency(Number(value || 0))
     },
     { key: "keterangan", label: "Keterangan" }
   ];

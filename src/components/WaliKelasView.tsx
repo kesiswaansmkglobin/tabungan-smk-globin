@@ -59,9 +59,10 @@ export default function WaliKelasView() {
           )
         `)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (waliError) throw waliError;
+      if (!waliData) throw new Error('Data wali kelas tidak ditemukan');
       
       const kelasInfo = waliData.classes || { nama_kelas: 'Kelas tidak ditemukan' };
       
@@ -130,15 +131,21 @@ export default function WaliKelasView() {
     }).format(amount);
   };
 
+  const safeFormatDate = (dateInput: string | Date | null | undefined) => {
+    if (!dateInput) return '-';
+    const d = typeof dateInput === 'string' ? new Date(`${dateInput}T00:00:00`) : new Date(dateInput);
+    return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('id-ID');
+  };
+
   const studentColumns = [
     { key: "nis", label: "NIS" },
     { key: "nama", label: "Nama Siswa" },
     { 
       key: "saldo", 
       label: "Saldo",
-      render: (row: Student) => (
-        <Badge variant={row.saldo > 0 ? "default" : "destructive"}>
-          {formatCurrency(row.saldo)}
+      render: (_value: number, item: Student) => (
+        <Badge variant={item.saldo > 0 ? "default" : "destructive"}>
+          {formatCurrency(item.saldo)}
         </Badge>
       )
     }
@@ -148,39 +155,40 @@ export default function WaliKelasView() {
     { 
       key: "tanggal", 
       label: "Tanggal",
-      render: (row: Transaction) => {
-        const date = new Date(row.tanggal);
-        return isNaN(date.getTime()) ? 'Tanggal tidak valid' : date.toLocaleDateString('id-ID');
-      }
+      render: (value: string) => safeFormatDate(value)
     },
     { 
       key: "siswa", 
       label: "Siswa",
-      render: (row: Transaction) => (
+      render: (_: any, item: Transaction) => (
         <div>
-          <div className="font-medium">{row.students?.nama}</div>
-          <div className="text-sm text-muted-foreground">{row.students?.nis}</div>
+          <div className="font-medium">{item.students?.nama ?? '-'}</div>
+          <div className="text-sm text-muted-foreground">{item.students?.nis ?? ''}</div>
         </div>
       )
     },
     { 
       key: "jenis", 
       label: "Jenis",
-      render: (row: Transaction) => (
-        <Badge variant={row.jenis === 'setor' ? 'default' : 'destructive'}>
-          {row.jenis === 'setor' ? 'Setor' : 'Tarik'}
-        </Badge>
-      )
+      render: (value: string) => {
+        const normalized = String(value || '').toLowerCase();
+        const isSetor = normalized === 'setor';
+        return (
+          <Badge variant={isSetor ? 'default' : 'destructive'}>
+            {isSetor ? 'Setor' : 'Tarik'}
+          </Badge>
+        );
+      }
     },
     { 
       key: "jumlah", 
       label: "Jumlah",
-      render: (row: Transaction) => formatCurrency(row.jumlah)
+      render: (value: number) => formatCurrency(Number(value || 0))
     },
     { 
       key: "saldo_setelah", 
       label: "Saldo Setelah",
-      render: (row: Transaction) => formatCurrency(row.saldo_setelah)
+      render: (value: number) => formatCurrency(Number(value || 0))
     },
     { key: "keterangan", label: "Keterangan" },
     { key: "admin", label: "Admin" }
