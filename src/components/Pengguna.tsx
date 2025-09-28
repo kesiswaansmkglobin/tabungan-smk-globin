@@ -95,38 +95,29 @@ export default function Pengguna() {
       
       console.log('Raw wali kelas data:', data);
       
-      // Properly handle the data structure with fallback loading for missing relations
+      // Merge relations robustly: always load related profiles and classes and map them
       const waliRaw = (data || []) as any[];
 
-      const missingProfileIds = waliRaw
-        .filter((item: any) => item && !item.profiles && item.user_id)
-        .map((i: any) => i.user_id);
-      const missingClassIds = waliRaw
-        .filter((item: any) => item && !item.classes && item.kelas_id)
-        .map((i: any) => i.kelas_id);
+      const userIds = Array.from(new Set(waliRaw.map((i: any) => i?.user_id).filter(Boolean)));
+      const kelasIds = Array.from(new Set(waliRaw.map((i: any) => i?.kelas_id).filter(Boolean)));
 
-      let profilesMap = new Map<string, any>();
-      let classesMap = new Map<string, any>();
+      const [profilesRes, classesRes] = await Promise.all([
+        userIds.length
+          ? supabase
+              .from('profiles')
+              .select('id, email, role, full_name')
+              .in('id', userIds)
+          : Promise.resolve({ data: [] as any[] }),
+        kelasIds.length
+          ? supabase
+              .from('classes')
+              .select('id, nama_kelas')
+              .in('id', kelasIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
 
-      if (missingProfileIds.length || missingClassIds.length) {
-        const [profilesRes, classesRes] = await Promise.all([
-          missingProfileIds.length
-            ? supabase
-                .from('profiles')
-                .select('id, email, role, full_name')
-                .in('id', missingProfileIds)
-            : Promise.resolve({ data: [] as any[] }),
-          missingClassIds.length
-            ? supabase
-                .from('classes')
-                .select('id, nama_kelas')
-                .in('id', missingClassIds)
-            : Promise.resolve({ data: [] as any[] }),
-        ]);
-
-        profilesMap = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
-        classesMap = new Map((classesRes.data || []).map((c: any) => [c.id, c]));
-      }
+      const profilesMap = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
+      const classesMap = new Map((classesRes.data || []).map((c: any) => [c.id, c]));
 
       const processedData = waliRaw
         .map((item: any) => {
@@ -134,10 +125,8 @@ export default function Pengguna() {
 
           return {
             ...item,
-            classes:
-              item.classes ?? classesMap.get(item.kelas_id) ?? { nama_kelas: 'Kelas tidak ditemukan' },
-            profiles:
-              item.profiles ?? profilesMap.get(item.user_id) ?? { email: 'Email tidak tersedia', role: 'wali_kelas' as const },
+            classes: item.classes ?? classesMap.get(item.kelas_id) ?? { nama_kelas: 'Kelas tidak ditemukan' },
+            profiles: item.profiles ?? profilesMap.get(item.user_id) ?? { email: 'Email tidak tersedia', role: 'wali_kelas' as const },
           };
         })
         .filter(Boolean) as WaliKelas[];

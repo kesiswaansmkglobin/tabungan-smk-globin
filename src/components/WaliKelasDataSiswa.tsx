@@ -121,13 +121,15 @@ export default function WaliKelasDataSiswa() {
     );
   }
 
+  const formatCurrency = (n?: number | null) => `Rp ${Number(n ?? 0).toLocaleString('id-ID')}`;
+
   const columns = [
     { key: "nis", label: "NIS" },
     { key: "nama", label: "Nama Siswa" },
     { 
       key: "saldo", 
       label: "Saldo",
-      render: (row: Student) => `Rp ${row.saldo.toLocaleString('id-ID')}`
+      render: (row: Student) => formatCurrency(row.saldo)
     }
   ];
 
@@ -162,12 +164,12 @@ export default function WaliKelasDataSiswa() {
     { 
       key: "jumlah", 
       label: "Jumlah",
-      render: (row: Transaction) => `Rp ${row.jumlah.toLocaleString('id-ID')}`
+      render: (row: Transaction) => formatCurrency(row.jumlah)
     },
     { 
       key: "saldo_setelah", 
       label: "Saldo Setelah",
-      render: (row: Transaction) => `Rp ${row.saldo_setelah.toLocaleString('id-ID')}`
+      render: (row: Transaction) => formatCurrency(row.saldo_setelah)
     },
     { key: "keterangan", label: "Keterangan" }
   ];
@@ -213,7 +215,7 @@ export default function WaliKelasDataSiswa() {
                     <strong>Nama:</strong> {selectedStudent.nama}
                   </div>
                   <div>
-                    <strong>Saldo Saat Ini:</strong> Rp {selectedStudent.saldo.toLocaleString('id-ID')}
+                    <strong>Saldo Saat Ini:</strong> {formatCurrency(selectedStudent.saldo)}
                   </div>
                   <div>
                     <strong>Kelas:</strong> {selectedStudent.classes?.nama_kelas}
