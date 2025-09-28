@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { OptimizedTable } from "@/components/OptimizedTable";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -77,12 +77,12 @@ export default function Pengguna() {
           user_id,
           created_at,
           updated_at,
-          profiles:user_id (
+          profiles:profiles!wali_kelas_user_id_fkey (
             email,
             role,
             full_name
           ),
-          classes:kelas_id (
+          classes:classes!wali_kelas_kelas_id_fkey (
             nama_kelas
           )
         `)
@@ -430,6 +430,7 @@ export default function Pengguna() {
                 <DialogTitle>
                   {editingId ? "Edit Wali Kelas" : "Tambah Wali Kelas"}
                 </DialogTitle>
+                <DialogDescription>Isi data wali kelas dengan benar untuk menghubungkan kelas, profil, dan akses wali kelas.</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-4 py-4">
