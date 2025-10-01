@@ -108,7 +108,7 @@ export type Database = {
           kelas_id: string
           nama: string
           nis: string
-          password: string | null
+          password: string
           saldo: number
           updated_at: string
         }
@@ -118,7 +118,7 @@ export type Database = {
           kelas_id: string
           nama: string
           nis: string
-          password?: string | null
+          password: string
           saldo?: number
           updated_at?: string
         }
@@ -128,7 +128,7 @@ export type Database = {
           kelas_id?: string
           nama?: string
           nis?: string
-          password?: string | null
+          password?: string
           saldo?: number
           updated_at?: string
         }
