@@ -195,7 +195,8 @@ const DataSiswa = () => {
           .insert([{
             nis: formData.nis.trim(),
             nama: formData.nama.trim(),
-            kelas_id: formData.kelas_id
+            kelas_id: formData.kelas_id,
+            password: formData.nis.trim() // Default password is NIS, will be hashed by trigger
           }]);
 
         if (error) throw error;

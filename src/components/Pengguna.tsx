@@ -75,14 +75,12 @@ export default function Pengguna() {
           nip,
           kelas_id,
           user_id,
-          created_at,
-          updated_at,
-          profiles:profiles!wali_kelas_user_id_fkey (
+          profiles (
             email,
             role,
             full_name
           ),
-          classes:classes!wali_kelas_kelas_id_fkey (
+          classes (
             nama_kelas
           )
         `)
@@ -95,42 +93,11 @@ export default function Pengguna() {
       
       console.log('Raw wali kelas data:', data);
       
-      // Merge relations robustly: always load related profiles and classes and map them
-      const waliRaw = (data || []) as any[];
-
-      const userIds = Array.from(new Set(waliRaw.map((i: any) => i?.user_id).filter(Boolean)));
-      const kelasIds = Array.from(new Set(waliRaw.map((i: any) => i?.kelas_id).filter(Boolean)));
-
-      const [profilesRes, classesRes] = await Promise.all([
-        userIds.length
-          ? supabase
-              .from('profiles')
-              .select('id, email, role, full_name')
-              .in('id', userIds)
-          : Promise.resolve({ data: [] as any[] }),
-        kelasIds.length
-          ? supabase
-              .from('classes')
-              .select('id, nama_kelas')
-              .in('id', kelasIds)
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-
-      const profilesMap = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
-      const classesMap = new Map((classesRes.data || []).map((c: any) => [c.id, c]));
-
-      const processedData = waliRaw
-        .map((item: any) => {
-          if (!item) return null;
-
-          return {
-            ...item,
-            classes: item.classes ?? classesMap.get(item.kelas_id) ?? { nama_kelas: 'Kelas tidak ditemukan' },
-            profiles: item.profiles ?? profilesMap.get(item.user_id) ?? { email: 'Email tidak tersedia', role: 'wali_kelas' as const },
-          };
-        })
-        .filter(Boolean) as WaliKelas[];
-      
+      const processedData = (data || []).map((item: any) => ({
+        ...item,
+        classes: item.classes || { nama_kelas: 'Kelas tidak ditemukan' },
+        profiles: item.profiles || { email: 'Email tidak tersedia', role: 'wali_kelas' }
+      })) as WaliKelas[];
       
       console.log('Final processed wali kelas data:', processedData);
       setWaliKelasList(processedData);
