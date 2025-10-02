@@ -94,10 +94,17 @@ export const useAppData = (): UseAppDataReturn => {
 
   const loadStudents = useCallback(async () => {
     try {
+      // SECURITY: Never select password column
       const { data, error } = await supabase
         .from('students')
         .select(`
-          *,
+          id,
+          nis,
+          nama,
+          kelas_id,
+          saldo,
+          created_at,
+          updated_at,
           classes (
             nama_kelas
           )

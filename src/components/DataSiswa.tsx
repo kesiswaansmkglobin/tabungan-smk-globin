@@ -101,10 +101,17 @@ const DataSiswa = () => {
   const loadSiswaData = async () => {
     try {
       console.log("Loading students data from Supabase...");
+      // SECURITY: Never select password column
       const { data: students, error } = await supabase
         .from('students')
         .select(`
-          *,
+          id,
+          nis,
+          nama,
+          kelas_id,
+          saldo,
+          created_at,
+          updated_at,
           classes (
             nama_kelas
           )

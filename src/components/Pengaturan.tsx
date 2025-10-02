@@ -26,15 +26,19 @@ const Pengaturan = () => {
       // Backup all tables
       const { data: schoolData } = await supabase.from('school_data').select('*');
       const { data: classesData } = await supabase.from('classes').select('*');
-      const { data: studentsData } = await supabase.from('students').select('*');
+      // SECURITY: Include password in backup (it's hashed, needed for restore)
+      // But document that backups must be stored securely
+      const { data: studentsData } = await supabase.from('students').select('id, nis, nama, kelas_id, saldo, created_at, updated_at, password');
       const { data: transactionsData } = await supabase.from('transactions').select('*');
 
       const backup = {
         timestamp: new Date().toISOString(),
+        version: '2.0',
         school_data: schoolData || [],
         classes: classesData || [],
         students: studentsData || [],
-        transactions: transactionsData || []
+        transactions: transactionsData || [],
+        security_notice: 'This backup contains hashed passwords. Store securely!'
       };
 
       // Download as JSON file

@@ -46,10 +46,17 @@ export default function WaliKelasDataSiswa() {
     }
 
     try {
+      // SECURITY: Never select password column
       const { data, error } = await supabase
         .from('students')
         .select(`
-          *,
+          id,
+          nis,
+          nama,
+          kelas_id,
+          saldo,
+          created_at,
+          updated_at,
           classes (nama_kelas)
         `)
         .eq('kelas_id', waliKelasInfo.kelas_id)
