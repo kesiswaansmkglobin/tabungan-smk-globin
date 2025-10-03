@@ -187,13 +187,6 @@ export type Database = {
             referencedRelation: "students"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "transactions_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students_safe"
-            referencedColumns: ["id"]
-          },
         ]
       }
       wali_kelas: {
@@ -250,44 +243,7 @@ export type Database = {
       }
     }
     Views: {
-      students_safe: {
-        Row: {
-          created_at: string | null
-          id: string | null
-          kelas_id: string | null
-          nama: string | null
-          nis: string | null
-          saldo: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string | null
-          kelas_id?: string | null
-          nama?: string | null
-          nis?: string | null
-          saldo?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string | null
-          kelas_id?: string | null
-          nama?: string | null
-          nis?: string | null
-          saldo?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "students_kelas_id_fkey"
-            columns: ["kelas_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       authenticate_student: {
