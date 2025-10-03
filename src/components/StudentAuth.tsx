@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Lock, User } from "lucide-react";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
+import { SecurityManager } from "@/utils/security";
+import { toast } from "@/hooks/use-toast";
 
 export default function StudentAuth() {
   const [nis, setNis] = useState("");
@@ -14,11 +16,54 @@ export default function StudentAuth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nis || !password) return;
+    
+    // Client-side validation
+    const sanitizedNIS = SecurityManager.sanitizeInput(nis);
+    
+    if (!sanitizedNIS || !password) {
+      toast({
+        title: "Error",
+        description: "NIS dan password harus diisi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!SecurityManager.isValidNIS(sanitizedNIS)) {
+      toast({
+        title: "Error",
+        description: "Format NIS tidak valid (harus angka)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check account lockout
+    if (SecurityManager.isAccountLocked(sanitizedNIS)) {
+      toast({
+        title: "Akun Terkunci",
+        description: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Rate limiting
+    if (!SecurityManager.checkRateLimit(`student_login_${sanitizedNIS}`, 3, 60000)) {
+      toast({
+        title: "Terlalu Cepat",
+        description: "Harap tunggu sebelum mencoba login lagi",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setIsLoading(true);
     try {
-      await login(nis, password);
+      await login(sanitizedNIS, password);
+      SecurityManager.clearLoginAttempts(sanitizedNIS);
+    } catch (error) {
+      SecurityManager.recordFailedLogin(sanitizedNIS);
     } finally {
       setIsLoading(false);
     }
@@ -40,29 +85,41 @@ export default function StudentAuth() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="nis">NIS</Label>
-              <Input
-                id="nis"
-                type="text"
-                placeholder="Masukkan NIS"
-                value={nis}
-                onChange={(e) => setNis(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="nis"
+                  type="text"
+                  placeholder="Masukkan NIS"
+                  value={nis}
+                  onChange={(e) => setNis(e.target.value)}
+                  className="pl-10"
+                  required
+                  autoComplete="username"
+                  maxLength={20}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Masukkan password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Masukkan password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10"
+                  required
+                  autoComplete="current-password"
+                  maxLength={100}
+                />
+              </div>
             </div>
             <Button 
               type="submit" 
-              className="w-full" 
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft" 
               disabled={isLoading}
             >
               {isLoading ? "Memuat..." : "Masuk"}

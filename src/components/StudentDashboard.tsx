@@ -20,27 +20,48 @@ interface Transaction {
 }
 
 export default function StudentDashboard() {
-  const { student, logout } = useStudentAuth();
+  const { student, sessionToken, logout, refreshStudentInfo } = useStudentAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchTransactions = async () => {
-    if (!student?.nis) return;
-
+    if (!student || !sessionToken) return;
+    
+    setLoading(true);
     try {
-      setLoading(true);
-      const { data, error } = await supabase.rpc('get_student_transactions', {
-        student_nis: student.nis
-      });
+      const { data, error } = await supabase
+        .rpc('get_student_transactions_secure', {
+          token: sessionToken
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching transactions:', error);
+        
+        // Check if session expired
+        if (error.message?.includes('Invalid or expired session')) {
+          await logout();
+          toast({
+            title: "Sesi Berakhir",
+            description: "Silakan login kembali",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Gagal mengambil data transaksi",
+            variant: "destructive",
+          });
+        }
+        return;
+      }
+
       setTransactions(data || []);
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Gagal memuat riwayat transaksi",
-        variant: "destructive"
+        description: "Terjadi kesalahan",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -48,8 +69,12 @@ export default function StudentDashboard() {
   };
 
   useEffect(() => {
-    fetchTransactions();
-  }, [student?.nis]);
+    if (student?.nis && sessionToken) {
+      fetchTransactions();
+      // Refresh student info to get latest balance
+      refreshStudentInfo();
+    }
+  }, [student?.nis, sessionToken]);
 
   if (!student) {
     return null;
