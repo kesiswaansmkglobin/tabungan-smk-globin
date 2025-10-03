@@ -26,8 +26,12 @@ const Pengaturan = () => {
       // Backup all tables
       const { data: schoolData } = await supabase.from('school_data').select('*');
       const { data: classesData } = await supabase.from('classes').select('*');
-      // SECURITY: Include password in backup (it's hashed, needed for restore)
-      // But document that backups must be stored securely
+      
+      // SECURITY NOTE: Password backup is necessary for system restore
+      // - Passwords are bcrypt-hashed (NOT plain text)
+      // - Only admins can create backups
+      // - Backup files must be stored securely (encrypted storage recommended)
+      // - Never share backup files or expose them publicly
       const { data: studentsData } = await supabase.from('students').select('id, nis, nama, kelas_id, saldo, created_at, updated_at, password');
       const { data: transactionsData } = await supabase.from('transactions').select('*');
 
