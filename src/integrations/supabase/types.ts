@@ -284,6 +284,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      armor: {
+        Args: { "": string }
+        Returns: string
+      }
       authenticate_student: {
         Args: { student_nis: string; student_password: string }
         Returns: Json
@@ -299,6 +303,22 @@ export type Database = {
       create_student_session: {
         Args: { student_nis: string; student_password: string }
         Returns: Json
+      }
+      dearmor: {
+        Args: { "": string }
+        Returns: string
+      }
+      gen_random_bytes: {
+        Args: { "": number }
+        Returns: string
+      }
+      gen_random_uuid: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      gen_salt: {
+        Args: { "": string }
+        Returns: string
       }
       get_authenticated_student_id: {
         Args: { student_nis: string; student_password: string }
@@ -353,6 +373,14 @@ export type Database = {
       logout_student_session: {
         Args: { token: string }
         Returns: boolean
+      }
+      pgp_armor_headers: {
+        Args: { "": string }
+        Returns: Record<string, unknown>[]
+      }
+      pgp_key_id: {
+        Args: { "": string }
+        Returns: string
       }
       verify_student_session: {
         Args: { token: string }
