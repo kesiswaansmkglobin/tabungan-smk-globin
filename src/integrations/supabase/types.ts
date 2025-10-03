@@ -39,6 +39,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          email_visible: boolean | null
           full_name: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
@@ -47,6 +48,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          email_visible?: boolean | null
           full_name?: string | null
           id: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -55,6 +57,7 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          email_visible?: boolean | null
           full_name?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -100,6 +103,41 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      student_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          last_accessed: string
+          session_token: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_accessed?: string
+          session_token: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_accessed?: string
+          session_token?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       students: {
         Row: {
@@ -250,16 +288,45 @@ export type Database = {
         Args: { student_nis: string; student_password: string }
         Returns: Json
       }
+      cleanup_expired_student_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       create_confirmed_user: {
         Args: { user_email: string; user_name: string; user_password: string }
+        Returns: string
+      }
+      create_student_session: {
+        Args: { student_nis: string; student_password: string }
+        Returns: Json
+      }
+      get_authenticated_student_id: {
+        Args: { student_nis: string; student_password: string }
         Returns: string
       }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_student_info_secure: {
+        Args: { token: string }
+        Returns: Json
+      }
       get_student_transactions: {
         Args: { student_nis: string }
+        Returns: {
+          admin: string
+          created_at: string
+          id: string
+          jenis: string
+          jumlah: number
+          keterangan: string
+          saldo_setelah: number
+          tanggal: string
+        }[]
+      }
+      get_student_transactions_secure: {
+        Args: { token: string }
         Returns: {
           admin: string
           created_at: string
@@ -282,6 +349,14 @@ export type Database = {
       is_wali_kelas: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      logout_student_session: {
+        Args: { token: string }
+        Returns: boolean
+      }
+      verify_student_session: {
+        Args: { token: string }
+        Returns: string
       }
     }
     Enums: {
