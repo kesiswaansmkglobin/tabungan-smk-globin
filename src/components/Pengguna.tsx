@@ -91,7 +91,7 @@ export default function Pengguna() {
           nip,
           kelas_id,
           user_id,
-          classes (
+          classes!wali_kelas_kelas_id_fkey (
             nama_kelas
           )
         `);
