@@ -380,17 +380,17 @@ export default function Pengguna() {
     { 
       key: "kelas", 
       label: "Kelas",
-      render: (row: WaliKelas) => {
-        if (!row || !row.classes) return 'Kelas tidak ditemukan';
-        return row.classes.nama_kelas || 'Kelas tidak ditemukan';
+      render: (_: any, item: WaliKelas) => {
+        if (!item || !item.classes) return 'Kelas tidak ditemukan';
+        return item.classes.nama_kelas || 'Kelas tidak ditemukan';
       }
     },
     { 
       key: "email", 
       label: "Email",
-      render: (row: WaliKelas) => {
-        if (!row || !row.profiles) return 'Email tidak tersedia';
-        return row.profiles.email || 'Email tidak tersedia';
+      render: (_: any, item: WaliKelas) => {
+        if (!item || !item.profiles) return 'Email tidak tersedia';
+        return item.profiles.email || 'Email tidak tersedia';
       }
     }
   ];
