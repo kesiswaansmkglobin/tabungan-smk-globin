@@ -67,7 +67,23 @@ export default function Pengguna() {
   const fetchWaliKelas = async () => {
     try {
       console.log('Fetching wali kelas data...');
-      const { data, error } = await supabase
+      
+      // Fetch all profiles with wali_kelas role
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, role')
+        .eq('role', 'wali_kelas')
+        .order('full_name');
+
+      if (profilesError) {
+        console.error('Profiles query error:', profilesError);
+        throw profilesError;
+      }
+
+      console.log('Wali kelas profiles:', profilesData);
+
+      // Fetch all wali_kelas records
+      const { data: waliKelasData, error: waliKelasError } = await supabase
         .from('wali_kelas')
         .select(`
           id,
@@ -75,29 +91,35 @@ export default function Pengguna() {
           nip,
           kelas_id,
           user_id,
-          profiles (
-            email,
-            role,
-            full_name
-          ),
           classes (
             nama_kelas
           )
-        `)
-        .order('nama');
+        `);
 
-      if (error) {
-        console.error('Supabase query error:', error);
-        throw error;
+      if (waliKelasError) {
+        console.error('Wali kelas query error:', waliKelasError);
+        throw waliKelasError;
       }
-      
-      console.log('Raw wali kelas data:', data);
-      
-      const processedData = (data || []).map((item: any) => ({
-        ...item,
-        classes: item.classes || { nama_kelas: 'Kelas tidak ditemukan' },
-        profiles: item.profiles || { email: 'Email tidak tersedia', role: 'wali_kelas' }
-      })) as WaliKelas[];
+
+      console.log('Wali kelas records:', waliKelasData);
+
+      // Combine profiles with wali_kelas data
+      const processedData = (profilesData || []).map((profile: any) => {
+        const waliKelasRecord = waliKelasData?.find((wk: any) => wk.user_id === profile.id);
+        
+        return {
+          id: waliKelasRecord?.id || profile.id,
+          nama: waliKelasRecord?.nama || profile.full_name || 'Nama belum diisi',
+          nip: waliKelasRecord?.nip || null,
+          kelas_id: waliKelasRecord?.kelas_id || '',
+          user_id: profile.id,
+          profiles: {
+            email: profile.email,
+            role: profile.role
+          },
+          classes: waliKelasRecord?.classes || { nama_kelas: 'Belum ditugaskan' }
+        };
+      }) as WaliKelas[];
       
       console.log('Final processed wali kelas data:', processedData);
       setWaliKelasList(processedData);
