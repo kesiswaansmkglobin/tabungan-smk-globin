@@ -46,24 +46,26 @@ export default function WaliKelasDataSiswa() {
     }
 
     try {
-      // SECURITY: Never select password column
+      // SECURITY: Use secure function that excludes password field
       const { data, error } = await supabase
-        .from('students')
-        .select(`
-          id,
-          nis,
-          nama,
-          kelas_id,
-          saldo,
-          created_at,
-          updated_at,
-          classes (nama_kelas)
-        `)
-        .eq('kelas_id', waliKelasInfo.kelas_id)
-        .order('nama');
+        .rpc('get_wali_kelas_students');
 
       if (error) throw error;
-      setStudents(data || []);
+
+      // Fetch class name separately
+      const { data: classData } = await supabase
+        .from('classes')
+        .select('nama_kelas')
+        .eq('id', waliKelasInfo.kelas_id)
+        .single();
+
+      // Map the data to include class info
+      const studentsWithClass = (data || []).map(student => ({
+        ...student,
+        classes: classData ? { nama_kelas: classData.nama_kelas } : undefined
+      }));
+
+      setStudents(studentsWithClass);
     } catch (error) {
       console.error('Error fetching students:', error);
       toast({

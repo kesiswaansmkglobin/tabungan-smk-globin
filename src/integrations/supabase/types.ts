@@ -362,6 +362,18 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_wali_kelas_students: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          id: string
+          kelas_id: string
+          nama: string
+          nis: string
+          saldo: number
+          updated_at: string
+        }[]
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean

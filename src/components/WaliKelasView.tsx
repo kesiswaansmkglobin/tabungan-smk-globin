@@ -71,12 +71,9 @@ export default function WaliKelasView() {
         kelas_nama: kelasInfo.nama_kelas
       });
 
-      // Get students in the class using kelas_id
+      // Get students in the class using secure function
       const { data: studentsData, error: studentsError } = await supabase
-        .from('students')
-        .select('id, nama, nis, saldo')
-        .eq('kelas_id', waliData.kelas_id)
-        .order('nama');
+        .rpc('get_wali_kelas_students');
 
       if (studentsError) throw studentsError;
       setStudents(studentsData || []);
