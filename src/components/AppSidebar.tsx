@@ -122,11 +122,11 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
   const menuItems = getMenuItems();
 
   return (
-    <Sidebar className="border-r border-gray-200" collapsible="icon">
-      <SidebarHeader className="border-b border-gray-200 p-4">
+    <Sidebar className="border-r border-border" collapsible="icon">
+      <SidebarHeader className="border-b border-border p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div className="w-10 h-10 bg-card rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm border border-border">
               <img 
                 src="/lovable-uploads/70e205f3-a154-4080-aafb-efcf72ea7c09.png" 
                 alt="Logo SMK Globin" 
@@ -135,8 +135,8 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
             </div>
             {!isCollapsed && (
               <div>
-                <h2 className="font-bold text-gray-900">SMK Globin</h2>
-                <p className="text-sm text-gray-600">{getPanelTitle()}</p>
+                <h2 className="font-bold text-foreground">SMK Globin</h2>
+                <p className="text-sm text-muted-foreground">{getPanelTitle()}</p>
               </div>
             )}
           </div>
@@ -152,7 +152,7 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton 
                     onClick={() => handleMenuClick(item.key)}
-                    className={activeTab === item.key ? "bg-blue-100 text-blue-700 font-medium" : "hover:bg-gray-100"}
+                    className={activeTab === item.key ? "bg-primary/10 text-primary font-medium" : "hover:bg-accent"}
                     tooltip={isCollapsed ? item.title : undefined}
                   >
                     <item.icon className="h-4 w-4" />
@@ -165,15 +165,15 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-gray-200 p-4">
+      <SidebarFooter className="border-t border-border p-4">
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3'} mb-3`}>
-          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-            <User className="h-4 w-4 text-gray-600" />
+          <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+            <User className="h-4 w-4 text-muted-foreground" />
           </div>
           {!isCollapsed && (
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">{userProfile?.name || "User"}</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-sm font-medium text-foreground">{userProfile?.name || "User"}</p>
+              <p className="text-xs text-muted-foreground">
                 {userProfile?.role === 'wali_kelas' ? 'Wali Kelas' : 
                  userProfile?.role === 'admin' ? 'Admin' : 'User'}
               </p>
@@ -186,7 +186,7 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
             onClick={handleLogout}
             variant="outline" 
             size={isCollapsed ? "icon" : "sm"}
-            className={`${isCollapsed ? 'w-9 h-9 p-0' : 'flex-1 justify-start'} text-red-600 border-red-200 hover:bg-red-50`}
+            className={`${isCollapsed ? 'w-9 h-9 p-0' : 'flex-1 justify-start'} text-destructive border-destructive/30 hover:bg-destructive/10`}
           >
             <LogOut className="h-4 w-4" />
             {!isCollapsed && <span className="ml-2">Logout</span>}
