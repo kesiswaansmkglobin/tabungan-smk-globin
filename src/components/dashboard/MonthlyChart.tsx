@@ -1,6 +1,6 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 
 interface ChartData {
   bulan: string;
@@ -12,6 +12,17 @@ interface MonthlyChartProps {
   data: ChartData[];
 }
 
+const chartConfig = {
+  setor: {
+    label: "Setor",
+    color: "hsl(var(--chart-1))",
+  },
+  tarik: {
+    label: "Tarik",
+    color: "hsl(var(--chart-2))",
+  },
+} satisfies ChartConfig;
+
 const MonthlyChart = ({ data }: MonthlyChartProps) => {
   return (
     <Card>
@@ -19,23 +30,54 @@ const MonthlyChart = ({ data }: MonthlyChartProps) => {
         <CardTitle>Grafik Transaksi Bulanan</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
+        <ChartContainer config={chartConfig} className="h-[400px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="bulan" />
-              <YAxis />
-              <Tooltip 
-                formatter={(value, name) => [
-                  `Rp ${Number(value).toLocaleString('id-ID')}`,
-                  name === 'setor' ? 'Setor' : 'Tarik'
-                ]}
+            <BarChart 
+              data={data}
+              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            >
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                className="stroke-muted"
+                vertical={false}
               />
-              <Bar dataKey="setor" fill="#10B981" name="setor" />
-              <Bar dataKey="tarik" fill="#EF4444" name="tarik" />
+              <XAxis 
+                dataKey="bulan"
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+                dy={10}
+              />
+              <YAxis 
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                width={60}
+              />
+              <ChartTooltip 
+                content={
+                  <ChartTooltipContent 
+                    formatter={(value, name) => [
+                      `Rp ${Number(value).toLocaleString('id-ID')}`,
+                      chartConfig[name as keyof typeof chartConfig]?.label || name
+                    ]}
+                  />
+                }
+              />
+              <Bar 
+                dataKey="setor" 
+                fill="var(--color-setor)" 
+                radius={[8, 8, 0, 0]}
+              />
+              <Bar 
+                dataKey="tarik" 
+                fill="var(--color-tarik)" 
+                radius={[8, 8, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </CardContent>
     </Card>
   );

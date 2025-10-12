@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const adminMenuItems = [
   { title: "Dashboard", key: "dashboard", icon: LayoutDashboard },
@@ -179,15 +180,18 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
             </div>
           )}
         </div>
-        <Button 
-          onClick={handleLogout}
-          variant="outline" 
-          size={isCollapsed ? "icon" : "sm"}
-          className={`${isCollapsed ? 'w-8 h-8 p-0' : 'w-full justify-start'} text-red-600 border-red-200 hover:bg-red-50`}
-        >
-          <LogOut className="h-4 w-4" />
-          {!isCollapsed && <span className="ml-2">Logout</span>}
-        </Button>
+        <div className={`flex ${isCollapsed ? 'flex-col' : 'flex-row'} gap-2`}>
+          <ThemeToggle />
+          <Button 
+            onClick={handleLogout}
+            variant="outline" 
+            size={isCollapsed ? "icon" : "sm"}
+            className={`${isCollapsed ? 'w-9 h-9 p-0' : 'flex-1 justify-start'} text-red-600 border-red-200 hover:bg-red-50`}
+          >
+            <LogOut className="h-4 w-4" />
+            {!isCollapsed && <span className="ml-2">Logout</span>}
+          </Button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

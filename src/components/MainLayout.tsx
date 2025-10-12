@@ -21,6 +21,7 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Menu } from "lucide-react";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface MainLayoutProps {
   onLogout: () => void;
@@ -111,6 +112,7 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
                   <h1 className="font-bold text-foreground text-sm">SMK Globin</h1>
                 </div>
               </div>
+              <ThemeToggle />
             </header>
             
             <main className="flex-1 p-4 md:p-6">
