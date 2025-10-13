@@ -1,10 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Input validation schema
+const createUserSchema = z.object({
+  email: z.string().email({ message: "Invalid email format" }).max(255, { message: "Email too long" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100, { message: "Password too long" }),
+  full_name: z.string().trim().min(3, { message: "Name must be at least 3 characters" }).max(100, { message: "Name too long" }),
+  kelas_id: z.string().uuid({ message: "Invalid class ID format" }),
+  nama: z.string().trim().min(3, { message: "Nama must be at least 3 characters" }).max(100, { message: "Nama too long" }),
+  nip: z.string().trim().max(50, { message: "NIP too long" }).optional()
+})
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -49,9 +60,31 @@ serve(async (req) => {
       throw new Error('Only admins can create confirmed users')
     }
 
-    const { email, password, full_name, kelas_id, nama, nip } = await req.json()
+    // Parse and validate input
+    const body = await req.json()
+    const validationResult = createUserSchema.safeParse(body)
 
-    console.log('Creating user with data:', { email, full_name, kelas_id, nama, nip })
+    if (!validationResult.success) {
+      console.error('Input validation failed:', validationResult.error)
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid input data',
+          details: validationResult.error.issues.map(issue => ({
+            field: issue.path.join('.'),
+            message: issue.message
+          }))
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        },
+      )
+    }
+
+    const { email, password, full_name, kelas_id, nama, nip } = validationResult.data
+
+    console.log('Creating user with validated data:', { email, full_name, kelas_id, nama, nip })
 
     // Check if user already exists
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
