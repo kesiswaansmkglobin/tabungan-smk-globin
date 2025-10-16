@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
@@ -16,6 +16,7 @@ interface ImportStats {
 const BulkTransactionImporter = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [stats, setStats] = useState<ImportStats | null>(null);
+  const [hasAutoImported, setHasAutoImported] = useState(false);
 
   const excelFiles = [
     '/excel-imports/TABUNGAN_X_-_MPLB_1_V.2025.xlsx',
@@ -175,6 +176,14 @@ const BulkTransactionImporter = () => {
       setIsImporting(false);
     }
   };
+
+  // Auto-import on component mount
+  useEffect(() => {
+    if (!hasAutoImported) {
+      setHasAutoImported(true);
+      handleImport();
+    }
+  }, [hasAutoImported]);
 
   return (
     <Card>
