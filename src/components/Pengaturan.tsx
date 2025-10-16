@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Settings, Database, Download, Upload, Trash2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import BulkTransactionImporter from "./BulkTransactionImporter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -208,6 +209,11 @@ const Pengaturan = () => {
           <h1 className="text-3xl font-bold text-gray-900">Pengaturan Sistem</h1>
           <p className="text-gray-600">Kelola database dan sistem aplikasi</p>
         </div>
+      </div>
+
+      {/* Import Transaksi Excel */}
+      <div className="mb-6">
+        <BulkTransactionImporter />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
