@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
+import TransactionImportTemplate from "./TransactionImportTemplate";
 
 interface ImportStats {
   totalTransactions: number;
@@ -16,55 +17,47 @@ interface ImportStats {
 const BulkTransactionImporter = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [stats, setStats] = useState<ImportStats | null>(null);
-  const [hasAutoImported, setHasAutoImported] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const excelFiles = [
-    '/excel-imports/TABUNGAN_X_-_MPLB_1_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_X_-_MPLB_2_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_X_-_PM_1_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_X_-_PM_2_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_XI_-_MPLB_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_XI_-_PM_1_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_XI_-_PM_2_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_XII_-_BDP_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_XII_-_OTKP_1_V.2025.xlsx',
-    '/excel-imports/TABUNGAN_XII_-_OTKP_2_V.2025.xlsx'
-  ];
-
-  const parseExcelTransactions = async (filePath: string) => {
-    const response = await fetch(filePath);
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer);
-    const transactions: any[] = [];
-    
-    // Start from sheet index 1 (individual student sheets)
-    for (let i = 1; i < workbook.SheetNames.length; i++) {
-      const sheet = workbook.Sheets[workbook.SheetNames[i]];
-      const data: any[] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  const parseUploadedFile = async (file: File) => {
+    return new Promise<any[]>((resolve, reject) => {
+      const reader = new FileReader();
       
-      const nis = data[1]?.[2];
-      if (!nis) continue;
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
+          
+          const transactions = jsonData.map((row: any) => ({
+            nis: row['NIS']?.toString(),
+            nama: row['Nama Siswa'],
+            kelas: row['Kelas'],
+            type: row['Jenis Transaksi'],
+            date: row['Tanggal'],
+            amount: parseInt(row['Jumlah']?.toString().replace(/[^0-9]/g, '') || '0')
+          })).filter(t => t.nis && t.amount > 0);
+          
+          resolve(transactions);
+        } catch (error) {
+          reject(error);
+        }
+      };
       
-      for (let row = 9; row < data.length; row++) {
-        const tanggal = data[row]?.[1];
-        const setor = data[row]?.[2];
-        const tarik = data[row]?.[3];
-        
-        if (setor && setor !== 'Rp-' && setor !== '-') {
-          const amount = parseInt(setor.toString().replace(/[^0-9]/g, ''));
-          if (amount > 0) transactions.push({ nis, date: tanggal, type: 'Setor', amount });
-        }
-        if (tarik && tarik !== 'Rp-' && tarik !== '-') {
-          const amount = parseInt(tarik.toString().replace(/[^0-9]/g, ''));
-          if (amount > 0) transactions.push({ nis, date: tanggal, type: 'Tarik', amount });
-        }
-      }
-    }
-    return transactions;
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsBinaryString(file);
+    });
   };
 
-  const handleImport = async () => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
     setIsImporting(true);
+    setStats(null);
+    
     const importStats: ImportStats = {
       totalTransactions: 0,
       successfulImports: 0,
@@ -73,11 +66,7 @@ const BulkTransactionImporter = () => {
     };
 
     try {
-      let allTransactions: any[] = [];
-      for (const file of excelFiles) {
-        const trans = await parseExcelTransactions(file);
-        allTransactions = allTransactions.concat(trans);
-      }
+      const allTransactions = await parseUploadedFile(file);
       
       const allNIS = [...new Set(allTransactions.map(t => t.nis))];
       const { data: students, error: studentsError } = await supabase
@@ -174,16 +163,11 @@ const BulkTransactionImporter = () => {
       });
     } finally {
       setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
-
-  // Auto-import on component mount
-  useEffect(() => {
-    if (!hasAutoImported) {
-      setHasAutoImported(true);
-      handleImport();
-    }
-  }, [hasAutoImported]);
 
   return (
     <Card>
@@ -194,12 +178,25 @@ const BulkTransactionImporter = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Import data transaksi tabungan siswa dari file Excel yang telah diupload.
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Upload file Excel/CSV dengan data transaksi siswa
+          </p>
+          <TransactionImportTemplate />
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          onChange={handleFileUpload}
+          disabled={isImporting}
+          className="hidden"
+          id="transaction-file-input"
+        />
 
         {isImporting && (
-          <p className="text-sm text-center text-muted-foreground">Importing...</p>
+          <p className="text-sm text-center text-muted-foreground">Mengimpor data...</p>
         )}
 
         {stats && (
@@ -223,11 +220,12 @@ const BulkTransactionImporter = () => {
         )}
 
         <Button 
-          onClick={handleImport} 
+          onClick={() => fileInputRef.current?.click()} 
           disabled={isImporting}
           className="w-full"
         >
-          {isImporting ? "Importing..." : "Mulai Import"}
+          <Upload className="h-4 w-4 mr-2" />
+          {isImporting ? "Mengimpor..." : "Upload File Excel/CSV"}
         </Button>
 
         <p className="text-xs text-muted-foreground mt-2">
