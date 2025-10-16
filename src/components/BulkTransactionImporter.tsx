@@ -149,6 +149,9 @@ const BulkTransactionImporter = () => {
 
       setStats(importStats);
       
+      // Refresh the page to show new data
+      window.location.reload();
+      
       toast({
         title: "Import Selesai",
         description: `Berhasil: ${importStats.successfulImports}, Gagal: ${importStats.failedImports}, Duplikat: ${importStats.skippedDuplicates}`

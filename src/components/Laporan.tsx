@@ -29,15 +29,27 @@ const Laporan = () => {
 
   const exportToExcel = () => {
     try {
-      const headers = "Tanggal,NIS,Nama,Kelas,Jenis,Jumlah,Saldo Setelah,Admin\n";
-      const csvContent = headers + filteredTransactions.map(trans => 
-        `${trans.tanggal},${trans.students?.nis || ''},${trans.students?.nama || ''},${trans.students?.classes?.nama_kelas || ''},${trans.jenis},${trans.jumlah},${trans.saldo_setelah},${trans.admin}`
-      ).join('\n');
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const headers = ['Tanggal', 'NIS', 'Nama', 'Kelas', 'Jenis', 'Jumlah', 'Saldo Setelah', 'Admin'];
+      const csvData = filteredTransactions.map(trans => [
+        new Date(trans.tanggal).toLocaleDateString('id-ID'),
+        trans.students?.nis || '-',
+        trans.students?.nama || '-',
+        trans.students?.classes?.nama_kelas || '-',
+        trans.jenis,
+        trans.jumlah,
+        trans.saldo_setelah,
+        trans.admin
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
+      const link = document.createElement('a');
+      link.href = url;
       
       // Create descriptive filename based on filters
       let filename = 'laporan_transaksi';
@@ -54,8 +66,11 @@ const Laporan = () => {
       }
       filename += `_${new Date().toISOString().split('T')[0]}.csv`;
       
-      a.download = filename;
-      a.click();
+      link.download = filename;
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
       toast({
