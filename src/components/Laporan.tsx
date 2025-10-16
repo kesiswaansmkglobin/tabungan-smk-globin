@@ -106,7 +106,7 @@ const Laporan = () => {
           </div>
         </div>
 
-        <Button onClick={exportToExcel} disabled={filteredTransactions.length === 0}>
+        <Button onClick={exportToExcel}>
           <Download className="h-4 w-4 mr-2" />
           Export CSV
         </Button>

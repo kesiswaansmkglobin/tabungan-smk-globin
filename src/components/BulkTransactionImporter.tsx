@@ -20,32 +20,76 @@ const BulkTransactionImporter = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const parseUploadedFile = async (file: File) => {
+    const excelSerialToISO = (val: number) => {
+      // Excel serial date to JS Date (account for Excel epoch 1899-12-31)
+      const jsDate = new Date(Math.round((val - 25569) * 86400 * 1000));
+      return jsDate.toISOString().split('T')[0];
+    };
+
+    const toISODate = (val: any): string => {
+      if (!val) return '';
+      if (val instanceof Date && !isNaN(val.getTime())) {
+        return val.toISOString().split('T')[0];
+      }
+      if (typeof val === 'number') {
+        return excelSerialToISO(val);
+      }
+      if (typeof val === 'string') {
+        // Handle dd/mm/yyyy or dd-mm-yyyy
+        const m = val.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+        if (m) {
+          const dd = m[1].padStart(2, '0');
+          const mm = m[2].padStart(2, '0');
+          const yyyy = m[3].length === 2 ? `20${m[3]}` : m[3];
+          return `${yyyy}-${mm}-${dd}`;
+        }
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+      }
+      return '';
+    };
+
+    const normalizeType = (val: any): 'Setor' | 'Tarik' => {
+      const s = String(val || '').toLowerCase().trim();
+      if (s.includes('setor') || s.includes('masuk') || s.includes('pemasukan') || s === 'in' || s === 'deposit') return 'Setor';
+      if (s.includes('tarik') || s.includes('keluar') || s.includes('penarikan') || s === 'out' || s === 'withdraw') return 'Tarik';
+      return 'Setor';
+    };
+
     return new Promise<any[]>((resolve, reject) => {
       const reader = new FileReader();
-      
+
       reader.onload = (e) => {
         try {
-          const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
+          const data = e.target?.result as string | ArrayBuffer;
+          const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
-          const jsonData: any[] = XLSX.utils.sheet_to_json(sheet);
-          
-          const transactions = jsonData.map((row: any) => ({
-            nis: row['NIS']?.toString(),
-            nama: row['Nama Siswa'],
-            kelas: row['Kelas'],
-            type: row['Jenis Transaksi'],
-            date: row['Tanggal'],
-            amount: parseInt(row['Jumlah']?.toString().replace(/[^0-9]/g, '') || '0')
-          })).filter(t => t.nis && t.amount > 0);
-          
+          const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+          const transactions = jsonData
+            .map((row: any) => {
+              const nis = (row['NIS'] ?? row['Nis'] ?? row['nis'] ?? '').toString().trim();
+              const nama = (row['Nama Siswa'] ?? row['Nama'] ?? row['nama'] ?? '').toString().trim();
+              const kelas = (row['Kelas'] ?? row['kelas'] ?? row['Class'] ?? '').toString().trim();
+              const typeRaw = row['Jenis Transaksi'] ?? row['Jenis'] ?? row['Tipe'] ?? row['Type'] ?? row['Transaksi'];
+              const dateRaw = row['Tanggal'] ?? row['Tanggal Transaksi'] ?? row['Date'] ?? row['Waktu'];
+              const amountRaw = row['Jumlah'] ?? row['Besaran'] ?? row['Amount'] ?? row['Nominal'];
+
+              const type = normalizeType(typeRaw);
+              const dateISO = toISODate(dateRaw);
+              const amount = parseInt(String(amountRaw).replace(/[^0-9-]/g, '')) || 0;
+
+              return { nis, nama, kelas, type, date: dateISO, amount };
+            })
+            .filter((t) => t.nis && t.amount !== 0 && t.date);
+
           resolve(transactions);
         } catch (error) {
           reject(error);
         }
       };
-      
+
       reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsBinaryString(file);
     });
