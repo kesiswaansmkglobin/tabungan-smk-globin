@@ -38,6 +38,7 @@ export default function WaliKelasDataSiswa() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
 
   const fetchStudents = async () => {
     if (!waliKelasInfo?.kelas_id) {
@@ -78,7 +79,7 @@ export default function WaliKelasDataSiswa() {
 
   const fetchStudentTransactions = async (studentId: string) => {
     try {
-      setLoading(true);
+      setLoadingTransactions(true);
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
@@ -96,7 +97,7 @@ export default function WaliKelasDataSiswa() {
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setLoadingTransactions(false);
     }
   };
 
@@ -242,7 +243,7 @@ export default function WaliKelasDataSiswa() {
             <OptimizedTable
               data={transactions}
               columns={transactionColumns}
-              loading={loading}
+              loading={loadingTransactions}
               emptyMessage="Belum ada riwayat transaksi"
             />
           </div>
