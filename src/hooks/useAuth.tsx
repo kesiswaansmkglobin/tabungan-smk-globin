@@ -54,24 +54,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profileData?.role === 'wali_kelas') {
         const { data: waliKelasData, error: waliKelasError } = await supabase
           .from('wali_kelas')
-          .select(`
-            id,
-            nama,
-            nip,
-            kelas_id,
-            classes:classes!wali_kelas_kelas_id_fkey (
-              nama_kelas
-            )
-          `)
+          .select('id, nama, nip, kelas_id')
           .eq('user_id', userId)
-          .single();
+          .maybeSingle();
 
         if (waliKelasError) {
           console.error('Error fetching wali kelas info:', waliKelasError);
         } else if (waliKelasData) {
+          // Fetch class name separately to avoid ambiguous column references
+          const { data: kelasData } = await supabase
+            .from('classes')
+            .select('nama_kelas')
+            .eq('id', waliKelasData.kelas_id)
+            .maybeSingle();
+
           setWaliKelasInfo({
             ...waliKelasData,
-            classes: waliKelasData.classes || { nama_kelas: 'Kelas tidak ditemukan' }
+            classes: { nama_kelas: kelasData?.nama_kelas || 'Kelas tidak ditemukan' }
           });
         }
       } else {

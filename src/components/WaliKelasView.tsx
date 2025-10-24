@@ -48,29 +48,26 @@ export default function WaliKelasView() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Get wali kelas info with proper relation - specify exact foreign key
+      // Get wali kelas info without embedding to avoid ambiguous column references
       const { data: waliData, error: waliError } = await supabase
         .from('wali_kelas')
-        .select(`
-          nama,
-          kelas_id,
-          classes!wali_kelas_kelas_id_fkey (
-            nama_kelas
-          )
-        `)
+        .select('nama, kelas_id')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (waliError) throw waliError;
       if (!waliData) throw new Error('Data wali kelas tidak ditemukan');
       
-      // Handle classes data
-      const classesData = waliData.classes;
-      const kelasInfo = classesData || { nama_kelas: 'Kelas tidak ditemukan' };
-      
+      // Fetch class name separately
+      const { data: kelasData } = await supabase
+        .from('classes')
+        .select('nama_kelas')
+        .eq('id', waliData.kelas_id)
+        .maybeSingle();
+
       setWaliInfo({
         nama: waliData.nama,
-        kelas_nama: kelasInfo.nama_kelas
+        kelas_nama: kelasData?.nama_kelas || 'Kelas tidak ditemukan'
       });
 
       // Get students in the class using secure function
