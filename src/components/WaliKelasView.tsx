@@ -54,7 +54,7 @@ export default function WaliKelasView() {
         .select(`
           nama,
           kelas_id,
-          classes:classes!wali_kelas_kelas_id_fkey (
+          classes (
             nama_kelas
           )
         `)
@@ -64,7 +64,9 @@ export default function WaliKelasView() {
       if (waliError) throw waliError;
       if (!waliData) throw new Error('Data wali kelas tidak ditemukan');
       
-      const kelasInfo = waliData.classes || { nama_kelas: 'Kelas tidak ditemukan' };
+      // Handle classes data - it could be an array or object depending on the relation
+      const classesData = Array.isArray(waliData.classes) ? waliData.classes[0] : waliData.classes;
+      const kelasInfo = classesData || { nama_kelas: 'Kelas tidak ditemukan' };
       
       setWaliInfo({
         nama: waliData.nama,
@@ -109,7 +111,7 @@ export default function WaliKelasView() {
       console.error('Error fetching wali kelas data:', error);
       toast({
         title: "Error",
-        description: "Gagal memuat data kelas",
+        description: error.message || "Gagal memuat data wali kelas. Pastikan Anda sudah ditugaskan ke kelas.",
         variant: "destructive"
       });
     } finally {

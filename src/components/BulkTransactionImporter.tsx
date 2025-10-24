@@ -29,7 +29,11 @@ const BulkTransactionImporter = () => {
     const toISODate = (val: any): string => {
       if (!val) return '';
       if (val instanceof Date && !isNaN(val.getTime())) {
-        return val.toISOString().split('T')[0];
+        // Format date without timezone conversion
+        const year = val.getFullYear();
+        const month = String(val.getMonth() + 1).padStart(2, '0');
+        const day = String(val.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
       }
       if (typeof val === 'number') {
         return excelSerialToISO(val);
@@ -43,8 +47,10 @@ const BulkTransactionImporter = () => {
           const yyyy = m[3].length === 2 ? `20${m[3]}` : m[3];
           return `${yyyy}-${mm}-${dd}`;
         }
-        const d = new Date(val);
-        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        // If already in YYYY-MM-DD format, return as is
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          return val;
+        }
       }
       return '';
     };
@@ -149,7 +155,8 @@ const BulkTransactionImporter = () => {
         for (const transaction of transactions) {
           importStats.totalTransactions++;
           currentBalance += transaction.type === 'Setor' ? transaction.amount : -transaction.amount;
-          const dateStr = new Date(transaction.date).toISOString().split('T')[0];
+          // Use date directly without conversion to avoid timezone issues
+          const dateStr = transaction.date;
           const { data: existingTrans } = await supabase
             .from("transactions")
             .select("id")

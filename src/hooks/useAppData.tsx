@@ -32,6 +32,7 @@ interface Transaction {
 }
 
 interface DashboardStats {
+  totalKelas: number;
   totalSiswa: number;
   totalSaldo: number;
   transaksiHariIni: number;
@@ -169,6 +170,7 @@ export const useAppData = (): UseAppDataReturn => {
 
   // Memoized dashboard stats calculation
   const dashboardStats = useMemo(() => {
+    const totalKelas = classes.length;
     const totalSiswa = students.length;
     const totalSaldo = students.reduce((sum, student) => sum + (Number(student.saldo) || 0), 0);
     
@@ -208,12 +210,13 @@ export const useAppData = (): UseAppDataReturn => {
     }));
 
     return {
+      totalKelas,
       totalSiswa,
       totalSaldo,
       transaksiHariIni,
       chartData
     };
-  }, [students, transactions]);
+  }, [students, transactions, classes]);
 
   const refreshStudents = useCallback(async () => {
     await loadStudents();

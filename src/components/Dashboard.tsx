@@ -32,6 +32,7 @@ const Dashboard = React.memo(() => {
         </div>
 
         <DashboardStats
+          totalKelas={dashboardStats.totalKelas}
           totalSiswa={dashboardStats.totalSiswa}
           totalSaldo={dashboardStats.totalSaldo}
           transaksiHariIni={dashboardStats.transaksiHariIni}

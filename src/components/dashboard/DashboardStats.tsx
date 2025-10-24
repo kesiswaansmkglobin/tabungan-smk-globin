@@ -1,16 +1,29 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, DollarSign, TrendingUp, Calendar } from "lucide-react";
+import { Users, DollarSign, Calendar, School } from "lucide-react";
 
 interface DashboardStatsProps {
+  totalKelas: number;
   totalSiswa: number;
   totalSaldo: number;
   transaksiHariIni: number;
 }
 
-const DashboardStats = ({ totalSiswa, totalSaldo, transaksiHariIni }: DashboardStatsProps) => {
+const DashboardStats = ({ totalKelas, totalSiswa, totalSaldo, transaksiHariIni }: DashboardStatsProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Kelas</p>
+              <p className="text-3xl font-bold text-purple-600">{totalKelas}</p>
+            </div>
+            <School className="h-12 w-12 text-purple-500 opacity-20" />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
@@ -45,20 +58,6 @@ const DashboardStats = ({ totalSiswa, totalSaldo, transaksiHariIni }: DashboardS
               <p className="text-3xl font-bold text-orange-600">{transaksiHariIni}</p>
             </div>
             <Calendar className="h-12 w-12 text-orange-500 opacity-20" />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Rata-rata Saldo</p>
-              <p className="text-3xl font-bold text-purple-600">
-                Rp {totalSiswa > 0 ? Math.round(totalSaldo / totalSiswa).toLocaleString('id-ID') : 0}
-              </p>
-            </div>
-            <TrendingUp className="h-12 w-12 text-purple-500 opacity-20" />
           </div>
         </CardContent>
       </Card>
