@@ -94,8 +94,17 @@ export default function WaliKelasView() {
         const { data: transactionsData, error: transactionsError } = await supabase
           .from('transactions')
           .select(`
-            id, tanggal, jenis, jumlah, saldo_setelah, keterangan, admin,
-            students:student_id (nama, nis)
+            id, 
+            tanggal, 
+            jenis, 
+            jumlah, 
+            saldo_setelah, 
+            keterangan, 
+            admin,
+            students!transactions_student_id_fkey (
+              nama, 
+              nis
+            )
           `)
           .in('student_id', studentIds)
           .order('tanggal', { ascending: false })
