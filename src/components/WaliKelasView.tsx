@@ -48,13 +48,13 @@ export default function WaliKelasView() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Get wali kelas info with proper relation
+      // Get wali kelas info with proper relation - specify exact foreign key
       const { data: waliData, error: waliError } = await supabase
         .from('wali_kelas')
         .select(`
           nama,
           kelas_id,
-          classes (
+          classes!wali_kelas_kelas_id_fkey (
             nama_kelas
           )
         `)
@@ -64,8 +64,8 @@ export default function WaliKelasView() {
       if (waliError) throw waliError;
       if (!waliData) throw new Error('Data wali kelas tidak ditemukan');
       
-      // Handle classes data - it could be an array or object depending on the relation
-      const classesData = Array.isArray(waliData.classes) ? waliData.classes[0] : waliData.classes;
+      // Handle classes data
+      const classesData = waliData.classes;
       const kelasInfo = classesData || { nama_kelas: 'Kelas tidak ditemukan' };
       
       setWaliInfo({
