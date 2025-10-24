@@ -305,18 +305,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      armor: {
-        Args: { "": string }
-        Returns: string
-      }
       authenticate_student: {
         Args: { student_nis: string; student_password: string }
         Returns: Json
       }
-      cleanup_expired_student_sessions: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      cleanup_expired_student_sessions: { Args: never; Returns: number }
       create_confirmed_user: {
         Args: { user_email: string; user_name: string; user_password: string }
         Returns: string
@@ -325,34 +318,18 @@ export type Database = {
         Args: { student_nis: string; student_password: string }
         Returns: Json
       }
-      dearmor: {
-        Args: { "": string }
-        Returns: string
-      }
-      gen_random_bytes: {
-        Args: { "": number }
-        Returns: string
-      }
-      gen_random_uuid: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      gen_salt: {
-        Args: { "": string }
-        Returns: string
-      }
+      dearmor: { Args: { "": string }; Returns: string }
+      gen_random_uuid: { Args: never; Returns: string }
+      gen_salt: { Args: { "": string }; Returns: string }
       get_authenticated_student_id: {
         Args: { student_nis: string; student_password: string }
         Returns: string
       }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
-      get_student_info_secure: {
-        Args: { token: string }
-        Returns: Json
-      }
+      get_student_info_secure: { Args: { token: string }; Returns: Json }
       get_student_transactions: {
         Args: { student_nis: string }
         Returns: {
@@ -379,12 +356,9 @@ export type Database = {
           tanggal: string
         }[]
       }
-      get_wali_kelas_class_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_wali_kelas_class_id: { Args: never; Returns: string }
       get_wali_kelas_students: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           id: string
@@ -402,30 +376,14 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_wali_kelas: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      logout_student_session: {
-        Args: { token: string }
-        Returns: boolean
-      }
+      is_admin: { Args: never; Returns: boolean }
+      is_wali_kelas: { Args: never; Returns: boolean }
+      logout_student_session: { Args: { token: string }; Returns: boolean }
       pgp_armor_headers: {
         Args: { "": string }
         Returns: Record<string, unknown>[]
       }
-      pgp_key_id: {
-        Args: { "": string }
-        Returns: string
-      }
-      verify_student_session: {
-        Args: { token: string }
-        Returns: string
-      }
+      verify_student_session: { Args: { token: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "teacher" | "student" | "wali_kelas"
