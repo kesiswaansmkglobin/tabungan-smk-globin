@@ -154,7 +154,6 @@ const BulkTransactionImporter = () => {
         let currentBalance = student.saldo;
         for (const transaction of transactions) {
           importStats.totalTransactions++;
-          currentBalance += transaction.type === 'Setor' ? transaction.amount : -transaction.amount;
           // Use date directly without conversion to avoid timezone issues
           const dateStr = transaction.date;
           const { data: existingTrans } = await supabase
@@ -169,6 +168,9 @@ const BulkTransactionImporter = () => {
           if (existingTrans) {
             importStats.skippedDuplicates++;
           } else {
+            // Update balance only if not duplicate
+            currentBalance += transaction.type === 'Setor' ? transaction.amount : -transaction.amount;
+            
             // Insert transaction
             const { error: transError } = await supabase
               .from("transactions")
@@ -185,6 +187,8 @@ const BulkTransactionImporter = () => {
             if (transError) {
               console.error(`Error importing transaction for ${nis}:`, transError);
               importStats.failedImports++;
+              // Revert balance if insert failed
+              currentBalance -= transaction.type === 'Setor' ? transaction.amount : -transaction.amount;
             } else {
               importStats.successfulImports++;
             }
