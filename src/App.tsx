@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PerformanceMonitor } from "@/utils/monitoring";
 import { initializeTheme } from "@/utils/theme";
+import { InstallPWA } from "@/components/InstallPWA";
 import Index from "./pages/Index";
 import StudentIndex from "./pages/StudentIndex";
 import NotFound from "./pages/NotFound";
@@ -27,6 +28,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <InstallPWA />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />

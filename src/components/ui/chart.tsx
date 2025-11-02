@@ -114,12 +114,12 @@ const ChartTooltipContent = React.forwardRef<
   (
     {
       active,
-      payload,
+      payload: propPayload,
       className,
       indicator = "dot",
       hideLabel = false,
       hideIndicator = false,
-      label,
+      label: propLabel,
       labelFormatter,
       labelClassName,
       formatter,
@@ -130,6 +130,8 @@ const ChartTooltipContent = React.forwardRef<
     ref
   ) => {
     const { config } = useChart()
+    const payload = propPayload as any[];
+    const label = propLabel as string;
 
     const tooltipLabel = React.useMemo(() => {
       if (hideLabel || !payload?.length) {
@@ -258,8 +260,9 @@ const ChartLegend = RechartsPrimitive.Legend
 
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
-  React.ComponentProps<"div"> &
-    Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
+  React.ComponentProps<"div"> & {
+      payload?: any[];
+      verticalAlign?: "top" | "bottom";
       hideIcon?: boolean
       nameKey?: string
     }
