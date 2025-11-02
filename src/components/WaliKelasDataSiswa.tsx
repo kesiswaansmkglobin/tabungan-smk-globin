@@ -6,7 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Users, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface Student {
   id: string;
@@ -219,6 +219,9 @@ export default function WaliKelasDataSiswa() {
             <DialogTitle>
               Riwayat Transaksi - {selectedStudent?.nama}
             </DialogTitle>
+            <DialogDescription>
+              Daftar lengkap riwayat transaksi tabungan siswa
+            </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
             {selectedStudent && (
