@@ -80,17 +80,12 @@ export default function WaliKelasDataSiswa() {
   const fetchStudentTransactions = async (studentId: string) => {
     try {
       setLoadingTransactions(true);
-      console.log('Fetching transactions for student:', studentId);
       
       const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('student_id', studentId)
-        .order('tanggal', { ascending: false })
-        .limit(50);
+        .rpc('get_wali_kelas_student_transactions', {
+          p_student_id: studentId
+        });
 
-      console.log('Transactions response:', { data, error, count: data?.length });
-      
       if (error) throw error;
       setTransactions(data || []);
     } catch (error) {

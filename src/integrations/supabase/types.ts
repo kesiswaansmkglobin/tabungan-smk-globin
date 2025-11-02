@@ -357,6 +357,21 @@ export type Database = {
         }[]
       }
       get_wali_kelas_class_id: { Args: never; Returns: string }
+      get_wali_kelas_student_transactions: {
+        Args: { p_student_id: string }
+        Returns: {
+          admin: string
+          created_at: string
+          id: string
+          jenis: string
+          jumlah: number
+          keterangan: string
+          saldo_setelah: number
+          student_id: string
+          tanggal: string
+          updated_at: string
+        }[]
+      }
       get_wali_kelas_students: {
         Args: never
         Returns: {
