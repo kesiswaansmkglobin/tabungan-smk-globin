@@ -39,22 +39,26 @@ export function ThemeColorPicker() {
           <span className="sr-only">Pilih warna tema</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 bg-popover z-50">
-        {Object.values(colorThemes).map((theme) => (
-          <DropdownMenuItem
-            key={theme.name}
-            onClick={() => handleThemeChange(theme.name)}
-            className={`flex items-center gap-3 cursor-pointer ${
-              currentTheme === theme.name ? "bg-accent/10" : ""
-            }`}
-          >
-            <span className="text-xl">{theme.icon}</span>
-            <span className="flex-1">{theme.label}</span>
-            {currentTheme === theme.name && (
-              <span className="text-xs text-primary">✓</span>
-            )}
-          </DropdownMenuItem>
-        ))}
+      <DropdownMenuContent align="end" className="w-56 bg-popover z-50">
+        <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">
+          Pilih Tema Warna
+        </div>
+        <div className="grid grid-cols-2 gap-1 p-1">
+          {Object.values(colorThemes).map((theme) => (
+            <DropdownMenuItem
+              key={theme.name}
+              onClick={() => handleThemeChange(theme.name)}
+              className={`flex flex-col items-center gap-2 cursor-pointer p-3 rounded-md transition-all ${
+                currentTheme === theme.name 
+                  ? "bg-primary/10 ring-2 ring-primary ring-offset-2 ring-offset-background" 
+                  : "hover:bg-accent"
+              }`}
+            >
+              <span className="text-2xl">{theme.icon}</span>
+              <span className="text-xs font-medium text-center">{theme.label}</span>
+            </DropdownMenuItem>
+          ))}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

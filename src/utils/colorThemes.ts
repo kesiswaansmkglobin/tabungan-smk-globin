@@ -18,105 +18,139 @@ export interface ColorTheme {
 }
 
 export const colorThemes: Record<string, ColorTheme> = {
-  blue: {
-    name: "blue",
-    label: "Biru",
-    icon: "🔵",
+  ocean: {
+    name: "ocean",
+    label: "Ocean",
+    icon: "🌊",
     colors: {
       light: {
-        primary: "217.2 91.2% 59.8%",
-        primaryHover: "217.2 91.2% 54%",
-        accent: "142 76% 36%",
+        primary: "199 89% 48%",
+        primaryHover: "199 89% 43%",
+        accent: "187 85% 53%",
       },
       dark: {
-        primary: "217.2 91.2% 59.8%",
-        primaryHover: "217.2 91.2% 54%",
-        accent: "142 76% 46%",
+        primary: "199 89% 58%",
+        primaryHover: "199 89% 53%",
+        accent: "187 85% 63%",
       },
     },
   },
-  green: {
-    name: "green",
-    label: "Hijau",
-    icon: "🟢",
+  forest: {
+    name: "forest",
+    label: "Forest",
+    icon: "🌲",
     colors: {
       light: {
-        primary: "142 76% 36%",
-        primaryHover: "142 76% 31%",
-        accent: "217.2 91.2% 59.8%",
+        primary: "142 71% 45%",
+        primaryHover: "142 71% 40%",
+        accent: "88 50% 53%",
       },
       dark: {
-        primary: "142 76% 46%",
-        primaryHover: "142 76% 41%",
-        accent: "217.2 91.2% 59.8%",
+        primary: "142 71% 55%",
+        primaryHover: "142 71% 50%",
+        accent: "88 50% 63%",
       },
     },
   },
-  purple: {
-    name: "purple",
-    label: "Ungu",
-    icon: "🟣",
+  sunset: {
+    name: "sunset",
+    label: "Sunset",
+    icon: "🌅",
     colors: {
       light: {
-        primary: "271 81% 56%",
-        primaryHover: "271 81% 51%",
-        accent: "142 76% 36%",
+        primary: "14 90% 53%",
+        primaryHover: "14 90% 48%",
+        accent: "340 82% 52%",
       },
       dark: {
-        primary: "271 81% 66%",
-        primaryHover: "271 81% 61%",
-        accent: "142 76% 46%",
+        primary: "14 90% 63%",
+        primaryHover: "14 90% 58%",
+        accent: "340 82% 62%",
       },
     },
   },
-  orange: {
-    name: "orange",
-    label: "Oranye",
-    icon: "🟠",
+  lavender: {
+    name: "lavender",
+    label: "Lavender",
+    icon: "💜",
     colors: {
       light: {
-        primary: "24 95% 53%",
-        primaryHover: "24 95% 48%",
-        accent: "142 76% 36%",
+        primary: "262 52% 47%",
+        primaryHover: "262 52% 42%",
+        accent: "291 47% 51%",
       },
       dark: {
-        primary: "24 95% 63%",
-        primaryHover: "24 95% 58%",
-        accent: "142 76% 46%",
+        primary: "262 52% 57%",
+        primaryHover: "262 52% 52%",
+        accent: "291 47% 61%",
       },
     },
   },
-  pink: {
-    name: "pink",
-    label: "Pink",
-    icon: "🩷",
+  cherry: {
+    name: "cherry",
+    label: "Cherry",
+    icon: "🍒",
     colors: {
       light: {
-        primary: "330 81% 60%",
-        primaryHover: "330 81% 55%",
-        accent: "142 76% 36%",
+        primary: "351 95% 45%",
+        primaryHover: "351 95% 40%",
+        accent: "330 65% 52%",
       },
       dark: {
-        primary: "330 81% 70%",
-        primaryHover: "330 81% 65%",
-        accent: "142 76% 46%",
+        primary: "351 95% 55%",
+        primaryHover: "351 95% 50%",
+        accent: "330 65% 62%",
       },
     },
   },
-  red: {
-    name: "red",
-    label: "Merah",
-    icon: "🔴",
+  royal: {
+    name: "royal",
+    label: "Royal",
+    icon: "👑",
     colors: {
       light: {
-        primary: "0 72% 51%",
-        primaryHover: "0 72% 46%",
-        accent: "142 76% 36%",
+        primary: "250 69% 61%",
+        primaryHover: "250 69% 56%",
+        accent: "276 100% 75%",
       },
       dark: {
-        primary: "0 72% 61%",
-        primaryHover: "0 72% 56%",
-        accent: "142 76% 46%",
+        primary: "250 69% 71%",
+        primaryHover: "250 69% 66%",
+        accent: "276 100% 85%",
+      },
+    },
+  },
+  emerald: {
+    name: "emerald",
+    label: "Emerald",
+    icon: "💎",
+    colors: {
+      light: {
+        primary: "160 84% 39%",
+        primaryHover: "160 84% 34%",
+        accent: "158 64% 52%",
+      },
+      dark: {
+        primary: "160 84% 49%",
+        primaryHover: "160 84% 44%",
+        accent: "158 64% 62%",
+      },
+    },
+  },
+  midnight: {
+    name: "midnight",
+    label: "Midnight",
+    icon: "🌙",
+    colors: {
+      light: {
+        primary: "231 48% 48%",
+        primaryHover: "231 48% 43%",
+        accent: "217 33% 53%",
+      },
+      dark: {
+        primary: "231 48% 58%",
+        primaryHover: "231 48% 53%",
+        accent: "217 33% 63%",
       },
     },
   },
