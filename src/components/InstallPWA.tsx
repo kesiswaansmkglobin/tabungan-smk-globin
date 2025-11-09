@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, Smartphone, X } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -53,16 +53,20 @@ export const InstallPWA = () => {
       return;
     }
 
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
 
-    if (outcome === 'accepted') {
-      toast({
-        title: 'Berhasil!',
-        description: 'Aplikasi berhasil diinstall',
-      });
-      setDeferredPrompt(null);
-      setShowInstallPrompt(false);
+      if (outcome === 'accepted') {
+        toast.success('Aplikasi berhasil diinstall!', {
+          description: 'Anda sekarang bisa mengakses dari layar utama'
+        });
+        setDeferredPrompt(null);
+        setShowInstallPrompt(false);
+      }
+    } catch (error) {
+      console.error('Error installing PWA:', error);
+      toast.error('Gagal menginstall aplikasi');
     }
   };
 
@@ -78,20 +82,24 @@ export const InstallPWA = () => {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-96">
-      <Card className="shadow-lg border-primary/20">
+    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-96 animate-in">
+      <Card className="shadow-premium border-primary/20 bg-gradient-subtle hover-lift">
         <CardHeader className="relative pb-3">
           <Button
             variant="ghost"
             size="icon"
-            className="absolute right-2 top-2 h-6 w-6"
+            className="absolute right-2 top-2 h-6 w-6 hover:bg-destructive/10 hover:text-destructive"
             onClick={handleDismiss}
           >
             <X className="h-4 w-4" />
           </Button>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
-              <Smartphone className="h-6 w-6 text-primary" />
+              {isIOS ? (
+                <Smartphone className="h-6 w-6 text-primary" />
+              ) : (
+                <Download className="h-6 w-6 text-primary" />
+              )}
             </div>
             <div>
               <CardTitle className="text-lg">Install Aplikasi</CardTitle>
@@ -103,23 +111,47 @@ export const InstallPWA = () => {
         </CardHeader>
         <CardContent className="space-y-3">
           {isIOS ? (
-            <div className="space-y-2 text-sm text-muted-foreground">
+            <div className="space-y-2 text-sm">
               <p className="font-medium text-foreground">Cara Install di iPhone/iPad:</p>
-              <ol className="list-decimal list-inside space-y-1 text-xs">
-                <li>Tap tombol Share (ikon kotak dengan panah)</li>
-                <li>Scroll ke bawah dan tap "Add to Home Screen"</li>
-                <li>Tap "Add" untuk menyelesaikan</li>
+              <ol className="space-y-2 text-xs text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <span className="font-semibold min-w-[1.5rem] text-primary">1.</span>
+                  <span>Tap tombol <strong className="text-foreground">Share</strong> (ikon kotak dengan panah)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-semibold min-w-[1.5rem] text-primary">2.</span>
+                  <span>Scroll ke bawah dan tap <strong className="text-foreground">"Add to Home Screen"</strong></span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="font-semibold min-w-[1.5rem] text-primary">3.</span>
+                  <span>Tap <strong className="text-foreground">"Add"</strong> untuk menyelesaikan</span>
+                </li>
               </ol>
             </div>
           ) : (
-            <Button 
-              onClick={handleInstallClick} 
-              className="w-full"
-              size="sm"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Install Sekarang
-            </Button>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Install aplikasi untuk pengalaman yang lebih baik dan akses offline.
+              </p>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleInstallClick} 
+                  className="flex-1 bg-gradient-primary hover:opacity-90 shadow-elegant"
+                  size="sm"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Install Sekarang
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDismiss}
+                  size="sm"
+                  className="px-3"
+                >
+                  Nanti
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
