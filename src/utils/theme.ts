@@ -1,3 +1,5 @@
+import { initializeColorTheme } from "./colorThemes";
+
 // Initialize theme from localStorage on app start
 export function initializeTheme() {
   const savedTheme = localStorage.getItem("theme");
@@ -14,4 +16,7 @@ export function initializeTheme() {
       localStorage.setItem("theme", "dark");
     }
   }
+  
+  // Initialize color theme
+  initializeColorTheme();
 }

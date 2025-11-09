@@ -27,6 +27,7 @@ import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ThemeColorPicker } from "@/components/ThemeColorPicker";
 
 const adminMenuItems = [
   { title: "Dashboard", key: "dashboard", icon: LayoutDashboard },
@@ -181,6 +182,7 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
           )}
         </div>
         <div className={`flex ${isCollapsed ? 'flex-col' : 'flex-row'} gap-2`}>
+          <ThemeColorPicker />
           <ThemeToggle />
           <Button 
             onClick={handleLogout}
