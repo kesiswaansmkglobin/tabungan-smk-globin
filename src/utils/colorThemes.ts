@@ -12,6 +12,7 @@ export interface ColorTheme {
       card: string;
       secondary: string;
       muted: string;
+      border: string;
     };
     dark: {
       primary: string;
@@ -21,6 +22,7 @@ export interface ColorTheme {
       card: string;
       secondary: string;
       muted: string;
+      border: string;
     };
   };
 }
@@ -39,6 +41,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "195 30% 99%",
         secondary: "199 30% 94%",
         muted: "199 25% 95%",
+        border: "199 20% 88%",
       },
       dark: {
         primary: "199 89% 58%",
@@ -48,6 +51,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "199 35% 12%",
         secondary: "199 30% 18%",
         muted: "199 25% 20%",
+        border: "199 20% 25%",
       },
     },
   },
@@ -64,6 +68,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "140 25% 99%",
         secondary: "142 25% 94%",
         muted: "142 20% 95%",
+        border: "142 20% 88%",
       },
       dark: {
         primary: "142 71% 55%",
@@ -73,6 +78,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "142 30% 12%",
         secondary: "142 25% 18%",
         muted: "142 20% 20%",
+        border: "142 20% 25%",
       },
     },
   },
@@ -89,6 +95,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "20 30% 99%",
         secondary: "14 30% 94%",
         muted: "14 25% 95%",
+        border: "14 20% 88%",
       },
       dark: {
         primary: "14 90% 63%",
@@ -98,6 +105,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "14 30% 12%",
         secondary: "14 25% 18%",
         muted: "14 20% 20%",
+        border: "14 20% 25%",
       },
     },
   },
@@ -114,6 +122,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "265 25% 99%",
         secondary: "262 25% 94%",
         muted: "262 20% 95%",
+        border: "262 20% 88%",
       },
       dark: {
         primary: "262 52% 57%",
@@ -123,6 +132,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "262 30% 12%",
         secondary: "262 25% 18%",
         muted: "262 20% 20%",
+        border: "262 20% 25%",
       },
     },
   },
@@ -139,6 +149,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "345 25% 99%",
         secondary: "351 25% 94%",
         muted: "351 20% 95%",
+        border: "351 20% 88%",
       },
       dark: {
         primary: "351 95% 55%",
@@ -148,6 +159,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "351 30% 12%",
         secondary: "351 25% 18%",
         muted: "351 20% 20%",
+        border: "351 20% 25%",
       },
     },
   },
@@ -164,6 +176,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "255 25% 99%",
         secondary: "250 25% 94%",
         muted: "250 20% 95%",
+        border: "250 20% 88%",
       },
       dark: {
         primary: "250 69% 71%",
@@ -173,6 +186,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "250 30% 12%",
         secondary: "250 25% 18%",
         muted: "250 20% 20%",
+        border: "250 20% 25%",
       },
     },
   },
@@ -189,6 +203,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "160 25% 99%",
         secondary: "160 25% 94%",
         muted: "160 20% 95%",
+        border: "160 20% 88%",
       },
       dark: {
         primary: "160 84% 49%",
@@ -198,6 +213,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "160 30% 12%",
         secondary: "160 25% 18%",
         muted: "160 20% 20%",
+        border: "160 20% 25%",
       },
     },
   },
@@ -214,6 +230,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "225 25% 99%",
         secondary: "231 25% 94%",
         muted: "231 20% 95%",
+        border: "231 20% 88%",
       },
       dark: {
         primary: "231 48% 58%",
@@ -223,6 +240,7 @@ export const colorThemes: Record<string, ColorTheme> = {
         card: "231 30% 12%",
         secondary: "231 25% 18%",
         muted: "231 20% 20%",
+        border: "231 20% 25%",
       },
     },
   },
@@ -243,11 +261,20 @@ export function applyColorTheme(themeName: string) {
   root.style.setProperty("--card", colors.card);
   root.style.setProperty("--secondary", colors.secondary);
   root.style.setProperty("--muted", colors.muted);
+  root.style.setProperty("--border", colors.border);
   root.style.setProperty("--sidebar-primary", colors.primary);
   root.style.setProperty("--sidebar-background", colors.card);
   root.style.setProperty("--sidebar-accent", colors.secondary);
+  root.style.setProperty("--sidebar-border", colors.border);
   root.style.setProperty("--ring", colors.primary);
   root.style.setProperty("--sidebar-ring", colors.primary);
+
+  // Generate dynamic gradients and shadows based on theme
+  root.style.setProperty("--gradient-primary", `linear-gradient(135deg, hsl(${colors.primary}), hsl(${colors.accent}))`);
+  root.style.setProperty("--gradient-card", `linear-gradient(to bottom, hsl(${colors.card}), hsl(${colors.background}))`);
+  root.style.setProperty("--shadow-primary", `0 10px 40px -12px hsl(${colors.primary} / 0.25)`);
+  root.style.setProperty("--shadow-card", `0 4px 20px -4px hsl(${colors.primary} / 0.1)`);
+  root.style.setProperty("--glow-primary", `0 0 30px hsl(${colors.primary} / 0.3)`);
 
   localStorage.setItem("colorTheme", themeName);
 }
