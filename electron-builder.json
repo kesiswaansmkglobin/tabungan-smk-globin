@@ -1,0 +1,45 @@
+{
+  "appId": "com.smkglobin.tabungan",
+  "productName": "TABUNGAN SMK GLOBIN",
+  "directories": {
+    "output": "release",
+    "buildResources": "public"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "public/icon-512.png",
+    "public/apple-touch-icon.png"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64", "ia32"]
+      }
+    ],
+    "icon": "public/icon-512.png",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "publisherName": "SMK Globin"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "public/icon-512.png",
+    "uninstallerIcon": "public/icon-512.png",
+    "installerHeaderIcon": "public/icon-512.png",
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "TABUNGAN SMK GLOBIN"
+  },
+  "mac": {
+    "target": ["dmg", "zip"],
+    "icon": "public/icon-512.png",
+    "category": "public.app-category.education"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "icon": "public/icon-512.png",
+    "category": "Education"
+  }
+}
