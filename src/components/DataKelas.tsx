@@ -223,8 +223,8 @@ const DataKelas = () => {
         <div className="flex items-center space-x-3">
           <Users className="h-8 w-8 text-blue-600" />
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Data Kelas</h1>
-            <p className="text-gray-600">Kelola data kelas sekolah</p>
+            <h1 className="text-3xl font-bold text-foreground">Data Kelas</h1>
+            <p className="text-muted-foreground">Kelola data kelas sekolah</p>
           </div>
         </div>
 
@@ -281,7 +281,7 @@ const DataKelas = () => {
           <div className="flex items-center justify-between">
             <CardTitle>Daftar Kelas</CardTitle>
             <div className="relative w-72">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Cari kelas..."
                 value={searchTerm}
@@ -297,7 +297,7 @@ const DataKelas = () => {
               <Card key={kelas.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">{kelas.nama_kelas}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{kelas.nama_kelas}</h3>
                     <div className="flex space-x-1">
                       <Button
                         size="sm"
@@ -333,7 +333,7 @@ const DataKelas = () => {
                       </AlertDialog>
                     </div>
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     <p className="flex items-center">
                       <Users className="h-4 w-4 mr-1" />
                       {kelas.jumlah_siswa} siswa
@@ -349,8 +349,8 @@ const DataKelas = () => {
 
           {filteredKelas.length === 0 && (
             <div className="text-center py-12">
-              <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">
+              <Users className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
+              <p className="text-muted-foreground">
                 {searchTerm ? "Tidak ada kelas yang ditemukan" : "Belum ada data kelas"}
               </p>
               {searchTerm && (
