@@ -305,8 +305,8 @@ const Pengaturan = () => {
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600">Versi Aplikasi:</span>
-                <span className="font-medium">1.0.0</span>
+                <span className="text-muted-foreground">Versi Aplikasi:</span>
+                <span className="font-medium text-foreground">2.1.0</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Database:</span>
