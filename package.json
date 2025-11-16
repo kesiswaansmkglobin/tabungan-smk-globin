@@ -44,7 +44,10 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
+    "concurrently": "^9.2.1",
     "date-fns": "^4.1.0",
+    "electron": "^39.2.1",
+    "electron-builder": "^26.0.12",
     "embla-carousel-react": "^8.3.0",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.553.0",
@@ -62,6 +65,7 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.3",
     "vite-plugin-pwa": "^1.1.0",
+    "wait-on": "^9.0.3",
     "workbox-window": "^7.3.0",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8"
