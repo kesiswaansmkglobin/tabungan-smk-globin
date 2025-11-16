@@ -15,7 +15,7 @@ export const ReportStats = ({ totalSetor, totalTarik, netFlow, jumlahTransaksi }
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Setor</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Setor</p>
               <p className="text-2xl font-bold text-green-600">
                 Rp {totalSetor.toLocaleString('id-ID')}
               </p>
@@ -29,7 +29,7 @@ export const ReportStats = ({ totalSetor, totalTarik, netFlow, jumlahTransaksi }
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Tarik</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Tarik</p>
               <p className="text-2xl font-bold text-red-600">
                 Rp {totalTarik.toLocaleString('id-ID')}
               </p>
@@ -43,7 +43,7 @@ export const ReportStats = ({ totalSetor, totalTarik, netFlow, jumlahTransaksi }
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Net Flow</p>
+              <p className="text-sm font-medium text-muted-foreground">Net Flow</p>
               <p className={`text-2xl font-bold ${netFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 Rp {netFlow.toLocaleString('id-ID')}
               </p>
@@ -57,7 +57,7 @@ export const ReportStats = ({ totalSetor, totalTarik, netFlow, jumlahTransaksi }
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Transaksi</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Transaksi</p>
               <p className="text-2xl font-bold text-blue-600">{jumlahTransaksi}</p>
             </div>
             <FileText className="h-12 w-12 text-blue-500 opacity-20" />
