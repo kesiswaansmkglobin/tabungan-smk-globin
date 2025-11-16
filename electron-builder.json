@@ -11,6 +11,12 @@
     "public/icon-512.png",
     "public/apple-touch-icon.png"
   ],
+  "publish": {
+    "provider": "github",
+    "owner": "your-github-username",
+    "repo": "tabungan-smk-globin",
+    "releaseType": "release"
+  },
   "win": {
     "target": [
       {
@@ -20,7 +26,11 @@
     ],
     "icon": "public/icon-512.png",
     "artifactName": "${productName}-Setup-${version}.${ext}",
-    "publisherName": "SMK Globin"
+    "publisherName": "SMK Globin",
+    "verifyUpdateCodeSignature": false,
+    "signingHashAlgorithms": ["sha256"],
+    "certificateFile": "./certificates/cert.pfx",
+    "certificatePassword": ""
   },
   "nsis": {
     "oneClick": false,
@@ -30,7 +40,9 @@
     "installerHeaderIcon": "public/icon-512.png",
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "TABUNGAN SMK GLOBIN"
+    "shortcutName": "TABUNGAN SMK GLOBIN",
+    "deleteAppDataOnUninstall": false,
+    "differentialPackage": true
   },
   "mac": {
     "target": ["dmg", "zip"],
