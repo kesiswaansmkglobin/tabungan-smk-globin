@@ -1,10 +1,142 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 let mainWindow;
 
 // Disable hardware acceleration for better compatibility
 app.disableHardwareAcceleration();
+
+// Configure auto-updater
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+// Auto-updater event handlers
+autoUpdater.on('checking-for-update', () => {
+  console.log('Checking for updates...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('Update available:', info.version);
+  
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Update Tersedia',
+    message: `Versi baru ${info.version} tersedia!`,
+    detail: 'Apakah Anda ingin mengunduh dan menginstall update sekarang?',
+    buttons: ['Update Sekarang', 'Nanti'],
+    defaultId: 0,
+    cancelId: 1
+  }).then((result) => {
+    if (result.response === 0) {
+      autoUpdater.downloadUpdate();
+      
+      // Show download progress dialog
+      const progressDialog = new BrowserWindow({
+        width: 400,
+        height: 150,
+        parent: mainWindow,
+        modal: true,
+        show: false,
+        frame: false,
+        resizable: false,
+        webPreferences: {
+          nodeIntegration: true,
+          contextIsolation: false
+        }
+      });
+      
+      progressDialog.loadURL(`data:text/html;charset=utf-8,
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                padding: 20px;
+                margin: 0;
+                background: #f5f5f5;
+              }
+              .container {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              }
+              h3 { margin: 0 0 15px 0; color: #333; }
+              .progress-bar {
+                width: 100%;
+                height: 20px;
+                background: #e0e0e0;
+                border-radius: 10px;
+                overflow: hidden;
+              }
+              .progress-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #3b82f6, #2563eb);
+                transition: width 0.3s ease;
+                width: 0%;
+              }
+              .status { margin-top: 10px; color: #666; font-size: 14px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h3>Mengunduh Update...</h3>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progress"></div>
+              </div>
+              <div class="status" id="status">Memulai download...</div>
+            </div>
+          </body>
+        </html>
+      `);
+      
+      progressDialog.once('ready-to-show', () => {
+        progressDialog.show();
+      });
+      
+      autoUpdater.on('download-progress', (progressObj) => {
+        progressDialog.webContents.executeJavaScript(`
+          document.getElementById('progress').style.width = '${progressObj.percent}%';
+          document.getElementById('status').textContent = 
+            'Downloaded: ' + Math.round(progressObj.percent) + '% (' + 
+            (progressObj.transferred / 1024 / 1024).toFixed(1) + 'MB / ' +
+            (progressObj.total / 1024 / 1024).toFixed(1) + 'MB)';
+        `);
+      });
+      
+      autoUpdater.on('update-downloaded', () => {
+        progressDialog.close();
+        
+        dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Update Siap',
+          message: 'Update berhasil diunduh!',
+          detail: 'Aplikasi akan restart dan menginstall update sekarang.',
+          buttons: ['Restart Sekarang'],
+          defaultId: 0
+        }).then(() => {
+          autoUpdater.quitAndInstall(false, true);
+        });
+      });
+    }
+  });
+});
+
+autoUpdater.on('update-not-available', () => {
+  console.log('No updates available');
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('Update error:', err);
+  dialog.showMessageBox(mainWindow, {
+    type: 'error',
+    title: 'Update Error',
+    message: 'Terjadi kesalahan saat update',
+    detail: err.message,
+    buttons: ['OK']
+  });
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -87,13 +219,27 @@ function createWindow() {
         {
           label: 'Tentang',
           click: () => {
-            const { dialog } = require('electron');
             dialog.showMessageBox(mainWindow, {
               type: 'info',
               title: 'Tentang Aplikasi',
               message: 'TABUNGAN SMK GLOBIN',
-              detail: 'Sistem Manajemen Tabungan Siswa SMK Globin\n\nVersi 2.1.0\n\n© 2025 SMK Globin',
+              detail: `Sistem Manajemen Tabungan Siswa SMK Globin\n\nVersi ${app.getVersion()}\n\n© 2025 SMK Globin`,
               buttons: ['OK']
+            });
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Cek Update',
+          click: () => {
+            autoUpdater.checkForUpdates().catch(err => {
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Cek Update',
+                message: 'Tidak dapat memeriksa update',
+                detail: 'Pastikan Anda terhubung ke internet.',
+                buttons: ['OK']
+              });
             });
           }
         }
@@ -130,6 +276,23 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Check for updates after app is ready (only in production)
+  if (!process.env.NODE_ENV || process.env.NODE_ENV === 'production') {
+    // Check for updates on startup
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(err => {
+        console.log('Auto-update check failed:', err);
+      });
+    }, 3000);
+    
+    // Check for updates every 6 hours
+    setInterval(() => {
+      autoUpdater.checkForUpdates().catch(err => {
+        console.log('Auto-update check failed:', err);
+      });
+    }, 6 * 60 * 60 * 1000);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

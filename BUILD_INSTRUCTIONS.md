@@ -128,10 +128,95 @@ Ukuran normal untuk Electron app adalah 100-200MB karena include Chromium engine
 3. **Code Signing**: Untuk distribusi yang lebih professional, pertimbangkan untuk sign aplikasi dengan certificate
 4. **Multi-Platform**: Build di Windows hanya bisa menghasilkan .exe, build di Mac untuk .dmg, dst.
 
+## 🔄 Auto-Update Setup
+
+Aplikasi sudah dilengkapi dengan auto-update menggunakan electron-updater.
+
+### Cara Kerja Auto-Update:
+
+1. **Publish Release ke GitHub**:
+   ```bash
+   # Login GitHub CLI
+   gh auth login
+   
+   # Build dan publish
+   npm run electron:build:win
+   
+   # Upload release ke GitHub
+   gh release create v2.1.0 ./release/*.exe --title "Release v2.1.0" --notes "Update description"
+   ```
+
+2. **Update electron-builder.json**:
+   Ganti `your-github-username` dengan username GitHub Anda:
+   ```json
+   "publish": {
+     "provider": "github",
+     "owner": "your-actual-username",
+     "repo": "tabungan-smk-globin"
+   }
+   ```
+
+3. **Generate GitHub Token**:
+   - Buka: https://github.com/settings/tokens/new
+   - Pilih scope: `repo` (full control)
+   - Generate token
+   - Set environment variable:
+     ```powershell
+     $env:GH_TOKEN="your-github-token"
+     ```
+
+4. **Build & Publish**:
+   ```bash
+   # Set token
+   $env:GH_TOKEN="your-token"
+   
+   # Build dan auto-publish
+   npm run electron:build:win
+   ```
+
+### Fitur Auto-Update:
+
+✅ Cek update otomatis setiap 6 jam  
+✅ Notifikasi jika ada update baru  
+✅ Download progress dengan percentage  
+✅ Install update tanpa install ulang manual  
+✅ Menu "Cek Update" untuk manual check  
+✅ Differential updates (download hanya yang berubah)
+
+### Alternative: Manual Distribution
+
+Jika tidak mau setup GitHub releases, bisa distribusi manual:
+1. Upload file .exe ke Google Drive/Dropbox
+2. Share link download
+3. User install manual
+4. Auto-update tidak akan bekerja (perlu manual download setiap update)
+
+## 🔐 Code Signing Setup
+
+Untuk menghilangkan Windows SmartScreen warning, baca **CODE_SIGNING_GUIDE.md**.
+
+**Quick Setup**:
+1. Beli Code Signing Certificate (Sectigo ~$84-199/tahun)
+2. Simpan certificate `.pfx` di folder `certificates/`
+3. Set password:
+   ```powershell
+   $env:CSC_KEY_PASSWORD="your-cert-password"
+   ```
+4. Build:
+   ```bash
+   npm run electron:build:win
+   ```
+
+✅ No SmartScreen warning  
+✅ Professional & trusted  
+✅ Shows publisher name
+
 ## 🎯 Next Steps
 
 Setelah build berhasil:
-- Test installer di komputer lain
-- Buat dokumentasi user untuk instalasi
-- Setup hosting untuk distribusi file installer (Google Drive, website, dll)
-- Pertimbangkan auto-update mechanism untuk update otomatis
+- ✅ Test installer di komputer lain
+- ✅ Setup GitHub releases untuk auto-update
+- ✅ Dapatkan code signing certificate (hilangkan warning)
+- ✅ Buat dokumentasi user untuk instalasi
+- ✅ Setup hosting untuk distribusi file installer
+- ✅ Monitor update adoption rate
