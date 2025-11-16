@@ -16,7 +16,7 @@ const DashboardStats = ({ totalKelas, totalSiswa, totalSaldo, transaksiHariIni }
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Kelas</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Kelas</p>
               <p className="text-3xl font-bold text-purple-600">{totalKelas}</p>
             </div>
             <School className="h-12 w-12 text-purple-500 opacity-20" />
@@ -28,7 +28,7 @@ const DashboardStats = ({ totalKelas, totalSiswa, totalSaldo, transaksiHariIni }
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Siswa</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Siswa</p>
               <p className="text-3xl font-bold text-blue-600">{totalSiswa}</p>
             </div>
             <Users className="h-12 w-12 text-blue-500 opacity-20" />
@@ -40,7 +40,7 @@ const DashboardStats = ({ totalKelas, totalSiswa, totalSaldo, transaksiHariIni }
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Saldo</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Saldo</p>
               <p className="text-3xl font-bold text-green-600">
                 Rp {totalSaldo.toLocaleString('id-ID')}
               </p>
@@ -54,7 +54,7 @@ const DashboardStats = ({ totalKelas, totalSiswa, totalSaldo, transaksiHariIni }
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Transaksi Hari Ini</p>
+              <p className="text-sm font-medium text-muted-foreground">Transaksi Hari Ini</p>
               <p className="text-3xl font-bold text-orange-600">{transaksiHariIni}</p>
             </div>
             <Calendar className="h-12 w-12 text-orange-500 opacity-20" />

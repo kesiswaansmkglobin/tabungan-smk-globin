@@ -422,7 +422,7 @@ const DataSiswa = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="ml-4 text-gray-600">Memuat data siswa...</p>
+        <p className="ml-4 text-muted-foreground">Memuat data siswa...</p>
       </div>
     );
   }
@@ -433,8 +433,8 @@ const DataSiswa = () => {
         <div className="flex items-center space-x-3">
           <GraduationCap className="h-8 w-8 text-blue-600" />
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Data Siswa</h1>
-            <p className="text-gray-600">Kelola data siswa dan saldo tabungan ({siswaList.length} siswa)</p>
+            <h1 className="text-3xl font-bold text-foreground">Data Siswa</h1>
+            <p className="text-muted-foreground">Kelola data siswa dan saldo tabungan ({siswaList.length} siswa)</p>
           </div>
         </div>
 
@@ -460,7 +460,7 @@ const DataSiswa = () => {
                     accept=".csv"
                     onChange={(e) => setImportFile(e.target.files?.[0] || null)}
                   />
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Format: NIS, Nama Siswa, Kelas
                   </p>
                 </div>
@@ -569,7 +569,7 @@ const DataSiswa = () => {
             <CardTitle>Daftar Siswa</CardTitle>
             <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
               <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Cari nama atau NIS..."
                   value={searchTerm}
@@ -682,12 +682,12 @@ const DataSiswa = () => {
 
           {paginatedSiswa.length === 0 && (
             <div className="text-center py-12">
-              <GraduationCap className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">
+              <GraduationCap className="h-12 w-12 text-muted-foreground/40 mx-auto mb-4" />
+              <p className="text-muted-foreground">
                 {searchTerm || filterKelas !== "all" ? "Tidak ada siswa yang ditemukan" : "Belum ada data siswa"}
               </p>
               {siswaList.length === 0 && (
-                <p className="text-sm text-gray-400 mt-2">
+                <p className="text-sm text-muted-foreground/70 mt-2">
                   Pastikan sudah ada data kelas sebelum menambah siswa
                 </p>
               )}
@@ -704,7 +704,7 @@ const DataSiswa = () => {
               >
                 Sebelumnya
               </Button>
-              <span className="px-4 py-2 text-sm text-gray-600">
+              <span className="px-4 py-2 text-sm text-muted-foreground">
                 Halaman {currentPage} dari {totalPages}
               </span>
               <Button

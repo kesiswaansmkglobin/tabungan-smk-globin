@@ -116,7 +116,7 @@ const DeleteTransactionModal = ({ isOpen, onClose, transaction, onTransactionDel
         </DialogHeader>
         
         <div className="py-4">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted-foreground">
             <p><strong>Siswa:</strong> {transaction.students?.nama}</p>
             <p><strong>Jenis:</strong> {transaction.jenis}</p>
             <p><strong>Jumlah:</strong> Rp {transaction.jumlah.toLocaleString('id-ID')}</p>

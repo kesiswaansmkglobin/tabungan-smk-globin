@@ -35,16 +35,16 @@ const StudentInfo = ({ student, jenisTransaksi, jumlahUang }: StudentInfoProps) 
                 <User className="h-8 w-8 text-white" />
               </div>
               <h3 className="font-semibold text-lg">{student.nama}</h3>
-              <p className="text-gray-600">{student.classes?.nama_kelas}</p>
+              <p className="text-muted-foreground">{student.classes?.nama_kelas}</p>
             </div>
             
             <div className="space-y-3 border-t pt-4">
               <div className="flex justify-between">
-                <span className="text-gray-600">NIS:</span>
-                <span className="font-mono">{student.nis}</span>
+                <span className="text-muted-foreground">NIS:</span>
+                <span className="font-mono text-foreground">{student.nis}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Saldo Saat Ini:</span>
+                <span className="text-muted-foreground">Saldo Saat Ini:</span>
                 <span className="font-semibold text-green-600">
                   Rp {student.saldo.toLocaleString('id-ID')}
                 </span>
@@ -52,7 +52,7 @@ const StudentInfo = ({ student, jenisTransaksi, jumlahUang }: StudentInfoProps) 
               
               {jenisTransaksi === "Tarik" && jumlahUang && (
                 <div className="flex justify-between border-t pt-3">
-                  <span className="text-gray-600">Saldo Setelah Tarik:</span>
+                  <span className="text-muted-foreground">Saldo Setelah Tarik:</span>
                   <span className={`font-semibold ${
                     student.saldo - parseInt(jumlahUang || "0") >= 0 
                       ? "text-green-600" 
@@ -65,7 +65,7 @@ const StudentInfo = ({ student, jenisTransaksi, jumlahUang }: StudentInfoProps) 
               
               {jenisTransaksi === "Setor" && jumlahUang && (
                 <div className="flex justify-between border-t pt-3">
-                  <span className="text-gray-600">Saldo Setelah Setor:</span>
+                  <span className="text-muted-foreground">Saldo Setelah Setor:</span>
                   <span className="font-semibold text-green-600">
                     Rp {(student.saldo + parseInt(jumlahUang || "0")).toLocaleString('id-ID')}
                   </span>
@@ -75,8 +75,8 @@ const StudentInfo = ({ student, jenisTransaksi, jumlahUang }: StudentInfoProps) 
           </div>
         ) : (
           <div className="text-center py-8">
-            <User className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Pilih siswa untuk melihat informasi</p>
+            <User className="h-12 w-12 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-muted-foreground">Pilih siswa untuk melihat informasi</p>
           </div>
         )}
       </CardContent>

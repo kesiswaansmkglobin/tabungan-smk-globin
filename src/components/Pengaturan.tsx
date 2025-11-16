@@ -206,8 +206,8 @@ const Pengaturan = () => {
       <div className="flex items-center space-x-3">
         <Settings className="h-8 w-8 text-blue-600" />
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Pengaturan Sistem</h1>
-          <p className="text-gray-600">Kelola database dan sistem aplikasi</p>
+          <h1 className="text-3xl font-bold text-foreground">Pengaturan Sistem</h1>
+          <p className="text-muted-foreground">Kelola database dan sistem aplikasi</p>
         </div>
       </div>
 
@@ -289,7 +289,7 @@ const Pengaturan = () => {
               </AlertDialog>
             </div>
 
-            <div className="text-sm text-gray-500 space-y-1">
+            <div className="text-sm text-muted-foreground space-y-1">
               <p>• Backup akan mengunduh file JSON</p>
               <p>• Restore memerlukan file backup JSON</p>
               <p>• Pastikan backup sebelum menghapus data</p>
@@ -309,12 +309,12 @@ const Pengaturan = () => {
                 <span className="font-medium text-foreground">2.1.0</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Database:</span>
-                <span className="font-medium">Supabase PostgreSQL</span>
+                <span className="text-muted-foreground">Database:</span>
+                <span className="font-medium text-foreground">Supabase PostgreSQL</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Last Backup:</span>
-                <span className="font-medium text-gray-500">Belum ada</span>
+                <span className="text-muted-foreground">Last Backup:</span>
+                <span className="font-medium text-muted-foreground">Belum ada</span>
               </div>
             </div>
           </CardContent>

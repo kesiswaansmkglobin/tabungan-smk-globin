@@ -90,7 +90,7 @@ const Laporan = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="ml-4 text-gray-600">Memuat laporan...</p>
+        <p className="ml-4 text-muted-foreground">Memuat laporan...</p>
       </div>
     );
   }
@@ -101,8 +101,8 @@ const Laporan = () => {
         <div className="flex items-center space-x-3">
           <FileText className="h-8 w-8 text-blue-600" />
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Laporan</h1>
-            <p className="text-gray-600">Laporan transaksi dan statistik tabungan</p>
+            <h1 className="text-3xl font-bold text-foreground">Laporan</h1>
+            <p className="text-muted-foreground">Laporan transaksi dan statistik tabungan</p>
           </div>
         </div>
 

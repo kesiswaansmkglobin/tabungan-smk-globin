@@ -129,7 +129,7 @@ export default function StudentDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-card shadow-sm border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
