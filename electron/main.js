@@ -1,6 +1,10 @@
-const { app, BrowserWindow, Menu, dialog } = require('electron');
-const { autoUpdater } = require('electron-updater');
-const path = require('path');
+import { app, BrowserWindow, Menu, dialog, shell } from 'electron';
+import { autoUpdater } from 'electron-updater';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let mainWindow;
 
@@ -269,7 +273,7 @@ function createWindow() {
 
   // Handle external links - open in default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    require('electron').shell.openExternal(url);
+    shell.openExternal(url);
     return { action: 'deny' };
   });
 }
