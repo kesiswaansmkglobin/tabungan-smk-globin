@@ -13,7 +13,7 @@
   ],
   "publish": {
     "provider": "github",
-    "owner": "your-github-username",
+    "owner": "kesiswaansmkglobin",
     "repo": "tabungan-smk-globin",
     "releaseType": "release"
   },
