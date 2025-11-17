@@ -24,15 +24,15 @@
         "arch": ["x64", "ia32"]
       }
     ],
-    "icon": "public/icon-512.png",
+    "icon": "public/favicon.ico",
     "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "nsis": {
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
-    "installerIcon": "public/icon-512.png",
-    "uninstallerIcon": "public/icon-512.png",
-    "installerHeaderIcon": "public/icon-512.png",
+    "installerIcon": "public/favicon.ico",
+    "uninstallerIcon": "public/favicon.ico",
+    "installerHeaderIcon": "public/favicon.ico",
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "TABUNGAN SMK GLOBIN",
