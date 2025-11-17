@@ -25,12 +25,7 @@
       }
     ],
     "icon": "public/icon-512.png",
-    "artifactName": "${productName}-Setup-${version}.${ext}",
-    "publisherName": "SMK Globin",
-    "verifyUpdateCodeSignature": false,
-    "signingHashAlgorithms": ["sha256"],
-    "certificateFile": "./certificates/cert.pfx",
-    "certificatePassword": ""
+    "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "nsis": {
     "oneClick": false,
