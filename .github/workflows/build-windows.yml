@@ -35,10 +35,31 @@ jobs:
       - name: Build Vite project
         run: npm run build
 
-      - name: Build Windows installer
+      - name: Decode certificate
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          $cert = [System.Convert]::FromBase64String("${{ secrets.WINDOWS_CERTIFICATE }}")
+          [IO.File]::WriteAllBytes("$env:TEMP\certificate.pfx", $cert)
+        shell: powershell
+
+      - name: Build Windows installer (with code signing)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ env.TEMP }}\certificate.pfx
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: npm run electron:build:win
+
+      - name: Build Windows installer (without code signing)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run electron:build:win
+
+      - name: Cleanup certificate
+        if: always() && startsWith(github.ref, 'refs/tags/')
+        run: Remove-Item -Path "$env:TEMP\certificate.pfx" -Force -ErrorAction SilentlyContinue
+        shell: powershell
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
