@@ -134,6 +134,17 @@ autoUpdater.on('update-not-available', () => {
 
 autoUpdater.on('error', (err) => {
   console.error('Update error:', err);
+  
+  // Silently ignore "no published versions" errors (expected when no releases exist yet)
+  const errorMessage = err.message || '';
+  if (errorMessage.includes('No published versions') || 
+      errorMessage.includes('Cannot find latest') ||
+      errorMessage.includes('No releases')) {
+    console.log('No published versions available - this is expected for new repos');
+    return;
+  }
+  
+  // Only show error dialog for actual connectivity or download issues
   dialog.showMessageBox(mainWindow, {
     type: 'error',
     title: 'Update Error',
@@ -237,14 +248,39 @@ function createWindow() {
         {
           label: 'Cek Update',
           click: () => {
-            autoUpdater.checkForUpdates().catch(err => {
-              dialog.showMessageBox(mainWindow, {
-                type: 'info',
-                title: 'Cek Update',
-                message: 'Tidak dapat memeriksa update',
-                detail: 'Pastikan Anda terhubung ke internet.',
-                buttons: ['OK']
-              });
+            autoUpdater.checkForUpdates().then(() => {
+              // If no update available, show info
+              setTimeout(() => {
+                if (!autoUpdater.updateAvailable) {
+                  dialog.showMessageBox(mainWindow, {
+                    type: 'info',
+                    title: 'Cek Update',
+                    message: 'Aplikasi Anda sudah versi terbaru',
+                    buttons: ['OK']
+                  });
+                }
+              }, 2000);
+            }).catch(err => {
+              // Only show error if it's not about missing releases
+              const errorMessage = err.message || '';
+              if (!errorMessage.includes('No published versions') && 
+                  !errorMessage.includes('Cannot find latest') &&
+                  !errorMessage.includes('No releases')) {
+                dialog.showMessageBox(mainWindow, {
+                  type: 'info',
+                  title: 'Cek Update',
+                  message: 'Tidak dapat memeriksa update',
+                  detail: 'Pastikan Anda terhubung ke internet.',
+                  buttons: ['OK']
+                });
+              } else {
+                dialog.showMessageBox(mainWindow, {
+                  type: 'info',
+                  title: 'Cek Update',
+                  message: 'Aplikasi Anda sudah versi terbaru',
+                  buttons: ['OK']
+                });
+              }
             });
           }
         }
