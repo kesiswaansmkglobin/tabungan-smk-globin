@@ -119,6 +119,11 @@ const Pengaturan = () => {
       if (deleteOptions.transactions) {
         await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         deletedItems.push('Transaksi');
+        
+        // Reset all student balances to 0 when transactions are deleted
+        if (!deleteOptions.students) {
+          await supabase.from('students').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
+        }
       }
       
       // 2. Student sessions (depends on students)
@@ -151,12 +156,9 @@ const Pengaturan = () => {
       
       // 7. User roles and profiles (excluding current admin)
       if (deleteOptions.users) {
-        // Get current user
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Delete other user roles (not current user)
           await supabase.from('user_roles').delete().neq('user_id', user.id);
-          // Delete other profiles (not current user)
           await supabase.from('profiles').delete().neq('id', user.id);
           deletedItems.push('Data Pengguna (kecuali akun Anda)');
         }

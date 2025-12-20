@@ -57,6 +57,7 @@ interface UseAppDataReturn {
   refreshData: () => Promise<void>;
   refreshStudents: () => Promise<void>;
   refreshTransactions: () => Promise<void>;
+  refreshClasses: () => Promise<void>;
 }
 
 // Optimized hook that combines and improves the previous two hooks
@@ -241,57 +242,60 @@ export const useAppData = (): UseAppDataReturn => {
     }
   }, [loadClasses, loadStudents, loadTransactions]);
 
+  const refreshClasses = useCallback(async () => {
+    await loadClasses();
+  }, [loadClasses]);
+
   useEffect(() => {
     refreshData();
 
-    // Optimized real-time subscriptions - more granular updates
+    // Real-time subscriptions for all tables
     const studentsChannel = supabase
-      .channel('students-changes')
+      .channel('students-realtime')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'students'
-        },
+        { event: '*', schema: 'public', table: 'students' },
         (payload) => {
-          console.log('Students table changed:', payload.eventType);
-          // Only refresh students data, not everything
+          console.log('Students changed:', payload.eventType);
           refreshStudents();
         }
       )
       .subscribe();
 
     const transactionsChannel = supabase
-      .channel('transactions-changes')
+      .channel('transactions-realtime')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'transactions'
-        },
+        { event: '*', schema: 'public', table: 'transactions' },
         (payload) => {
-          console.log('Transactions table changed:', payload.eventType);
-          // Refresh both because transactions affect student balances
+          console.log('Transactions changed:', payload.eventType);
+          // Refresh both students and transactions because transactions affect balances
           refreshData();
         }
       )
       .subscribe();
 
     const classesChannel = supabase
-      .channel('classes-changes')
+      .channel('classes-realtime')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'classes'
-        },
+        { event: '*', schema: 'public', table: 'classes' },
         (payload) => {
-          console.log('Classes table changed:', payload.eventType);
-          // Only refresh students to get updated class names
+          console.log('Classes changed:', payload.eventType);
+          refreshClasses();
           refreshStudents();
+        }
+      )
+      .subscribe();
+
+    const schoolDataChannel = supabase
+      .channel('school-data-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'school_data' },
+        (payload) => {
+          console.log('School data changed:', payload.eventType);
+          // Trigger a refresh for components that use school data
         }
       )
       .subscribe();
@@ -300,8 +304,9 @@ export const useAppData = (): UseAppDataReturn => {
       supabase.removeChannel(studentsChannel);
       supabase.removeChannel(transactionsChannel);
       supabase.removeChannel(classesChannel);
+      supabase.removeChannel(schoolDataChannel);
     };
-  }, [refreshData, refreshStudents]);
+  }, [refreshData, refreshStudents, refreshClasses]);
 
   return {
     students,
@@ -311,6 +316,7 @@ export const useAppData = (): UseAppDataReturn => {
     isLoading,
     refreshData,
     refreshStudents,
-    refreshTransactions
+    refreshTransactions,
+    refreshClasses
   };
 };
