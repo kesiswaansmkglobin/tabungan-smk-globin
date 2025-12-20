@@ -22,6 +22,7 @@ interface SchoolData {
   nama_pengelola: string;
   jabatan_pengelola: string;
   tahun_ajaran: string;
+  logo_sekolah?: string | null;
 }
 
 interface ReportStats {
