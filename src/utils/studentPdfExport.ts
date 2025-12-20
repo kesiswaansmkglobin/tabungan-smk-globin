@@ -29,6 +29,7 @@ interface SchoolData {
   jabatan_pengelola: string;
   tahun_ajaran: string;
   logo_sekolah?: string | null;
+  tanda_tangan_pengelola?: string | null;
 }
 
 interface ExportStudentPDFOptions {
@@ -351,16 +352,34 @@ export const exportStudentToPDF = async (options: ExportStudentPDFOptions): Prom
       year: 'numeric' 
     })}`, sigRightX - sigWidth / 2, finalY, { align: 'center' });
     
-    doc.text(schoolData?.jabatan_pengelola || 'Pengelola Tabungan', sigRightX - sigWidth / 2, finalY + 8, { align: 'center' });
+    doc.text(schoolData?.jabatan_pengelola || 'Pengelola Tabungan', sigRightX - sigWidth / 2, finalY + 6, { align: 'center' });
+    
+    // Add signature image if available
+    if (schoolData?.tanda_tangan_pengelola) {
+      try {
+        const sigImgWidth = 45;
+        const sigImgHeight = 18;
+        doc.addImage(
+          schoolData.tanda_tangan_pengelola, 
+          'PNG', 
+          sigRightX - sigWidth / 2 - sigImgWidth / 2, 
+          finalY + 9, 
+          sigImgWidth, 
+          sigImgHeight
+        );
+      } catch (e) {
+        console.error('Error adding signature:', e);
+      }
+    }
     
     // Signature line
     doc.setDrawColor(180, 180, 180);
     doc.setLineWidth(0.3);
-    doc.line(sigRightX - sigWidth, finalY + 28, sigRightX, finalY + 28);
+    doc.line(sigRightX - sigWidth, finalY + 30, sigRightX, finalY + 30);
     
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
-    doc.text(schoolData?.nama_pengelola || '________________', sigRightX - sigWidth / 2, finalY + 34, { align: 'center' });
+    doc.text(schoolData?.nama_pengelola || '________________', sigRightX - sigWidth / 2, finalY + 36, { align: 'center' });
   }
 
   // Generate filename

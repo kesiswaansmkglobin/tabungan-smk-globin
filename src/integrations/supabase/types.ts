@@ -76,6 +76,7 @@ export type Database = {
           nama_pengelola: string
           nama_sekolah: string
           tahun_ajaran: string
+          tanda_tangan_pengelola: string | null
           updated_at: string
         }
         Insert: {
@@ -88,6 +89,7 @@ export type Database = {
           nama_pengelola: string
           nama_sekolah: string
           tahun_ajaran: string
+          tanda_tangan_pengelola?: string | null
           updated_at?: string
         }
         Update: {
@@ -100,6 +102,7 @@ export type Database = {
           nama_pengelola?: string
           nama_sekolah?: string
           tahun_ajaran?: string
+          tanda_tangan_pengelola?: string | null
           updated_at?: string
         }
         Relationships: []
