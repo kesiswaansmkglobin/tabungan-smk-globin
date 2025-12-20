@@ -64,13 +64,37 @@ const formatShortDate = (dateStr: string): string => {
   });
 };
 
+// Get the correct app base URL (handles both preview and published environments)
+const getAppBaseUrl = (): string => {
+  const origin = window.location.origin;
+  
+  // If we're in Lovable preview/editor, try to get the published URL
+  // The published URL format is: https://{project-id}.lovableproject.com
+  if (origin.includes('lovable.dev') || origin.includes('localhost')) {
+    // Try to extract from current URL or use a fallback
+    // Check if there's a custom domain or published URL
+    const hostname = window.location.hostname;
+    
+    // For lovable preview, construct the published URL
+    if (hostname.includes('lovable.dev')) {
+      // Extract project info and construct lovableproject.com URL
+      const projectMatch = hostname.match(/([^.]+)\.lovable\.dev/);
+      if (projectMatch) {
+        return `https://${projectMatch[1]}.lovableproject.com`;
+      }
+    }
+  }
+  
+  return origin;
+};
+
 const generateStudentLoginURL = (student: Student): string => {
   // Create URL that directs to student login page with pre-filled NIS
   const params = new URLSearchParams({
     nis: student.nis
   });
   
-  const baseUrl = window.location.origin;
+  const baseUrl = getAppBaseUrl();
   return `${baseUrl}/student?${params.toString()}`;
 };
 
