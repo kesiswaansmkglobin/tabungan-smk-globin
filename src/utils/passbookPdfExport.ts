@@ -29,6 +29,7 @@ interface SchoolData {
   jabatan_pengelola: string;
   tahun_ajaran: string;
   logo_sekolah?: string | null;
+  tanda_tangan_pengelola?: string | null;
 }
 
 interface ExportPassbookOptions {
@@ -615,6 +616,24 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
   doc.text(schoolData?.jabatan_pengelola || 'Pengelola', rightSigX + sigWidth / 2, yPos, { align: 'center' });
+  
+  // Add signature image if available
+  if (schoolData?.tanda_tangan_pengelola) {
+    try {
+      const sigImgWidth = 40;
+      const sigImgHeight = 16;
+      doc.addImage(
+        schoolData.tanda_tangan_pengelola, 
+        'PNG', 
+        rightSigX + (sigWidth - sigImgWidth) / 2, 
+        yPos + 3, 
+        sigImgWidth, 
+        sigImgHeight
+      );
+    } catch (e) {
+      console.error('Error adding signature:', e);
+    }
+  }
   
   doc.line(rightSigX, yPos + 20, rightSigX + sigWidth, yPos + 20);
   

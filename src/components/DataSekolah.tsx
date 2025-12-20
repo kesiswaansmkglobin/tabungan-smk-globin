@@ -18,6 +18,7 @@ interface SchoolData {
   jabatan_pengelola: string;
   kontak_pengelola: string;
   logo_sekolah: string;
+  tanda_tangan_pengelola?: string;
 }
 
 const DataSekolah = () => {
@@ -28,7 +29,8 @@ const DataSekolah = () => {
     nama_pengelola: "",
     jabatan_pengelola: "",
     kontak_pengelola: "",
-    logo_sekolah: ""
+    logo_sekolah: "",
+    tanda_tangan_pengelola: ""
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -88,6 +90,30 @@ const DataSekolah = () => {
     }
   };
 
+  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 1 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Ukuran file tanda tangan maksimal 1MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setSchoolData(prev => ({
+          ...prev,
+          tanda_tangan_pengelola: result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = async () => {
     setIsLoading(true);
     
@@ -99,7 +125,8 @@ const DataSekolah = () => {
         nama_pengelola: schoolData.nama_pengelola,
         jabatan_pengelola: schoolData.jabatan_pengelola,
         kontak_pengelola: schoolData.kontak_pengelola,
-        logo_sekolah: schoolData.logo_sekolah
+        logo_sekolah: schoolData.logo_sekolah,
+        tanda_tangan_pengelola: schoolData.tanda_tangan_pengelola
       };
 
       if (schoolData.id) {
@@ -241,7 +268,7 @@ const DataSekolah = () => {
                 
                 <div className="flex-1">
                   <Label htmlFor="logoUpload" className="cursor-pointer">
-                    <div className="flex items-center space-x-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors">
+                    <div className="flex items-center space-x-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors w-fit">
                       <Upload className="h-4 w-4" />
                       <span>Upload Logo</span>
                     </div>
@@ -256,6 +283,61 @@ const DataSekolah = () => {
                   <p className="text-sm text-muted-foreground mt-2">
                     Format: JPG, PNG. Maksimal 2MB.
                   </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Tanda Tangan Pengelola</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Upload tanda tangan pengelola yang akan otomatis tercantum di laporan dan buku tabungan siswa.
+            </p>
+            
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="w-48 h-24 border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-white">
+                  {schoolData.tanda_tangan_pengelola ? (
+                    <img 
+                      src={schoolData.tanda_tangan_pengelola} 
+                      alt="Tanda Tangan Pengelola" 
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <Image className="h-8 w-8 mx-auto mb-1" />
+                      <span className="text-xs">Tanda Tangan</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1">
+                  <Label htmlFor="signatureUpload" className="cursor-pointer">
+                    <div className="flex items-center space-x-2 bg-green-50 text-green-600 px-4 py-2 rounded-lg hover:bg-green-100 transition-colors w-fit">
+                      <Upload className="h-4 w-4" />
+                      <span>Upload Tanda Tangan</span>
+                    </div>
+                  </Label>
+                  <Input
+                    id="signatureUpload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSignatureUpload}
+                    className="hidden"
+                  />
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Format: PNG dengan latar transparan direkomendasikan. Maksimal 1MB.
+                  </p>
+                  {schoolData.tanda_tangan_pengelola && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2 text-red-500 hover:text-red-700"
+                      onClick={() => setSchoolData(prev => ({ ...prev, tanda_tangan_pengelola: "" }))}
+                    >
+                      Hapus Tanda Tangan
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
