@@ -48,6 +48,7 @@ interface Siswa {
   kelas_nama?: string;
   saldo: number;
   created_at: string;
+  qr_login_token?: string;
 }
 
 interface Kelas {
@@ -127,6 +128,7 @@ const DataSiswa = () => {
           saldo,
           created_at,
           updated_at,
+          qr_login_token,
           classes (
             nama_kelas
           )

@@ -19,6 +19,7 @@ interface Student {
   nama: string;
   saldo: number;
   kelas_nama?: string;
+  qr_login_token?: string;
 }
 
 interface SchoolData {
@@ -64,38 +65,17 @@ const formatShortDate = (dateStr: string): string => {
   });
 };
 
-// Get the correct app base URL (handles both preview and published environments)
+// Get the correct app base URL - always use the published project URL
 const getAppBaseUrl = (): string => {
-  const origin = window.location.origin;
-  
-  // If we're in Lovable preview/editor, try to get the published URL
-  // The published URL format is: https://{project-id}.lovableproject.com
-  if (origin.includes('lovable.dev') || origin.includes('localhost')) {
-    // Try to extract from current URL or use a fallback
-    // Check if there's a custom domain or published URL
-    const hostname = window.location.hostname;
-    
-    // For lovable preview, construct the published URL
-    if (hostname.includes('lovable.dev')) {
-      // Extract project info and construct lovableproject.com URL
-      const projectMatch = hostname.match(/([^.]+)\.lovable\.dev/);
-      if (projectMatch) {
-        return `https://${projectMatch[1]}.lovableproject.com`;
-      }
-    }
-  }
-  
-  return origin;
+  // Always return the published lovableproject.com URL for QR codes
+  // This ensures QR codes work when scanned from anywhere
+  return 'https://f43d64ac-6e7d-401f-be47-0fcb615bb58a.lovableproject.com';
 };
 
-const generateStudentLoginURL = (student: Student): string => {
-  // Create URL that directs to student login page with pre-filled NIS
-  const params = new URLSearchParams({
-    nis: student.nis
-  });
-  
+const generateStudentQRLoginURL = (qrToken: string): string => {
+  // Create URL that directs to student auto-login with QR token
   const baseUrl = getAppBaseUrl();
-  return `${baseUrl}/student?${params.toString()}`;
+  return `${baseUrl}/student?qr=${encodeURIComponent(qrToken)}`;
 };
 
 const generateQRCode = async (data: string): Promise<string> => {
@@ -212,9 +192,10 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
     return dateA.getTime() - dateB.getTime();
   });
 
-  // Generate QR code with student login URL
-  const studentLoginURL = generateStudentLoginURL(student);
-  const qrCodeDataUrl = await generateQRCode(studentLoginURL);
+  // Generate QR code with student QR login URL (auto-login without password)
+  const qrToken = student.qr_login_token || student.nis;
+  const studentQRLoginURL = generateStudentQRLoginURL(qrToken);
+  const qrCodeDataUrl = await generateQRCode(studentQRLoginURL);
 
   // ═══════════════════════════════════════════════════════════════
   // COVER PAGE - Premium Design

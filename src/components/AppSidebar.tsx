@@ -50,9 +50,10 @@ interface AppSidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onLogout: () => void;
+  onTabHover?: (tab: string) => void;
 }
 
-export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProps) {
+export function AppSidebar({ activeTab, setActiveTab, onLogout, onTabHover }: AppSidebarProps) {
   const { state, setOpenMobile } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [userProfile, setUserProfile] = useState<{
@@ -153,6 +154,7 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout }: AppSidebarProp
                 <SidebarMenuItem key={item.key}>
                   <SidebarMenuButton 
                     onClick={() => handleMenuClick(item.key)}
+                    onMouseEnter={() => onTabHover?.(item.key)}
                     className={activeTab === item.key ? "bg-primary/10 text-primary font-medium" : "hover:bg-accent"}
                     tooltip={isCollapsed ? item.title : undefined}
                   >

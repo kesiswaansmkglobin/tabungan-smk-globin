@@ -28,7 +28,7 @@ interface ReportStats {
 export const useReportData = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [kelasList, setKelasList] = useState<Array<{id: string, nama_kelas: string}>>([]);
-  const [siswaList, setSiswaList] = useState<Array<{id: string, nis: string, nama: string, kelas_id: string, classes: {nama_kelas: string}}>>([]);
+  const [siswaList, setSiswaList] = useState<Array<{id: string, nis: string, nama: string, kelas_id: string, qr_login_token?: string, classes: {nama_kelas: string}}>>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
@@ -49,6 +49,7 @@ export const useReportData = () => {
             nis, 
             nama, 
             kelas_id,
+            qr_login_token,
             classes (
               nama_kelas
             )
