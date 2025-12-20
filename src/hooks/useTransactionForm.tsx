@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { validateTransaction, sanitizeInput } from "@/utils/studentValidation";
+import { addToQueue, isOnline } from "@/utils/offlineQueue";
 
 interface Siswa {
   id: string;
@@ -152,6 +153,28 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
         return;
       }
 
+      // Check if online
+      if (!isOnline()) {
+        // Save to offline queue
+        await addToQueue({
+          student_id: selectedSiswa,
+          jenis: jenisTransaksi,
+          jumlah: jumlah,
+          saldo_setelah: newSaldo,
+          tanggal: tanggalTransaksi,
+          keterangan: keterangan ? sanitizeInput(keterangan) : null,
+          admin: 'Administrator'
+        });
+
+        toast({
+          title: "Disimpan Offline",
+          description: "Transaksi akan disinkronkan saat online",
+        });
+
+        resetForm();
+        return;
+      }
+
       const { error: updateError } = await supabase
         .from('students')
         .update({ saldo: newSaldo })
@@ -182,6 +205,31 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
       onTransactionComplete();
     } catch (error: any) {
       console.error('Error processing transaction:', error);
+      
+      // If network error, try offline queue
+      if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        const validation = validateForm();
+        if (validation) {
+          await addToQueue({
+            student_id: selectedSiswa,
+            jenis: jenisTransaksi,
+            jumlah: validation.jumlah,
+            saldo_setelah: validation.currentSiswa.saldo + (jenisTransaksi === 'Setor' ? validation.jumlah : -validation.jumlah),
+            tanggal: tanggalTransaksi,
+            keterangan: keterangan ? sanitizeInput(keterangan) : null,
+            admin: 'Administrator'
+          });
+          
+          toast({
+            title: "Disimpan Offline",
+            description: "Koneksi gagal, transaksi akan disinkronkan nanti",
+          });
+          
+          resetForm();
+          return;
+        }
+      }
+      
       toast({
         title: "Error",
         description: error.message || "Terjadi kesalahan saat memproses transaksi",

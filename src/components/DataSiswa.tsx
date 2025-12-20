@@ -1,12 +1,12 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown, AlertCircle, FileText, BookOpen } from "lucide-react";
+import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown, AlertCircle, FileText, BookOpen, RefreshCw, QrCode } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,12 @@ import StudentImportTemplate from "./StudentImportTemplate";
 import { validateStudent, sanitizeInput, checkNisUnique } from "@/utils/studentValidation";
 import { exportStudentToPDF } from "@/utils/studentPdfExport";
 import { exportPassbookToPDF } from "@/utils/passbookPdfExport";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SchoolData {
   nama_sekolah: string;
@@ -56,6 +62,8 @@ interface Kelas {
   nama_kelas: string;
 }
 
+const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
 const DataSiswa = () => {
   const [siswaList, setSiswaList] = useState<Siswa[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
@@ -72,8 +80,8 @@ const DataSiswa = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
   const [printingStudentId, setPrintingStudentId] = useState<string | null>(null);
-
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [resettingQRTokenId, setResettingQRTokenId] = useState<string | null>(null);
 
   useEffect(() => {
     console.log("DataSiswa component mounted, loading data...");
@@ -268,6 +276,34 @@ const DataSiswa = () => {
       setPrintingStudentId(null);
     }
   }, [schoolData]);
+
+  // Reset QR Token for a student
+  const handleResetQRToken = useCallback(async (siswa: Siswa) => {
+    setResettingQRTokenId(siswa.id);
+    try {
+      const { data, error } = await supabase.rpc('rotate_student_qr_login_token', {
+        p_student_id: siswa.id
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "QR Token Direset",
+        description: `Token login QR untuk ${siswa.nama} berhasil diperbarui. Cetak ulang buku tabungan untuk QR baru.`,
+      });
+      
+      loadData();
+    } catch (error: any) {
+      console.error('Error resetting QR token:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal mereset QR token",
+        variant: "destructive",
+      });
+    } finally {
+      setResettingQRTokenId(null);
+    }
+  }, []);
 
   const [formErrors, setFormErrors] = useState<string[]>([]);
 
@@ -827,6 +863,28 @@ const DataSiswa = () => {
                             <BookOpen className="h-4 w-4" />
                           )}
                         </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleResetQRToken(siswa)}
+                                disabled={resettingQRTokenId === siswa.id}
+                                className="text-amber-600 hover:text-amber-700"
+                              >
+                                {resettingQRTokenId === siswa.id ? (
+                                  <RefreshCw className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <QrCode className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Reset QR Token (jika bocor)</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         <Button
                           size="sm"
                           variant="outline"
@@ -882,27 +940,70 @@ const DataSiswa = () => {
             </div>
           )}
 
-          {totalPages > 1 && (
-            <div className="flex justify-center mt-6 space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-              >
-                Sebelumnya
-              </Button>
-              <span className="px-4 py-2 text-sm text-muted-foreground">
-                Halaman {currentPage} dari {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-              >
-                Selanjutnya
-              </Button>
+          {sortedSiswa.length > 0 && (
+            <div className="flex flex-col md:flex-row justify-between items-center mt-6 gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Tampilkan</span>
+                <Select 
+                  value={itemsPerPage.toString()} 
+                  onValueChange={(val) => {
+                    setItemsPerPage(parseInt(val));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ITEMS_PER_PAGE_OPTIONS.map(opt => (
+                      <SelectItem key={opt} value={opt.toString()}>{opt}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-sm text-muted-foreground">
+                  dari {sortedSiswa.length} siswa
+                </span>
+              </div>
+              
+              {totalPages > 1 && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                  >
+                    «
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    ‹
+                  </Button>
+                  <span className="px-4 py-2 text-sm text-muted-foreground">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                  >
+                    »
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
