@@ -1,13 +1,14 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Database, Download, Upload, Trash2, AlertTriangle } from "lucide-react";
+import { Settings, Database, Download, Upload, Trash2, AlertTriangle, History, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import BulkTransactionImporter from "./BulkTransactionImporter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +29,16 @@ interface DeleteOptions {
   transactions: boolean;
 }
 
+interface ActivityLog {
+  id: string;
+  timestamp: Date;
+  action: string;
+  details: string;
+  type: 'delete' | 'backup' | 'restore' | 'info';
+}
+
+const ACTIVITY_LOG_KEY = 'pengaturan_activity_log';
+
 const Pengaturan = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [deleteOptions, setDeleteOptions] = useState<DeleteOptions>({
@@ -37,12 +48,53 @@ const Pengaturan = () => {
     users: false,
     transactions: false,
   });
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+
+  // Load activity logs from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem(ACTIVITY_LOG_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setActivityLogs(parsed.map((log: any) => ({
+          ...log,
+          timestamp: new Date(log.timestamp)
+        })));
+      } catch (e) {
+        console.error('Error parsing activity logs:', e);
+      }
+    }
+  }, []);
+
+  const addActivityLog = (action: string, details: string, type: ActivityLog['type']) => {
+    const newLog: ActivityLog = {
+      id: crypto.randomUUID(),
+      timestamp: new Date(),
+      action,
+      details,
+      type
+    };
+    
+    setActivityLogs(prev => {
+      const updated = [newLog, ...prev].slice(0, 50); // Keep last 50 logs
+      localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const clearActivityLogs = () => {
+    setActivityLogs([]);
+    localStorage.removeItem(ACTIVITY_LOG_KEY);
+    toast({
+      title: "Log Dibersihkan",
+      description: "Riwayat aktivitas telah dihapus",
+    });
+  };
 
   const handleDeleteOptionChange = (key: keyof DeleteOptions, checked: boolean) => {
     setDeleteOptions(prev => {
       const newOptions = { ...prev, [key]: checked };
       
-      // Auto-select dependent data when parent is selected
       if (key === 'classes' && checked) {
         newOptions.students = true;
         newOptions.transactions = true;
@@ -50,16 +102,8 @@ const Pengaturan = () => {
       if (key === 'students' && checked) {
         newOptions.transactions = true;
       }
-      
-      // Auto-deselect parent when child is deselected
-      if (key === 'transactions' && !checked) {
-        // transactions can be deselected independently
-      }
       if (key === 'students' && !checked) {
         newOptions.classes = false;
-      }
-      if (key === 'classes' && !checked) {
-        // classes can be deselected, but students/transactions stay if manually selected
       }
       
       return newOptions;
@@ -94,6 +138,12 @@ const Pengaturan = () => {
       a.click();
       window.URL.revokeObjectURL(url);
 
+      addActivityLog(
+        'Backup Database',
+        `Backup berhasil: ${classesData?.length || 0} kelas, ${studentsData?.length || 0} siswa, ${transactionsData?.length || 0} transaksi`,
+        'backup'
+      );
+
       toast({
         title: "Backup Berhasil",
         description: "Database berhasil dibackup dan diunduh",
@@ -114,57 +164,48 @@ const Pengaturan = () => {
     const deletedItems: string[] = [];
     
     try {
-      // Delete in correct order due to foreign key constraints
-      // 1. Transactions first (depends on students)
       if (deleteOptions.transactions) {
+        const { count } = await supabase.from('transactions').select('*', { count: 'exact', head: true });
         await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        deletedItems.push('Transaksi');
+        deletedItems.push(`Transaksi (${count || 0})`);
         
-        // Reset all student balances to 0 when transactions are deleted
         if (!deleteOptions.students) {
           await supabase.from('students').update({ saldo: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
         }
       }
       
-      // 2. Student sessions (depends on students)
       if (deleteOptions.students) {
+        const { count } = await supabase.from('students').select('*', { count: 'exact', head: true });
         await supabase.from('student_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      }
-      
-      // 3. Students (depends on classes)
-      if (deleteOptions.students) {
         await supabase.from('students').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        deletedItems.push('Data Siswa');
+        deletedItems.push(`Data Siswa (${count || 0})`);
       }
       
-      // 4. Wali kelas (depends on classes and users)
       if (deleteOptions.classes || deleteOptions.users) {
         await supabase.from('wali_kelas').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       }
       
-      // 5. Classes
       if (deleteOptions.classes) {
+        const { count } = await supabase.from('classes').select('*', { count: 'exact', head: true });
         await supabase.from('classes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        deletedItems.push('Data Kelas');
+        deletedItems.push(`Data Kelas (${count || 0})`);
       }
       
-      // 6. School data
       if (deleteOptions.schoolData) {
         await supabase.from('school_data').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         deletedItems.push('Data Sekolah');
       }
       
-      // 7. User roles and profiles (excluding current admin)
       if (deleteOptions.users) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).neq('id', user.id);
           await supabase.from('user_roles').delete().neq('user_id', user.id);
           await supabase.from('profiles').delete().neq('id', user.id);
-          deletedItems.push('Data Pengguna (kecuali akun Anda)');
+          deletedItems.push(`Data Pengguna (${count || 0})`);
         }
       }
 
-      // Reset checkboxes
       setDeleteOptions({
         schoolData: false,
         classes: false,
@@ -172,6 +213,12 @@ const Pengaturan = () => {
         users: false,
         transactions: false,
       });
+
+      addActivityLog(
+        'Hapus Data',
+        `Dihapus: ${deletedItems.join(', ')}`,
+        'delete'
+      );
 
       toast({
         title: "Data Berhasil Dihapus",
@@ -268,14 +315,20 @@ const Pengaturan = () => {
           }
         }
 
+        addActivityLog(
+          'Restore Database',
+          `Dipulihkan: ${stats.classes} kelas, ${stats.students} siswa, ${stats.transactions} transaksi`,
+          'restore'
+        );
+
         const skippedMsg = [
-          skipped.students ? `${skipped.students} siswa dilewati (kelas tidak ada)` : null,
-          skipped.transactions ? `${skipped.transactions} transaksi dilewati (siswa tidak ada)` : null,
+          skipped.students ? `${skipped.students} siswa dilewati` : null,
+          skipped.transactions ? `${skipped.transactions} transaksi dilewati` : null,
         ].filter(Boolean).join(', ');
 
         toast({
           title: 'Restore Berhasil',
-          description: `Dipulihkan: ${stats.classes} kelas, ${stats.students} siswa, ${stats.transactions} transaksi, data sekolah: ${stats.school_data}${skippedMsg ? ` — Catatan: ${skippedMsg}` : ''}`,
+          description: `Dipulihkan: ${stats.classes} kelas, ${stats.students} siswa, ${stats.transactions} transaksi${skippedMsg ? ` — ${skippedMsg}` : ''}`,
         });
       } catch (error: any) {
         console.error('Restore error:', error);
@@ -301,6 +354,25 @@ const Pengaturan = () => {
     return items;
   };
 
+  const formatLogTime = (date: Date) => {
+    return date.toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getLogTypeColor = (type: ActivityLog['type']) => {
+    switch (type) {
+      case 'delete': return 'text-red-600 bg-red-100 dark:bg-red-900/30';
+      case 'backup': return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30';
+      case 'restore': return 'text-green-600 bg-green-100 dark:bg-green-900/30';
+      default: return 'text-gray-600 bg-gray-100 dark:bg-gray-800';
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center space-x-3">
@@ -315,7 +387,7 @@ const Pengaturan = () => {
         <BulkTransactionImporter />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -367,7 +439,7 @@ const Pengaturan = () => {
                     />
                     <Label htmlFor="delete-classes" className="text-sm cursor-pointer">
                       Data Kelas
-                      <span className="text-xs text-muted-foreground ml-1">(akan menghapus siswa & transaksi)</span>
+                      <span className="text-xs text-muted-foreground ml-1">(+ siswa & transaksi)</span>
                     </Label>
                   </div>
                   
@@ -379,7 +451,7 @@ const Pengaturan = () => {
                     />
                     <Label htmlFor="delete-students" className="text-sm cursor-pointer">
                       Data Siswa
-                      <span className="text-xs text-muted-foreground ml-1">(akan menghapus transaksi)</span>
+                      <span className="text-xs text-muted-foreground ml-1">(+ transaksi)</span>
                     </Label>
                   </div>
                   
@@ -391,7 +463,7 @@ const Pengaturan = () => {
                     />
                     <Label htmlFor="delete-users" className="text-sm cursor-pointer">
                       Data Pengguna
-                      <span className="text-xs text-muted-foreground ml-1">(wali kelas, kecuali akun Anda)</span>
+                      <span className="text-xs text-muted-foreground ml-1">(kecuali Anda)</span>
                     </Label>
                   </div>
                   
@@ -458,27 +530,65 @@ const Pengaturan = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Informasi Sistem</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Versi Aplikasi:</span>
-                <span className="font-medium text-foreground">2.1.0</span>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informasi Sistem</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Versi Aplikasi:</span>
+                  <span className="font-medium text-foreground">2.1.0</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Database:</span>
+                  <span className="font-medium text-foreground">Supabase PostgreSQL</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Database:</span>
-                <span className="font-medium text-foreground">Supabase PostgreSQL</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Last Backup:</span>
-                <span className="font-medium text-muted-foreground">Belum ada</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="flex items-center text-base">
+                <History className="h-5 w-5 mr-2" />
+                Log Aktivitas
+              </CardTitle>
+              {activityLogs.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearActivityLogs}>
+                  Bersihkan
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {activityLogs.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Belum ada aktivitas</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[200px]">
+                  <div className="space-y-2">
+                    {activityLogs.map((log) => (
+                      <div key={log.id} className="border rounded-lg p-3 text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${getLogTypeColor(log.type)}`}>
+                            {log.action}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatLogTime(log.timestamp)}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground text-xs">{log.details}</p>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
