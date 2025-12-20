@@ -344,55 +344,16 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
   doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
   doc.text(`: ${student.kelas_nama || '-'}`, valueX, infoY);
   
-  // Balance and QR section - reorganized layout to prevent overlap
-  yPos += infoBoxHeight + 12;
-  
-  // Create a horizontal layout container
-  const sectionWidth = cardWidth - 20;
-  const sectionX = cardX + 10;
-  
-  // Left side: Balance info
-  const balanceWidth = sectionWidth * 0.55;
-  
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
-  doc.text('Saldo Terakhir', sectionX + balanceWidth / 2, yPos, { align: 'center' });
-  
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(COLORS.success.r, COLORS.success.g, COLORS.success.b);
-  doc.text(`Rp ${formatCurrency(student.saldo)}`, sectionX + balanceWidth / 2, yPos + 10, { align: 'center' });
-  
-  // Right side: QR Code
-  if (qrCodeDataUrl) {
-    try {
-      const qrSize = 24;
-      const qrX = sectionX + balanceWidth + 8;
-      const qrY = yPos - 8;
-      
-      // QR border
-      doc.setDrawColor(COLORS.accent.r, COLORS.accent.g, COLORS.accent.b);
-      doc.setLineWidth(0.4);
-      doc.roundedRect(qrX - 1, qrY - 1, qrSize + 2, qrSize + 2, 1, 1, 'S');
-      
-      doc.addImage(qrCodeDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
-      
-      doc.setFontSize(5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
-      doc.text('Scan untuk verifikasi', qrX + qrSize / 2, qrY + qrSize + 4, { align: 'center' });
-    } catch (e) {
-      console.error('Error adding QR code:', e);
-    }
-  }
-  
   // Footer with year - positioned at fixed location from bottom
   const footerY = cardY + cardHeight - 10;
-  doc.setFontSize(6);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
   doc.text(`Tahun Ajaran ${schoolData?.tahun_ajaran || new Date().getFullYear()}`, pageWidth / 2, footerY, { align: 'center' });
+  
+  // Additional footer note
+  doc.setFontSize(5);
+  doc.text('Simpan buku tabungan ini dengan baik', pageWidth / 2, footerY + 5, { align: 'center' });
   
   // ═══════════════════════════════════════════════════════════════
   // TRANSACTION PAGES - Premium Design
