@@ -1,4 +1,5 @@
 
+import React, { useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { FileText, Download } from "lucide-react";
@@ -7,7 +8,7 @@ import { ReportFilters } from "./laporan/ReportFilters";
 import { ReportStats } from "./laporan/ReportStats";
 import { ReportTable } from "./laporan/ReportTable";
 
-const Laporan = () => {
+const Laporan = React.memo(() => {
   const { transactions, kelasList, siswaList, isLoading } = useReportData();
   
   const {
@@ -138,6 +139,8 @@ const Laporan = () => {
       <ReportTable transactions={filteredTransactions} />
     </div>
   );
-};
+});
+
+Laporan.displayName = 'Laporan';
 
 export default Laporan;

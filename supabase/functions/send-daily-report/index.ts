@@ -61,9 +61,10 @@ serve(async (req) => {
     let totalPengeluaran = 0;
 
     for (const trans of todayTransactions || []) {
-      if (trans.jenis === "setor") {
+      const jenis = trans.jenis?.toLowerCase();
+      if (jenis === "setor") {
         totalPemasukan += trans.jumlah;
-      } else if (trans.jenis === "tarik") {
+      } else if (jenis === "tarik") {
         totalPengeluaran += trans.jumlah;
       }
     }
