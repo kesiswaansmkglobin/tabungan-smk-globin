@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown, AlertCircle, FileText } from "lucide-react";
+import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown, AlertCircle, FileText, BookOpen } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import StudentImportTemplate from "./StudentImportTemplate";
 import { validateStudent, sanitizeInput, checkNisUnique } from "@/utils/studentValidation";
 import { exportStudentToPDF } from "@/utils/studentPdfExport";
+import { exportPassbookToPDF } from "@/utils/passbookPdfExport";
 
 interface SchoolData {
   nama_sekolah: string;
@@ -224,6 +225,40 @@ const DataSiswa = () => {
       toast({
         title: "Error",
         description: "Gagal mengekspor laporan siswa",
+        variant: "destructive",
+      });
+    } finally {
+      setPrintingStudentId(null);
+    }
+  }, [schoolData]);
+
+  const handlePrintPassbook = useCallback(async (siswa: Siswa) => {
+    setPrintingStudentId(siswa.id + '_passbook');
+    try {
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('id, tanggal, jenis, jumlah, saldo_setelah, keterangan, admin, created_at')
+        .eq('student_id', siswa.id)
+        .order('tanggal', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      exportPassbookToPDF({
+        student: siswa,
+        transactions: transactions || [],
+        schoolData
+      });
+
+      toast({
+        title: "Buku Tabungan Berhasil Dibuat",
+        description: `Buku tabungan ${siswa.nama} berhasil diekspor`,
+      });
+    } catch (error) {
+      console.error('Error exporting passbook:', error);
+      toast({
+        title: "Error",
+        description: "Gagal mengekspor buku tabungan",
         variant: "destructive",
       });
     } finally {
@@ -773,6 +808,20 @@ const DataSiswa = () => {
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                           ) : (
                             <FileText className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePrintPassbook(siswa)}
+                          disabled={printingStudentId === siswa.id + '_passbook'}
+                          title="Cetak Buku Tabungan"
+                          className="text-primary"
+                        >
+                          {printingStudentId === siswa.id + '_passbook' ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          ) : (
+                            <BookOpen className="h-4 w-4" />
                           )}
                         </Button>
                         <Button
