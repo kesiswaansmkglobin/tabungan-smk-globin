@@ -64,17 +64,14 @@ const formatShortDate = (dateStr: string): string => {
   });
 };
 
-const generateVerificationURL = (student: Student, schoolData: SchoolData | null): string => {
+const generateStudentLoginURL = (student: Student): string => {
+  // Create URL that directs to student login page with pre-filled NIS
   const params = new URLSearchParams({
-    nis: student.nis,
-    nama: student.nama,
-    saldo: student.saldo.toString(),
-    sekolah: schoolData?.nama_sekolah || 'Sekolah',
-    cetak: new Date().toISOString().split('T')[0]
+    nis: student.nis
   });
   
   const baseUrl = window.location.origin;
-  return `${baseUrl}/verifikasi?${params.toString()}`;
+  return `${baseUrl}/student?${params.toString()}`;
 };
 
 const generateQRCode = async (data: string): Promise<string> => {
@@ -191,8 +188,9 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
     return dateA.getTime() - dateB.getTime();
   });
 
-  const verificationURL = generateVerificationURL(student, schoolData);
-  const qrCodeDataUrl = await generateQRCode(verificationURL);
+  // Generate QR code with student login URL
+  const studentLoginURL = generateStudentLoginURL(student);
+  const qrCodeDataUrl = await generateQRCode(studentLoginURL);
 
   // ═══════════════════════════════════════════════════════════════
   // COVER PAGE - Premium Design
@@ -350,10 +348,6 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
   doc.text(`Tahun Ajaran ${schoolData?.tahun_ajaran || new Date().getFullYear()}`, pageWidth / 2, footerY, { align: 'center' });
-  
-  // Additional footer note
-  doc.setFontSize(5);
-  doc.text('Simpan buku tabungan ini dengan baik', pageWidth / 2, footerY + 5, { align: 'center' });
   
   // ═══════════════════════════════════════════════════════════════
   // TRANSACTION PAGES - Premium Design
