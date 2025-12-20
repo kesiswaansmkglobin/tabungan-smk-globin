@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 
 interface Transaction {
   id: string;
@@ -26,6 +27,7 @@ interface SchoolData {
   nama_pengelola: string;
   jabatan_pengelola: string;
   tahun_ajaran: string;
+  logo_sekolah?: string | null;
 }
 
 interface ExportStudentPDFOptions {
@@ -50,7 +52,23 @@ const formatDate = (dateStr: string): string => {
   });
 };
 
-export const exportStudentToPDF = (options: ExportStudentPDFOptions): void => {
+const generateQRCode = async (data: string): Promise<string> => {
+  try {
+    return await QRCode.toDataURL(data, {
+      width: 120,
+      margin: 1,
+      color: {
+        dark: '#2563eb',
+        light: '#ffffff'
+      }
+    });
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    return '';
+  }
+};
+
+export const exportStudentToPDF = async (options: ExportStudentPDFOptions): Promise<void> => {
   const { student, transactions, schoolData } = options;
   
   const doc = new jsPDF();
@@ -58,34 +76,57 @@ export const exportStudentToPDF = (options: ExportStudentPDFOptions): void => {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   
+  // Generate QR code
+  const verificationData = JSON.stringify({
+    nis: student.nis,
+    nama: student.nama,
+    saldo: student.saldo,
+    date: new Date().toISOString().split('T')[0],
+    school: schoolData?.nama_sekolah || 'SMK'
+  });
+  const qrCodeDataUrl = await generateQRCode(verificationData);
+  
   // === HEADER SECTION ===
   // Top accent line
   doc.setFillColor(37, 99, 235);
   doc.rect(0, 0, pageWidth, 4, 'F');
   
-  let yPos = 18;
+  let yPos = 14;
+  
+  // School logo
+  if (schoolData?.logo_sekolah) {
+    try {
+      doc.addImage(schoolData.logo_sekolah, 'PNG', margin, yPos - 2, 18, 18);
+    } catch (e) {
+      console.error('Error adding logo:', e);
+    }
+  }
   
   // School name
-  doc.setFontSize(18);
+  const textStartX = schoolData?.logo_sekolah ? margin + 22 : margin;
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(37, 99, 235);
-  doc.text(schoolData?.nama_sekolah || 'SMK Globin', pageWidth / 2, yPos, { align: 'center' });
+  doc.text(schoolData?.nama_sekolah || 'SMK Globin', textStartX, yPos + 4);
   
   // School address
-  yPos += 7;
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
-  doc.text(schoolData?.alamat_sekolah || 'Alamat Sekolah', pageWidth / 2, yPos, { align: 'center' });
+  const address = schoolData?.alamat_sekolah || 'Alamat Sekolah';
+  const maxAddressWidth = pageWidth - textStartX - margin;
+  const splitAddress = doc.splitTextToSize(address, maxAddressWidth);
+  doc.text(splitAddress, textStartX, yPos + 10);
+  
+  yPos += 20;
   
   // Separator
-  yPos += 8;
   doc.setDrawColor(220, 220, 220);
   doc.setLineWidth(0.5);
   doc.line(margin, yPos, pageWidth - margin, yPos);
   
   // === DOCUMENT TITLE ===
-  yPos += 12;
+  yPos += 10;
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 30, 30);
@@ -98,7 +139,7 @@ export const exportStudentToPDF = (options: ExportStudentPDFOptions): void => {
   doc.text(`Tahun Ajaran ${schoolData?.tahun_ajaran || '-'}`, pageWidth / 2, yPos, { align: 'center' });
   
   // === STUDENT INFO CARD ===
-  yPos += 12;
+  yPos += 10;
   const cardHeight = 32;
   
   // Card background
@@ -135,7 +176,7 @@ export const exportStudentToPDF = (options: ExportStudentPDFOptions): void => {
   doc.text(formatCurrency(student.saldo), balanceX, infoY + 12, { align: 'right' });
   
   // === STATISTICS SECTION ===
-  yPos += cardHeight + 12;
+  yPos += cardHeight + 10;
   
   // Calculate stats
   const totalSetor = transactions.filter(t => t.jenis === 'Setor').reduce((sum, t) => sum + t.jumlah, 0);
@@ -276,13 +317,24 @@ export const exportStudentToPDF = (options: ExportStudentPDFOptions): void => {
 
   // === SIGNATURE SECTION ===
   const finalY = transactions.length > 0 
-    ? (doc as any).lastAutoTable.finalY + 25 
-    : yPos + 40;
+    ? (doc as any).lastAutoTable.finalY + 20 
+    : yPos + 35;
   
-  if (finalY < pageHeight - 55) {
-    const sigWidth = 60;
+  if (finalY < pageHeight - 60) {
+    const sigWidth = 55;
     const sigRightX = pageWidth - margin;
     
+    // QR Code on the left
+    if (qrCodeDataUrl) {
+      try {
+        doc.addImage(qrCodeDataUrl, 'PNG', margin, finalY - 5, 25, 25);
+        doc.setFontSize(6);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Scan untuk verifikasi', margin + 12.5, finalY + 22, { align: 'center' });
+      } catch (e) {}
+    }
+    
+    // Signature on the right
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(80, 80, 80);
@@ -298,11 +350,11 @@ export const exportStudentToPDF = (options: ExportStudentPDFOptions): void => {
     // Signature line
     doc.setDrawColor(180, 180, 180);
     doc.setLineWidth(0.3);
-    doc.line(sigRightX - sigWidth, finalY + 30, sigRightX, finalY + 30);
+    doc.line(sigRightX - sigWidth, finalY + 28, sigRightX, finalY + 28);
     
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 30, 30);
-    doc.text(schoolData?.nama_pengelola || '________________', sigRightX - sigWidth / 2, finalY + 36, { align: 'center' });
+    doc.text(schoolData?.nama_pengelola || '________________', sigRightX - sigWidth / 2, finalY + 34, { align: 'center' });
   }
 
   // Generate filename

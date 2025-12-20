@@ -16,6 +16,7 @@ interface SchoolData {
   nama_pengelola: string;
   jabatan_pengelola: string;
   tahun_ajaran: string;
+  logo_sekolah?: string | null;
 }
 
 const Laporan = React.memo(() => {
@@ -43,9 +44,9 @@ const Laporan = React.memo(() => {
   useEffect(() => {
     const loadSchoolData = async () => {
       try {
-        const { data, error } = await supabase
+      const { data, error } = await supabase
           .from('school_data')
-          .select('nama_sekolah, alamat_sekolah, nama_pengelola, jabatan_pengelola, tahun_ajaran')
+          .select('nama_sekolah, alamat_sekolah, nama_pengelola, jabatan_pengelola, tahun_ajaran, logo_sekolah')
           .limit(1)
           .maybeSingle();
         
