@@ -23,6 +23,7 @@ import { Menu } from "lucide-react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ThemeColorPicker } from "@/components/ThemeColorPicker";
+import OfflineIndicator from "@/components/OfflineIndicator";
 
 interface MainLayoutProps {
   onLogout: () => void;
@@ -140,6 +141,7 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
             </main>
           </div>
         </div>
+        <OfflineIndicator />
       </SidebarProvider>
     </ErrorBoundary>
   );
