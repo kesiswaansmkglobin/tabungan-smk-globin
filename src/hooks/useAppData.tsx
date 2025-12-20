@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -61,14 +61,31 @@ interface UseAppDataReturn {
   refreshClasses: () => Promise<void>;
 }
 
+// Simple in-memory cache
+const dataCache = {
+  classes: { data: null as Class[] | null, timestamp: 0 },
+  students: { data: null as Student[] | null, timestamp: 0 },
+  transactions: { data: null as Transaction[] | null, timestamp: 0 },
+};
+const CACHE_TTL = 30000; // 30 seconds
+
+const isCacheValid = (key: keyof typeof dataCache) => {
+  return dataCache[key].data && Date.now() - dataCache[key].timestamp < CACHE_TTL;
+};
+
 // Optimized hook that combines and improves the previous two hooks
 export const useAppData = (): UseAppDataReturn => {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [classes, setClasses] = useState<Class[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [students, setStudents] = useState<Student[]>(dataCache.students.data || []);
+  const [transactions, setTransactions] = useState<Transaction[]>(dataCache.transactions.data || []);
+  const [classes, setClasses] = useState<Class[]>(dataCache.classes.data || []);
+  const [isLoading, setIsLoading] = useState(!dataCache.classes.data);
 
-  const loadClasses = useCallback(async () => {
+  const loadClasses = useCallback(async (force = false) => {
+    if (!force && isCacheValid('classes')) {
+      setClasses(dataCache.classes.data!);
+      return dataCache.classes.data!;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('classes')
@@ -76,26 +93,26 @@ export const useAppData = (): UseAppDataReturn => {
         .order('nama_kelas');
 
       if (error) throw error;
+      dataCache.classes = { data: data || [], timestamp: Date.now() };
       setClasses(data || []);
       return data || [];
     } catch (error: any) {
       console.error('Error loading classes:', error);
-      
-      let errorMessage = "Gagal memuat data kelas";
-      if (error.message && error.message.includes('row-level security policy')) {
-        errorMessage = "Anda tidak memiliki akses untuk melihat data kelas. Pastikan Anda login sebagai admin.";
-      }
-      
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Gagal memuat data kelas",
         variant: "destructive",
       });
       return [];
     }
   }, []);
 
-  const loadStudents = useCallback(async () => {
+  const loadStudents = useCallback(async (force = false) => {
+    if (!force && isCacheValid('students')) {
+      setStudents(dataCache.students.data!);
+      return dataCache.students.data!;
+    }
+    
     try {
       // SECURITY: Never select password column
       const { data, error } = await supabase
@@ -116,26 +133,26 @@ export const useAppData = (): UseAppDataReturn => {
         .order('nama');
 
       if (error) throw error;
+      dataCache.students = { data: data || [], timestamp: Date.now() };
       setStudents(data || []);
       return data || [];
     } catch (error: any) {
       console.error('Error loading students:', error);
-      
-      let errorMessage = "Gagal memuat data siswa";
-      if (error.message && error.message.includes('row-level security policy')) {
-        errorMessage = "Anda tidak memiliki akses untuk melihat data siswa. Pastikan Anda login sebagai admin.";
-      }
-      
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Gagal memuat data siswa",
         variant: "destructive",
       });
       return [];
     }
   }, []);
 
-  const loadTransactions = useCallback(async () => {
+  const loadTransactions = useCallback(async (force = false) => {
+    if (!force && isCacheValid('transactions')) {
+      setTransactions(dataCache.transactions.data!);
+      return dataCache.transactions.data!;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('transactions')
@@ -149,22 +166,18 @@ export const useAppData = (): UseAppDataReturn => {
             )
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500); // Limit for performance
 
       if (error) throw error;
+      dataCache.transactions = { data: data || [], timestamp: Date.now() };
       setTransactions(data || []);
       return data || [];
     } catch (error: any) {
       console.error('Error loading transactions:', error);
-      
-      let errorMessage = "Gagal memuat data transaksi";
-      if (error.message && error.message.includes('row-level security policy')) {
-        errorMessage = "Anda tidak memiliki akses untuk melihat data transaksi. Pastikan Anda login sebagai admin.";
-      }
-      
       toast({
         title: "Error",
-        description: errorMessage,
+        description: "Gagal memuat data transaksi",
         variant: "destructive",
       });
       return [];
@@ -222,20 +235,20 @@ export const useAppData = (): UseAppDataReturn => {
   }, [students, transactions, classes]);
 
   const refreshStudents = useCallback(async () => {
-    await loadStudents();
+    await loadStudents(true);
   }, [loadStudents]);
 
   const refreshTransactions = useCallback(async () => {
-    await loadTransactions();
+    await loadTransactions(true);
   }, [loadTransactions]);
 
-  const refreshData = useCallback(async () => {
+  const refreshData = useCallback(async (force = false) => {
     setIsLoading(true);
     try {
       await Promise.all([
-        loadClasses(),
-        loadStudents(),
-        loadTransactions()
+        loadClasses(force),
+        loadStudents(force),
+        loadTransactions(force)
       ]);
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -245,22 +258,29 @@ export const useAppData = (): UseAppDataReturn => {
   }, [loadClasses, loadStudents, loadTransactions]);
 
   const refreshClasses = useCallback(async () => {
-    await loadClasses();
+    await loadClasses(true);
   }, [loadClasses]);
+
+  // Debounced refresh for realtime updates
+  const debounceTimers = React.useRef<Record<string, NodeJS.Timeout>>({});
+  
+  const debouncedRefresh = useCallback((key: string, fn: () => void, delay = 500) => {
+    if (debounceTimers.current[key]) {
+      clearTimeout(debounceTimers.current[key]);
+    }
+    debounceTimers.current[key] = setTimeout(fn, delay);
+  }, []);
 
   useEffect(() => {
     refreshData();
 
-    // Real-time subscriptions for all tables
+    // Real-time subscriptions with debouncing
     const studentsChannel = supabase
       .channel('students-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'students' },
-        (payload) => {
-          console.log('Students changed:', payload.eventType);
-          refreshStudents();
-        }
+        () => debouncedRefresh('students', refreshStudents)
       )
       .subscribe();
 
@@ -269,11 +289,7 @@ export const useAppData = (): UseAppDataReturn => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'transactions' },
-        (payload) => {
-          console.log('Transactions changed:', payload.eventType);
-          // Refresh both students and transactions because transactions affect balances
-          refreshData();
-        }
+        () => debouncedRefresh('transactions', () => refreshData(true))
       )
       .subscribe();
 
@@ -282,33 +298,17 @@ export const useAppData = (): UseAppDataReturn => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'classes' },
-        (payload) => {
-          console.log('Classes changed:', payload.eventType);
-          refreshClasses();
-          refreshStudents();
-        }
-      )
-      .subscribe();
-
-    const schoolDataChannel = supabase
-      .channel('school-data-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'school_data' },
-        (payload) => {
-          console.log('School data changed:', payload.eventType);
-          // Trigger a refresh for components that use school data
-        }
+        () => debouncedRefresh('classes', refreshClasses)
       )
       .subscribe();
 
     return () => {
+      Object.values(debounceTimers.current).forEach(clearTimeout);
       supabase.removeChannel(studentsChannel);
       supabase.removeChannel(transactionsChannel);
       supabase.removeChannel(classesChannel);
-      supabase.removeChannel(schoolDataChannel);
     };
-  }, [refreshData, refreshStudents, refreshClasses]);
+  }, [refreshData, refreshStudents, refreshClasses, debouncedRefresh]);
 
   return {
     students,

@@ -15,7 +15,8 @@ import {
   LazyWaliKelasView,
   LazyWaliKelasDataSiswa,
   LazyWrapper,
-  prefetchComponent
+  prefetchComponent,
+  usePrefetchOnIdle
 } from "@/components/LazyComponents";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Menu } from "lucide-react";
@@ -30,6 +31,9 @@ interface MainLayoutProps {
 const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Prefetch common components on idle
+  usePrefetchOnIdle(['transaksi', 'data-siswa', 'laporan', 'data-kelas']);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -46,6 +50,9 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
             setUserRole(profile.role);
             if (profile.role === 'wali_kelas') {
               setActiveTab('wali-kelas-view');
+              // Prefetch wali kelas components
+              prefetchComponent('wali-kelas-view');
+              prefetchComponent('wali-kelas-data-siswa');
             }
           }
         }
@@ -55,18 +62,6 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
     };
 
     fetchUserRole();
-  }, []);
-
-  // Prefetch commonly used components after initial render
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Prefetch main components in background
-      prefetchComponent('transaksi');
-      prefetchComponent('data-siswa');
-      prefetchComponent('laporan');
-    }, 1000);
-    
-    return () => clearTimeout(timer);
   }, []);
 
   // Handle tab change with prefetch on hover
