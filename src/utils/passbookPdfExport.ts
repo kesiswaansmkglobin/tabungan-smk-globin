@@ -344,31 +344,32 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
   doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
   doc.text(`: ${student.kelas_nama || '-'}`, valueX, infoY);
   
-  // Balance section with premium styling
-  yPos += infoBoxHeight + 8;
+  // Balance and QR section - reorganized layout to prevent overlap
+  yPos += infoBoxHeight + 12;
   
-  // Two-column layout: Balance + QR
-  const balanceBoxWidth = 60;
-  const balanceBoxX = pageWidth / 2 - 45;
+  // Create a horizontal layout container
+  const sectionWidth = cardWidth - 20;
+  const sectionX = cardX + 10;
   
-  // Balance label
+  // Left side: Balance info
+  const balanceWidth = sectionWidth * 0.55;
+  
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
-  doc.text('Saldo Terakhir', balanceBoxX + balanceBoxWidth / 2, yPos, { align: 'center' });
+  doc.text('Saldo Terakhir', sectionX + balanceWidth / 2, yPos, { align: 'center' });
   
-  // Balance amount with gold accent
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(COLORS.success.r, COLORS.success.g, COLORS.success.b);
-  doc.text(`Rp ${formatCurrency(student.saldo)}`, balanceBoxX + balanceBoxWidth / 2, yPos + 8, { align: 'center' });
+  doc.text(`Rp ${formatCurrency(student.saldo)}`, sectionX + balanceWidth / 2, yPos + 10, { align: 'center' });
   
-  // QR Code with elegant frame
+  // Right side: QR Code
   if (qrCodeDataUrl) {
     try {
-      const qrSize = 22;
-      const qrX = pageWidth / 2 + 18;
-      const qrY = yPos - 6;
+      const qrSize = 24;
+      const qrX = sectionX + balanceWidth + 8;
+      const qrY = yPos - 8;
       
       // QR border
       doc.setDrawColor(COLORS.accent.r, COLORS.accent.g, COLORS.accent.b);
@@ -378,6 +379,7 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
       doc.addImage(qrCodeDataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
       
       doc.setFontSize(5);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
       doc.text('Scan untuk verifikasi', qrX + qrSize / 2, qrY + qrSize + 4, { align: 'center' });
     } catch (e) {
@@ -385,11 +387,12 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
     }
   }
   
-  // Footer with year
+  // Footer with year - positioned at fixed location from bottom
+  const footerY = cardY + cardHeight - 10;
   doc.setFontSize(6);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(COLORS.gray.r, COLORS.gray.g, COLORS.gray.b);
-  doc.text(`Tahun Ajaran ${schoolData?.tahun_ajaran || new Date().getFullYear()}`, pageWidth / 2, cardY + cardHeight - 8, { align: 'center' });
+  doc.text(`Tahun Ajaran ${schoolData?.tahun_ajaran || new Date().getFullYear()}`, pageWidth / 2, footerY, { align: 'center' });
   
   // ═══════════════════════════════════════════════════════════════
   // TRANSACTION PAGES - Premium Design
