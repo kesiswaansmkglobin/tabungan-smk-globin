@@ -1,6 +1,4 @@
-
-import React from "react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +14,8 @@ import {
   LazyPengguna,
   LazyWaliKelasView,
   LazyWaliKelasDataSiswa,
-  withLazyLoading 
+  LazyWrapper,
+  prefetchComponent
 } from "@/components/LazyComponents";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Menu } from "lucide-react";
@@ -45,7 +44,6 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
 
           if (profile) {
             setUserRole(profile.role);
-            // Set initial tab based on role
             if (profile.role === 'wali_kelas') {
               setActiveTab('wali-kelas-view');
             }
@@ -59,30 +57,52 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
     fetchUserRole();
   }, []);
 
-  const renderContent = React.useCallback(() => {
+  // Prefetch commonly used components after initial render
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Prefetch main components in background
+      prefetchComponent('transaksi');
+      prefetchComponent('data-siswa');
+      prefetchComponent('laporan');
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle tab change with prefetch on hover
+  const handleTabChange = useCallback((tab: string) => {
+    setActiveTab(tab);
+  }, []);
+
+  // Prefetch on hover
+  const handleTabHover = useCallback((tab: string) => {
+    prefetchComponent(tab);
+  }, []);
+
+  const renderContent = useMemo(() => {
     switch (activeTab) {
       case "dashboard":
         return <Dashboard />;
       case "data-sekolah":
-        return withLazyLoading(LazyDataSekolah)({});
+        return <LazyWrapper><LazyDataSekolah /></LazyWrapper>;
       case "data-kelas":
-        return withLazyLoading(LazyDataKelas)({});
+        return <LazyWrapper><LazyDataKelas /></LazyWrapper>;
       case "data-siswa":
-        return withLazyLoading(LazyDataSiswa)({});
+        return <LazyWrapper><LazyDataSiswa /></LazyWrapper>;
       case "pengguna":
-        return withLazyLoading(LazyPengguna)({});
+        return <LazyWrapper><LazyPengguna /></LazyWrapper>;
       case "wali-kelas-view":
-        return withLazyLoading(LazyWaliKelasView)({});
+        return <LazyWrapper><LazyWaliKelasView /></LazyWrapper>;
       case "wali-kelas-data-siswa":
-        return withLazyLoading(LazyWaliKelasDataSiswa)({});
+        return <LazyWrapper><LazyWaliKelasDataSiswa /></LazyWrapper>;
       case "transaksi":
-        return withLazyLoading(LazyTransaksi)({});
+        return <LazyWrapper><LazyTransaksi /></LazyWrapper>;
       case "laporan":
-        return withLazyLoading(LazyLaporan)({});
+        return <LazyWrapper><LazyLaporan /></LazyWrapper>;
       case "riwayat-harian":
-        return withLazyLoading(LazyRiwayatHarian)({});
+        return <LazyWrapper><LazyRiwayatHarian /></LazyWrapper>;
       case "pengaturan":
-        return withLazyLoading(LazyPengaturan)({});
+        return <LazyWrapper><LazyPengaturan /></LazyWrapper>;
       default:
         return <Dashboard />;
     }
@@ -94,8 +114,9 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
         <div className="min-h-screen flex w-full bg-background">
           <AppSidebar 
             activeTab={activeTab} 
-            setActiveTab={setActiveTab}
+            setActiveTab={handleTabChange}
             onLogout={onLogout}
+            onTabHover={handleTabHover}
           />
           <div className="flex-1 flex flex-col">
             {/* Mobile Header with Sidebar Trigger */}
@@ -120,7 +141,7 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
             </header>
             
             <main className="flex-1 p-4 md:p-6">
-              {renderContent()}
+              {renderContent}
             </main>
           </div>
         </div>

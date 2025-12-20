@@ -19,6 +19,7 @@ interface Student {
   nama: string;
   saldo: number;
   kelas_nama?: string;
+  qr_login_token?: string;
 }
 
 interface SchoolData {
@@ -52,33 +53,14 @@ const formatDate = (dateStr: string): string => {
   });
 };
 
-// Get the correct app base URL (handles both preview and published environments)
+// Get the correct app base URL - always use the published project URL
 const getAppBaseUrl = (): string => {
-  const origin = window.location.origin;
-  
-  // If we're in Lovable preview/editor, try to get the published URL
-  if (origin.includes('lovable.dev') || origin.includes('localhost')) {
-    const hostname = window.location.hostname;
-    
-    // For lovable preview, construct the published URL
-    if (hostname.includes('lovable.dev')) {
-      const projectMatch = hostname.match(/([^.]+)\.lovable\.dev/);
-      if (projectMatch) {
-        return `https://${projectMatch[1]}.lovableproject.com`;
-      }
-    }
-  }
-  
-  return origin;
+  return 'https://f43d64ac-6e7d-401f-be47-0fcb615bb58a.lovableproject.com';
 };
 
-const generateStudentLoginURL = (student: Student): string => {
-  const params = new URLSearchParams({
-    nis: student.nis
-  });
-  
+const generateStudentQRLoginURL = (qrToken: string): string => {
   const baseUrl = getAppBaseUrl();
-  return `${baseUrl}/student?${params.toString()}`;
+  return `${baseUrl}/student?qr=${encodeURIComponent(qrToken)}`;
 };
 
 const generateQRCode = async (data: string): Promise<string> => {
@@ -105,9 +87,10 @@ export const exportStudentToPDF = async (options: ExportStudentPDFOptions): Prom
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   
-  // Generate QR code with student login URL (same as passbook)
-  const studentLoginURL = generateStudentLoginURL(student);
-  const qrCodeDataUrl = await generateQRCode(studentLoginURL);
+  // Generate QR code with student QR login URL (auto-login without password)
+  const qrToken = student.qr_login_token || student.nis;
+  const studentQRLoginURL = generateStudentQRLoginURL(qrToken);
+  const qrCodeDataUrl = await generateQRCode(studentQRLoginURL);
   
   // === HEADER SECTION ===
   // Top accent line

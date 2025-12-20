@@ -4,33 +4,55 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { GraduationCap, Lock, User, QrCode } from "lucide-react";
+import { GraduationCap, Lock, User, QrCode, Loader2 } from "lucide-react";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
 import { SecurityManager } from "@/utils/security";
 import { toast } from "@/hooks/use-toast";
 
 export default function StudentAuth() {
   const [searchParams] = useSearchParams();
+  const qrToken = searchParams.get("qr");
   const nisFromQR = searchParams.get("nis");
   
   const [nis, setNis] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFromQR, setIsFromQR] = useState(false);
-  const { login } = useStudentAuth();
+  const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
+  const { login, loginWithQRToken } = useStudentAuth();
 
-  // Auto-fill NIS from QR code URL parameter
+  // Auto-login via QR token (no password required)
   useEffect(() => {
-    if (nisFromQR) {
+    const handleQRLogin = async () => {
+      if (qrToken && !isAutoLoggingIn) {
+        setIsAutoLoggingIn(true);
+        try {
+          const success = await loginWithQRToken(qrToken);
+          if (!success) {
+            // QR token invalid, show login form
+            setIsAutoLoggingIn(false);
+          }
+        } catch (error) {
+          console.error('QR login error:', error);
+          setIsAutoLoggingIn(false);
+        }
+      }
+    };
+
+    handleQRLogin();
+  }, [qrToken, loginWithQRToken, isAutoLoggingIn]);
+
+  // Pre-fill NIS from URL parameter (legacy support)
+  useEffect(() => {
+    if (nisFromQR && !qrToken) {
       setNis(nisFromQR);
       setIsFromQR(true);
     }
-  }, [nisFromQR]);
+  }, [nisFromQR, qrToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Client-side validation
     const sanitizedNIS = SecurityManager.sanitizeInput(nis);
     
     if (!sanitizedNIS || !password) {
@@ -51,7 +73,6 @@ export default function StudentAuth() {
       return;
     }
 
-    // Check account lockout
     if (SecurityManager.isAccountLocked(sanitizedNIS)) {
       toast({
         title: "Akun Terkunci",
@@ -61,7 +82,6 @@ export default function StudentAuth() {
       return;
     }
 
-    // Rate limiting
     if (!SecurityManager.checkRateLimit(`student_login_${sanitizedNIS}`, 3, 60000)) {
       toast({
         title: "Terlalu Cepat",
@@ -81,6 +101,27 @@ export default function StudentAuth() {
       setIsLoading(false);
     }
   };
+
+  // Show loading screen when auto-logging in via QR
+  if (isAutoLoggingIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <QrCode className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <span className="text-muted-foreground">Sedang masuk dengan QR Code...</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">

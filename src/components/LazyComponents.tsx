@@ -1,14 +1,15 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, memo } from 'react';
 import ErrorBoundary from './ErrorBoundary';
 
-// Loading component
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center h-64">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+// Lightweight loading spinner
+const LoadingSpinner = memo(() => (
+  <div className="flex items-center justify-center h-32">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
   </div>
-);
+));
+LoadingSpinner.displayName = 'LoadingSpinner';
 
-// Lazy loaded components for better bundle splitting
+// Lazy loaded components with prefetch hints
 export const LazyDataSekolah = React.lazy(() => import('./DataSekolah'));
 export const LazyDataKelas = React.lazy(() => import('./DataKelas'));
 export const LazyDataSiswa = React.lazy(() => import('./DataSiswa'));
@@ -20,16 +21,52 @@ export const LazyPengguna = React.lazy(() => import('./Pengguna'));
 export const LazyWaliKelasView = React.lazy(() => import('./WaliKelasView'));
 export const LazyWaliKelasDataSiswa = React.lazy(() => import('./WaliKelasDataSiswa'));
 
-// HOC for wrapping lazy components
-export const withLazyLoading = <P extends object>(Component: React.ComponentType<P>) => {
-  const WrappedComponent = (props: P) => (
-    <ErrorBoundary>
-      <Suspense fallback={<LoadingSpinner />}>
-        <Component {...props} />
-      </Suspense>
-    </ErrorBoundary>
-  );
-  
-  WrappedComponent.displayName = `withLazyLoading(${Component.displayName || Component.name})`;
-  return WrappedComponent;
+// Prefetch function for eager loading
+export const prefetchComponent = (component: string) => {
+  switch (component) {
+    case 'data-sekolah':
+      import('./DataSekolah');
+      break;
+    case 'data-kelas':
+      import('./DataKelas');
+      break;
+    case 'data-siswa':
+      import('./DataSiswa');
+      break;
+    case 'transaksi':
+      import('./Transaksi');
+      break;
+    case 'laporan':
+      import('./Laporan');
+      break;
+    case 'riwayat-harian':
+      import('./RiwayatHarian');
+      break;
+    case 'pengaturan':
+      import('./Pengaturan');
+      break;
+    case 'pengguna':
+      import('./Pengguna');
+      break;
+    case 'wali-kelas-view':
+      import('./WaliKelasView');
+      break;
+    case 'wali-kelas-data-siswa':
+      import('./WaliKelasDataSiswa');
+      break;
+  }
 };
+
+// Wrapper component for lazy loaded content
+interface LazyWrapperProps {
+  children: React.ReactNode;
+}
+
+export const LazyWrapper = memo(({ children }: LazyWrapperProps) => (
+  <ErrorBoundary>
+    <Suspense fallback={<LoadingSpinner />}>
+      {children}
+    </Suspense>
+  </ErrorBoundary>
+));
+LazyWrapper.displayName = 'LazyWrapper';

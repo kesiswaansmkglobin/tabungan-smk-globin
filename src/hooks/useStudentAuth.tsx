@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext, useContext, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -22,6 +22,7 @@ interface StudentAuthContextType {
   sessionToken: string | null;
   loading: boolean;
   login: (nis: string, password: string) => Promise<boolean>;
+  loginWithQRToken: (qrToken: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshStudentInfo: () => Promise<void>;
 }
@@ -42,17 +43,14 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
       
       if (token && storedStudent) {
         try {
-          // Verify session is still valid
           const { data, error } = await supabase
             .rpc('get_student_info_secure', { token });
 
           const response = data as unknown as AuthResponse;
           if (error || !response?.success) {
-            // Session expired or invalid
             localStorage.removeItem(SESSION_TOKEN_KEY);
             localStorage.removeItem('student_data');
           } else {
-            // Session valid, restore state
             setSessionToken(token);
             setStudent(JSON.parse(storedStudent));
           }
@@ -90,7 +88,6 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
       const response = data as unknown as AuthResponse;
 
       if (response.success && response.student && response.token) {
-        // Store session token and student data
         localStorage.setItem(SESSION_TOKEN_KEY, response.token);
         localStorage.setItem('student_data', JSON.stringify(response.student));
         
@@ -123,17 +120,68 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const loginWithQRToken = useCallback(async (qrToken: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.rpc('create_student_session_from_qr', {
+        qr_token: qrToken
+      });
+
+      if (error) {
+        console.error('QR login error:', error);
+        toast({
+          title: "Login Gagal",
+          description: "QR Code tidak valid atau kedaluwarsa",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const response = data as unknown as AuthResponse;
+
+      if (response.success && response.student && response.token) {
+        localStorage.setItem(SESSION_TOKEN_KEY, response.token);
+        localStorage.setItem('student_data', JSON.stringify(response.student));
+        
+        setSessionToken(response.token);
+        setStudent(response.student);
+        
+        toast({
+          title: "Login Berhasil",
+          description: `Selamat datang, ${response.student.nama}`,
+        });
+        return true;
+      } else {
+        toast({
+          title: "Login Gagal",
+          description: response.message || "QR Code tidak valid",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('QR login error:', error);
+      toast({
+        title: "Login Gagal",
+        description: "Terjadi kesalahan saat login",
+        variant: "destructive",
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const logout = async () => {
     if (sessionToken) {
       try {
-        // Invalidate session on server
         await supabase.rpc('logout_student_session', { token: sessionToken });
       } catch (error) {
         console.error('Error invalidating session:', error);
       }
     }
     
-    // Clear local state and storage
     setStudent(null);
     setSessionToken(null);
     localStorage.removeItem(SESSION_TOKEN_KEY);
@@ -154,7 +202,6 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
 
       const response = data as unknown as AuthResponse;
       if (error || !response?.success) {
-        // Session expired, logout
         await logout();
         toast({
           title: "Sesi Berakhir",
@@ -177,6 +224,7 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
         sessionToken,
         loading,
         login,
+        loginWithQRToken,
         logout,
         refreshStudentInfo
       }}

@@ -147,6 +147,7 @@ export type Database = {
           nama: string
           nis: string
           password: string
+          qr_login_token: string | null
           saldo: number
           updated_at: string
         }
@@ -157,6 +158,7 @@ export type Database = {
           nama: string
           nis: string
           password: string
+          qr_login_token?: string | null
           saldo?: number
           updated_at?: string
         }
@@ -167,6 +169,7 @@ export type Database = {
           nama?: string
           nis?: string
           password?: string
+          qr_login_token?: string | null
           saldo?: number
           updated_at?: string
         }
@@ -318,6 +321,10 @@ export type Database = {
         Args: { student_nis: string; student_password: string }
         Returns: Json
       }
+      create_student_session_from_qr: {
+        Args: { qr_token: string }
+        Returns: Json
+      }
       dearmor: { Args: { "": string }; Returns: string }
       gen_random_uuid: { Args: never; Returns: string }
       gen_salt: { Args: { "": string }; Returns: string }
@@ -397,6 +404,10 @@ export type Database = {
       pgp_armor_headers: {
         Args: { "": string }
         Returns: Record<string, unknown>[]
+      }
+      rotate_student_qr_login_token: {
+        Args: { p_student_id: string }
+        Returns: string
       }
       verify_student_passbook: { Args: { student_nis: string }; Returns: Json }
       verify_student_session: { Args: { token: string }; Returns: string }

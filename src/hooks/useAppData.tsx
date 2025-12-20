@@ -8,6 +8,7 @@ interface Student {
   nama: string;
   kelas_id: string;
   saldo: number;
+  qr_login_token?: string;
   classes?: {
     nama_kelas: string;
   };
@@ -107,6 +108,7 @@ export const useAppData = (): UseAppDataReturn => {
           saldo,
           created_at,
           updated_at,
+          qr_login_token,
           classes (
             nama_kelas
           )
