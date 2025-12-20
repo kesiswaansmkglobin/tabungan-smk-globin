@@ -398,6 +398,7 @@ export type Database = {
         Args: { "": string }
         Returns: Record<string, unknown>[]
       }
+      verify_student_passbook: { Args: { student_nis: string }; Returns: Json }
       verify_student_session: { Args: { token: string }; Returns: string }
     }
     Enums: {
