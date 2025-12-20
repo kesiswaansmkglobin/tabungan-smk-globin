@@ -52,6 +52,35 @@ const formatDate = (dateStr: string): string => {
   });
 };
 
+// Get the correct app base URL (handles both preview and published environments)
+const getAppBaseUrl = (): string => {
+  const origin = window.location.origin;
+  
+  // If we're in Lovable preview/editor, try to get the published URL
+  if (origin.includes('lovable.dev') || origin.includes('localhost')) {
+    const hostname = window.location.hostname;
+    
+    // For lovable preview, construct the published URL
+    if (hostname.includes('lovable.dev')) {
+      const projectMatch = hostname.match(/([^.]+)\.lovable\.dev/);
+      if (projectMatch) {
+        return `https://${projectMatch[1]}.lovableproject.com`;
+      }
+    }
+  }
+  
+  return origin;
+};
+
+const generateStudentLoginURL = (student: Student): string => {
+  const params = new URLSearchParams({
+    nis: student.nis
+  });
+  
+  const baseUrl = getAppBaseUrl();
+  return `${baseUrl}/student?${params.toString()}`;
+};
+
 const generateQRCode = async (data: string): Promise<string> => {
   try {
     return await QRCode.toDataURL(data, {
@@ -76,15 +105,9 @@ export const exportStudentToPDF = async (options: ExportStudentPDFOptions): Prom
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   
-  // Generate QR code
-  const verificationData = JSON.stringify({
-    nis: student.nis,
-    nama: student.nama,
-    saldo: student.saldo,
-    date: new Date().toISOString().split('T')[0],
-    school: schoolData?.nama_sekolah || 'SMK'
-  });
-  const qrCodeDataUrl = await generateQRCode(verificationData);
+  // Generate QR code with student login URL (same as passbook)
+  const studentLoginURL = generateStudentLoginURL(student);
+  const qrCodeDataUrl = await generateQRCode(studentLoginURL);
   
   // === HEADER SECTION ===
   // Top accent line
