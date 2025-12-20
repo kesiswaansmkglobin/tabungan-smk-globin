@@ -38,6 +38,7 @@ const TransactionForm = ({ students, onTransactionComplete, onPreviewChange }: T
     tanggalTransaksi,
     setTanggalTransaksi,
     isLoading,
+    validationErrors,
     processTransaction
   } = useTransactionForm({ students, onTransactionComplete });
 
@@ -72,6 +73,7 @@ const TransactionForm = ({ students, onTransactionComplete, onPreviewChange }: T
             setKeterangan={setKeterangan}
             tanggalTransaksi={tanggalTransaksi}
             setTanggalTransaksi={setTanggalTransaksi}
+            validationErrors={validationErrors}
           />
 
           <Button 

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown } from "lucide-react";
+import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import StudentImportTemplate from "./StudentImportTemplate";
+import { validateStudent, sanitizeInput, checkNisUnique } from "@/utils/studentValidation";
 
 interface Siswa {
   id: string;
@@ -167,13 +168,42 @@ const DataSiswa = () => {
     }
   };
 
+  const [formErrors, setFormErrors] = useState<string[]>([]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErrors([]);
     
-    if (!formData.nis.trim() || !formData.nama.trim() || !formData.kelas_id) {
+    // Sanitize inputs
+    const sanitizedData = {
+      nis: sanitizeInput(formData.nis),
+      nama: sanitizeInput(formData.nama),
+      kelas_id: formData.kelas_id
+    };
+
+    // Validate form data
+    const validation = validateStudent(sanitizedData);
+    if (!validation.success) {
+      setFormErrors(validation.errors);
       toast({
-        title: "Error",
-        description: "Semua field harus diisi",
+        title: "Validasi Gagal",
+        description: validation.errors[0],
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check NIS uniqueness
+    const nisCheck = await checkNisUnique(
+      supabase, 
+      sanitizedData.nis, 
+      editingSiswa?.id
+    );
+    if (!nisCheck.unique) {
+      setFormErrors([nisCheck.error || 'NIS sudah terdaftar']);
+      toast({
+        title: "Validasi Gagal",
+        description: nisCheck.error || 'NIS sudah terdaftar',
         variant: "destructive",
       });
       return;
@@ -184,9 +214,9 @@ const DataSiswa = () => {
         const { error } = await supabase
           .from('students')
           .update({
-            nis: formData.nis.trim(),
-            nama: formData.nama.trim(),
-            kelas_id: formData.kelas_id
+            nis: sanitizedData.nis,
+            nama: sanitizedData.nama,
+            kelas_id: sanitizedData.kelas_id
           })
           .eq('id', editingSiswa.id);
 
@@ -200,10 +230,10 @@ const DataSiswa = () => {
         const { error } = await supabase
           .from('students')
           .insert([{
-            nis: formData.nis.trim(),
-            nama: formData.nama.trim(),
-            kelas_id: formData.kelas_id,
-            password: formData.nis.trim() // Default password is NIS, will be hashed by trigger
+            nis: sanitizedData.nis,
+            nama: sanitizedData.nama,
+            kelas_id: sanitizedData.kelas_id,
+            password: sanitizedData.nis // Default password is NIS, will be hashed by trigger
           }]);
 
         if (error) throw error;
@@ -215,6 +245,7 @@ const DataSiswa = () => {
       }
 
       setFormData({ nis: "", nama: "", kelas_id: "" });
+      setFormErrors([]);
       setEditingSiswa(null);
       setIsDialogOpen(false);
       loadData();
@@ -501,29 +532,54 @@ const DataSiswa = () => {
                 <DialogTitle>{editingSiswa ? "Edit Siswa" : "Tambah Siswa Baru"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {formErrors.length > 0 && (
+                  <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+                      <div className="text-sm text-destructive">
+                        {formErrors.map((error, idx) => (
+                          <p key={idx}>{error}</p>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="nis">NIS *</Label>
                   <Input
                     id="nis"
                     value={formData.nis}
-                    onChange={(e) => setFormData(prev => ({ ...prev, nis: e.target.value }))}
-                    placeholder="Nomor Induk Siswa"
+                    onChange={(e) => {
+                      setFormErrors([]);
+                      setFormData(prev => ({ ...prev, nis: e.target.value }));
+                    }}
+                    placeholder="Nomor Induk Siswa (hanya angka)"
+                    maxLength={20}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">Hanya boleh berisi angka, maksimal 20 karakter</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="nama">Nama Siswa *</Label>
                   <Input
                     id="nama"
                     value={formData.nama}
-                    onChange={(e) => setFormData(prev => ({ ...prev, nama: e.target.value }))}
+                    onChange={(e) => {
+                      setFormErrors([]);
+                      setFormData(prev => ({ ...prev, nama: e.target.value }));
+                    }}
                     placeholder="Nama lengkap siswa"
+                    maxLength={100}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">Minimal 2 karakter, maksimal 100 karakter</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="kelas_id">Kelas *</Label>
-                  <Select value={formData.kelas_id} onValueChange={(value) => setFormData(prev => ({ ...prev, kelas_id: value }))}>
+                  <Select value={formData.kelas_id} onValueChange={(value) => {
+                    setFormErrors([]);
+                    setFormData(prev => ({ ...prev, kelas_id: value }));
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih kelas" />
                     </SelectTrigger>
@@ -545,7 +601,10 @@ const DataSiswa = () => {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => setIsDialogOpen(false)}
+                    onClick={() => {
+                      setIsDialogOpen(false);
+                      setFormErrors([]);
+                    }}
                   >
                     Batal
                   </Button>

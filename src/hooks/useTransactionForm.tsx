@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { validateTransaction, sanitizeInput } from "@/utils/studentValidation";
 
 interface Siswa {
   id: string;
@@ -34,6 +35,7 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
   const [keterangan, setKeterangan] = useState("");
   const [tanggalTransaksi, setTanggalTransaksi] = useState(new Date().toISOString().split('T')[0]);
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   useEffect(() => {
     loadKelas();
@@ -49,6 +51,11 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
       setSelectedSiswa("");
     }
   }, [selectedKelas, students]);
+
+  // Clear validation errors when form changes
+  useEffect(() => {
+    setValidationErrors([]);
+  }, [selectedKelas, selectedSiswa, jenisTransaksi, jumlahUang, tanggalTransaksi]);
 
   const loadKelas = async () => {
     try {
@@ -75,42 +82,41 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
     setKeterangan("");
     setTanggalTransaksi(new Date().toISOString().split('T')[0]);
     setJenisTransaksi("Setor");
+    setValidationErrors([]);
   };
 
   const validateForm = () => {
-    if (!selectedKelas || !selectedSiswa || !jumlahUang || !tanggalTransaksi) {
-      toast({
-        title: "Error",
-        description: "Semua field harus diisi kecuali keterangan",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    const jumlah = parseInt(jumlahUang);
-    if (isNaN(jumlah) || jumlah <= 0) {
-      toast({
-        title: "Error",
-        description: "Jumlah uang harus berupa angka positif",
-        variant: "destructive",
-      });
-      return false;
-    }
-
+    // Parse amount - remove non-numeric characters for flexibility
+    const cleanAmount = jumlahUang.replace(/[^\d]/g, '');
+    const jumlah = parseInt(cleanAmount) || 0;
+    
     const currentSiswa = getCurrentSiswa();
+    
+    // Validate using schema
+    const validation = validateTransaction({
+      student_id: selectedSiswa,
+      kelas_id: selectedKelas,
+      jenis: jenisTransaksi,
+      jumlah,
+      tanggal: tanggalTransaksi,
+      keterangan: keterangan ? sanitizeInput(keterangan) : null,
+      currentSaldo: currentSiswa?.saldo
+    });
+
+    if (!validation.success) {
+      setValidationErrors(validation.errors);
+      toast({
+        title: "Validasi Gagal",
+        description: validation.errors[0],
+        variant: "destructive",
+      });
+      return false;
+    }
+
     if (!currentSiswa) {
       toast({
         title: "Error",
         description: "Siswa tidak ditemukan",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (jenisTransaksi === "Tarik" && jumlah > currentSiswa.saldo) {
-      toast({
-        title: "Error",
-        description: "Saldo tidak mencukupi untuk penarikan",
         variant: "destructive",
       });
       return false;
@@ -121,15 +127,30 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
 
   const processTransaction = async () => {
     setIsLoading(true);
+    setValidationErrors([]);
 
     try {
       const validation = validateForm();
-      if (!validation) return;
+      if (!validation) {
+        setIsLoading(false);
+        return;
+      }
 
       const { jumlah, currentSiswa } = validation;
       const newSaldo = jenisTransaksi === "Setor" 
         ? currentSiswa.saldo + jumlah 
         : currentSiswa.saldo - jumlah;
+
+      // Additional safety check for negative balance
+      if (newSaldo < 0) {
+        toast({
+          title: "Error",
+          description: "Saldo tidak boleh menjadi negatif",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
 
       const { error: updateError } = await supabase
         .from('students')
@@ -146,7 +167,7 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
           jumlah: jumlah,
           saldo_setelah: newSaldo,
           tanggal: tanggalTransaksi,
-          keterangan: keterangan || null,
+          keterangan: keterangan ? sanitizeInput(keterangan) : null,
           admin: 'Administrator'
         }]);
 
@@ -188,6 +209,7 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
     tanggalTransaksi,
     setTanggalTransaksi,
     isLoading,
+    validationErrors,
     
     // Functions
     getCurrentSiswa,

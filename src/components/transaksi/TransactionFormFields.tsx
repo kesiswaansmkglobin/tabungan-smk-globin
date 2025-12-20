@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, AlertCircle } from "lucide-react";
 
 interface Kelas {
   id: string;
@@ -37,6 +37,7 @@ interface TransactionFormFieldsProps {
   setKeterangan: (value: string) => void;
   tanggalTransaksi: string;
   setTanggalTransaksi: (value: string) => void;
+  validationErrors?: string[];
 }
 
 const TransactionFormFields = ({
@@ -53,10 +54,38 @@ const TransactionFormFields = ({
   keterangan,
   setKeterangan,
   tanggalTransaksi,
-  setTanggalTransaksi
+  setTanggalTransaksi,
+  validationErrors = []
 }: TransactionFormFieldsProps) => {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Format input to show Rupiah-style number
+  const handleAmountChange = (value: string) => {
+    // Remove non-numeric characters and parse
+    const numericValue = value.replace(/[^\d]/g, '');
+    setJumlahUang(numericValue);
+  };
+
+  // Get current selected student's balance
+  const currentStudent = filteredSiswa.find(s => s.id === selectedSiswa);
+  const showBalanceWarning = jenisTransaksi === "Tarik" && currentStudent && 
+    parseInt(jumlahUang || '0') > currentStudent.saldo;
+
   return (
     <>
+      {validationErrors.length > 0 && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 mb-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
+            <div className="text-sm text-destructive">
+              {validationErrors.map((error, idx) => (
+                <p key={idx}>{error}</p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="kelas">1. Pilih Kelas *</Label>
         <Select value={selectedKelas} onValueChange={setSelectedKelas}>
@@ -120,18 +149,27 @@ const TransactionFormFields = ({
       <div className="space-y-2">
         <Label htmlFor="jumlah">4. Jumlah Uang *</Label>
         <div className="relative">
-          <span className="absolute left-3 top-3 text-gray-500">Rp</span>
+          <span className="absolute left-3 top-3 text-muted-foreground">Rp</span>
           <Input
             id="jumlah"
-            type="number"
-            value={jumlahUang}
-            onChange={(e) => setJumlahUang(e.target.value)}
+            type="text"
+            inputMode="numeric"
+            value={jumlahUang ? parseInt(jumlahUang).toLocaleString('id-ID') : ''}
+            onChange={(e) => handleAmountChange(e.target.value)}
             placeholder="0"
             className="pl-12"
-            min="1"
             required
           />
         </div>
+        <p className="text-xs text-muted-foreground">
+          Minimal Rp 1.000, maksimal Rp 10.000.000
+        </p>
+        {showBalanceWarning && (
+          <p className="text-xs text-destructive flex items-center gap-1">
+            <AlertCircle className="h-3 w-3" />
+            Saldo tidak mencukupi. Saldo saat ini: Rp {currentStudent?.saldo.toLocaleString('id-ID')}
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -143,9 +181,10 @@ const TransactionFormFields = ({
           placeholder="Contoh: Uang saku, Bayar buku, Jajan kantin, dll..."
           className="resize-none"
           rows={3}
+          maxLength={200}
         />
-        <p className="text-sm text-gray-500">
-          Keterangan opsional untuk menjelaskan tujuan transaksi
+        <p className="text-xs text-muted-foreground">
+          Opsional, maksimal 200 karakter ({keterangan.length}/200)
         </p>
       </div>
 
@@ -156,8 +195,12 @@ const TransactionFormFields = ({
           type="date"
           value={tanggalTransaksi}
           onChange={(e) => setTanggalTransaksi(e.target.value)}
+          max={today}
           required
         />
+        <p className="text-xs text-muted-foreground">
+          Tanggal tidak boleh di masa depan
+        </p>
       </div>
     </>
   );
