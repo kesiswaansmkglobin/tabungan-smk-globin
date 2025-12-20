@@ -1,15 +1,26 @@
 
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Download } from "lucide-react";
+import { FileText, Download, FileDown } from "lucide-react";
 import { useReportData, useReportFilters } from "@/hooks/useReportData";
 import { ReportFilters } from "./laporan/ReportFilters";
 import { ReportStats } from "./laporan/ReportStats";
 import { ReportTable } from "./laporan/ReportTable";
+import { exportToPDF } from "@/utils/pdfExport";
+import { supabase } from "@/integrations/supabase/client";
+
+interface SchoolData {
+  nama_sekolah: string;
+  alamat_sekolah: string;
+  nama_pengelola: string;
+  jabatan_pengelola: string;
+  tahun_ajaran: string;
+}
 
 const Laporan = React.memo(() => {
   const { transactions, kelasList, siswaList, isLoading } = useReportData();
+  const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
   
   const {
     dateFrom,
@@ -27,6 +38,62 @@ const Laporan = React.memo(() => {
     reportStats,
     resetFilters
   } = useReportFilters(transactions, siswaList);
+
+  // Load school data for PDF export
+  useEffect(() => {
+    const loadSchoolData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('school_data')
+          .select('nama_sekolah, alamat_sekolah, nama_pengelola, jabatan_pengelola, tahun_ajaran')
+          .limit(1)
+          .maybeSingle();
+        
+        if (!error && data) {
+          setSchoolData(data);
+        }
+      } catch (error) {
+        console.error('Error loading school data:', error);
+      }
+    };
+    
+    loadSchoolData();
+  }, []);
+
+  const handleExportPDF = useCallback(() => {
+    try {
+      const selectedStudent = siswaFilter !== 'all' 
+        ? siswaList.find(s => s.nis === siswaFilter) 
+        : null;
+      
+      exportToPDF({
+        transactions: filteredTransactions,
+        schoolData,
+        reportStats,
+        filters: {
+          dateFrom,
+          dateTo,
+          kelasFilter,
+          siswaFilter,
+          jenisFilter
+        },
+        studentName: selectedStudent?.nama,
+        className: kelasFilter !== 'all' ? kelasFilter : undefined
+      });
+
+      toast({
+        title: "PDF Berhasil Dibuat",
+        description: "Laporan transaksi berhasil diekspor ke PDF",
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: "Error",
+        description: "Gagal mengekspor laporan ke PDF",
+        variant: "destructive",
+      });
+    }
+  }, [filteredTransactions, schoolData, reportStats, dateFrom, dateTo, kelasFilter, siswaFilter, jenisFilter, siswaList]);
 
   const exportToExcel = () => {
     try {
@@ -52,7 +119,6 @@ const Laporan = React.memo(() => {
       const link = document.createElement('a');
       link.href = url;
       
-      // Create descriptive filename based on filters
       let filename = 'laporan_transaksi';
       if (siswaFilter !== "all") {
         const selectedStudent = siswaList.find(s => s.nis === siswaFilter);
@@ -90,7 +156,7 @@ const Laporan = React.memo(() => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         <p className="ml-4 text-muted-foreground">Memuat laporan...</p>
       </div>
     );
@@ -98,19 +164,25 @@ const Laporan = React.memo(() => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center space-x-3">
-          <FileText className="h-8 w-8 text-blue-600" />
+          <FileText className="h-8 w-8 text-primary" />
           <div>
             <h1 className="text-3xl font-bold text-foreground">Laporan</h1>
             <p className="text-muted-foreground">Laporan transaksi dan statistik tabungan</p>
           </div>
         </div>
 
-        <Button onClick={exportToExcel}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExportPDF} variant="default">
+            <FileDown className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
+          <Button onClick={exportToExcel} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       <ReportFilters
