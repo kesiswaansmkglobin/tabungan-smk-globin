@@ -1,12 +1,12 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown, AlertCircle } from "lucide-react";
+import { Plus, Edit, Trash2, GraduationCap, Search, Download, Upload, ArrowUpDown, AlertCircle, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,15 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import StudentImportTemplate from "./StudentImportTemplate";
 import { validateStudent, sanitizeInput, checkNisUnique } from "@/utils/studentValidation";
+import { exportStudentToPDF } from "@/utils/studentPdfExport";
+
+interface SchoolData {
+  nama_sekolah: string;
+  alamat_sekolah: string;
+  nama_pengelola: string;
+  jabatan_pengelola: string;
+  tahun_ajaran: string;
+}
 
 interface Siswa {
   id: string;
@@ -58,12 +67,15 @@ const DataSiswa = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [sortBy, setSortBy] = useState<'nis' | 'nama' | 'kelas' | 'saldo'>('nama');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [schoolData, setSchoolData] = useState<SchoolData | null>(null);
+  const [printingStudentId, setPrintingStudentId] = useState<string | null>(null);
 
   const itemsPerPage = 10;
 
   useEffect(() => {
     console.log("DataSiswa component mounted, loading data...");
     loadData();
+    loadSchoolData();
   }, []);
 
   useEffect(() => {
@@ -167,6 +179,57 @@ const DataSiswa = () => {
       });
     }
   };
+
+  const loadSchoolData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('school_data')
+        .select('nama_sekolah, alamat_sekolah, nama_pengelola, jabatan_pengelola, tahun_ajaran')
+        .limit(1)
+        .maybeSingle();
+      
+      if (!error && data) {
+        setSchoolData(data);
+      }
+    } catch (error) {
+      console.error('Error loading school data:', error);
+    }
+  };
+
+  const handlePrintStudentReport = useCallback(async (siswa: Siswa) => {
+    setPrintingStudentId(siswa.id);
+    try {
+      // Fetch student transactions
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('id, tanggal, jenis, jumlah, saldo_setelah, keterangan, admin, created_at')
+        .eq('student_id', siswa.id)
+        .order('tanggal', { ascending: false })
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      exportStudentToPDF({
+        student: siswa,
+        transactions: transactions || [],
+        schoolData
+      });
+
+      toast({
+        title: "PDF Berhasil Dibuat",
+        description: `Laporan tabungan ${siswa.nama} berhasil diekspor`,
+      });
+    } catch (error) {
+      console.error('Error exporting student PDF:', error);
+      toast({
+        title: "Error",
+        description: "Gagal mengekspor laporan siswa",
+        variant: "destructive",
+      });
+    } finally {
+      setPrintingStudentId(null);
+    }
+  }, [schoolData]);
 
   const [formErrors, setFormErrors] = useState<string[]>([]);
 
@@ -702,7 +765,21 @@ const DataSiswa = () => {
                         <Button
                           size="sm"
                           variant="outline"
+                          onClick={() => handlePrintStudentReport(siswa)}
+                          disabled={printingStudentId === siswa.id}
+                          title="Cetak Laporan"
+                        >
+                          {printingStudentId === siswa.id ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                          ) : (
+                            <FileText className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => handleEdit(siswa)}
+                          title="Edit"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
