@@ -50,11 +50,27 @@ const formatShortDate = (dateStr: string): string => {
   });
 };
 
+const generateVerificationURL = (student: Student, schoolData: SchoolData | null): string => {
+  // Create verification URL with encoded parameters
+  const params = new URLSearchParams({
+    nis: student.nis,
+    nama: student.nama,
+    saldo: student.saldo.toString(),
+    sekolah: schoolData?.nama_sekolah || 'Sekolah',
+    cetak: new Date().toISOString().split('T')[0]
+  });
+  
+  // Use school website or a verification endpoint
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/verifikasi?${params.toString()}`;
+};
+
 const generateQRCode = async (data: string): Promise<string> => {
   try {
     return await QRCode.toDataURL(data, {
-      width: 150,
+      width: 200,
       margin: 1,
+      errorCorrectionLevel: 'M',
       color: {
         dark: '#1e3a8a',
         light: '#ffffff'
@@ -66,14 +82,39 @@ const generateQRCode = async (data: string): Promise<string> => {
   }
 };
 
+// Helper function to fit text within max width
+const fitText = (doc: jsPDF, text: string, maxWidth: number, fontSize: number): string => {
+  doc.setFontSize(fontSize);
+  const textWidth = doc.getTextWidth(text);
+  if (textWidth <= maxWidth) return text;
+  
+  // Reduce font size gradually
+  let currentSize = fontSize;
+  while (currentSize > 6 && doc.getTextWidth(text) > maxWidth) {
+    currentSize -= 0.5;
+    doc.setFontSize(currentSize);
+  }
+  return text;
+};
+
 export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promise<void> => {
   const { student, transactions, schoolData } = options;
   
-  // A5 landscape for passbook format
+  // A5 landscape for passbook format - scalable for any paper size when printing
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
-    format: 'a5'
+    format: 'a5',
+    compress: true
+  });
+  
+  // Set PDF properties for better printing compatibility
+  doc.setProperties({
+    title: `Buku Tabungan - ${student.nama}`,
+    subject: 'Buku Tabungan Siswa',
+    author: schoolData?.nama_sekolah || 'Sekolah',
+    keywords: 'tabungan, siswa, rekening',
+    creator: 'Sistem Tabungan Sekolah'
   });
   
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -87,15 +128,9 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
     return dateA.getTime() - dateB.getTime();
   });
 
-  // Generate QR code for verification
-  const verificationData = JSON.stringify({
-    nis: student.nis,
-    nama: student.nama,
-    saldo: student.saldo,
-    date: new Date().toISOString(),
-    school: schoolData?.nama_sekolah || 'SMK'
-  });
-  const qrCodeDataUrl = await generateQRCode(verificationData);
+  // Generate QR code with verification URL
+  const verificationURL = generateVerificationURL(student, schoolData);
+  const qrCodeDataUrl = await generateQRCode(verificationURL);
 
   // === COVER PAGE ===
   // Navy blue background
@@ -196,8 +231,11 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
   doc.text('Nama', labelX, infoY);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 30, 30);
-  const namaDisplay = student.nama.length > 20 ? student.nama.substring(0, 20) + '...' : student.nama;
-  doc.text(`: ${namaDisplay}`, valueX, infoY);
+  // Auto-fit nama without truncation
+  const namaMaxWidth = infoBoxWidth - 38;
+  fitText(doc, `: ${student.nama}`, namaMaxWidth, 8);
+  doc.text(`: ${student.nama}`, valueX, infoY);
+  doc.setFontSize(8); // Reset font size
   
   infoY += 5;
   doc.setFont('helvetica', 'normal');
@@ -417,9 +455,9 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
   
   // Signature and QR section
   yPos += 32;
-  const sigWidth = 45;
+  const sigWidth = 50;
   
-  // Left signature
+  // Left signature - Pemilik Rekening
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(80, 80, 80);
@@ -428,7 +466,9 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
   doc.line(margin, yPos + 18, margin + sigWidth, yPos + 18);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 30, 30);
-  doc.text(student.nama.length > 18 ? student.nama.substring(0, 18) + '...' : student.nama, margin + sigWidth / 2, yPos + 24, { align: 'center' });
+  // Auto-fit nama tanpa terpotong
+  fitText(doc, student.nama, sigWidth - 2, 8);
+  doc.text(student.nama, margin + sigWidth / 2, yPos + 24, { align: 'center' });
   
   // Center - QR Code
   if (qrCodeDataUrl) {
@@ -440,7 +480,7 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
     } catch (e) {}
   }
   
-  // Right signature
+  // Right signature - Pengelola
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(80, 80, 80);
@@ -449,7 +489,9 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 30, 30);
   const pengelolaName = schoolData?.nama_pengelola || '________________';
-  doc.text(pengelolaName.length > 18 ? pengelolaName.substring(0, 18) + '...' : pengelolaName, pageWidth - margin - sigWidth / 2, yPos + 24, { align: 'center' });
+  // Auto-fit nama pengelola tanpa terpotong
+  fitText(doc, pengelolaName, sigWidth - 2, 8);
+  doc.text(pengelolaName, pageWidth - margin - sigWidth / 2, yPos + 24, { align: 'center' });
   
   // Print date
   doc.setFontSize(7);
