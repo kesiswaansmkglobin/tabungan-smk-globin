@@ -40,7 +40,7 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-const formatDate = (dateStr: string): string => {
+const formatShortDate = (dateStr: string): string => {
   return new Date(dateStr).toLocaleDateString('id-ID', {
     day: '2-digit',
     month: '2-digit',
@@ -48,18 +48,10 @@ const formatDate = (dateStr: string): string => {
   });
 };
 
-const formatShortDate = (dateStr: string): string => {
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit'
-  });
-};
-
 export const exportPassbookToPDF = (options: ExportPassbookOptions): void => {
   const { student, transactions, schoolData } = options;
   
-  // Use A5 landscape for passbook-like format
+  // A5 landscape for passbook format
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -68,134 +60,161 @@ export const exportPassbookToPDF = (options: ExportPassbookOptions): void => {
   
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 10;
   
-  // Sort transactions by date ascending (oldest first like a real passbook)
+  // Sort transactions by date (oldest first)
   const sortedTransactions = [...transactions].sort((a, b) => {
     const dateA = new Date(a.tanggal + 'T' + a.created_at.split('T')[1]);
     const dateB = new Date(b.tanggal + 'T' + b.created_at.split('T')[1]);
     return dateA.getTime() - dateB.getTime();
   });
 
-  // --- COVER PAGE ---
-  // Background gradient effect
-  doc.setFillColor(59, 130, 246);
+  // === COVER PAGE ===
+  // Navy blue background
+  doc.setFillColor(30, 58, 138);
   doc.rect(0, 0, pageWidth, pageHeight, 'F');
   
-  // White card in center
-  const cardMargin = 15;
-  const cardWidth = pageWidth - cardMargin * 2;
-  const cardHeight = pageHeight - cardMargin * 2;
+  // White content card
+  const cardMargin = 12;
   doc.setFillColor(255, 255, 255);
-  doc.roundedRect(cardMargin, cardMargin, cardWidth, cardHeight, 5, 5, 'F');
+  doc.roundedRect(cardMargin, cardMargin, pageWidth - cardMargin * 2, pageHeight - cardMargin * 2, 4, 4, 'F');
   
-  // Decorative border
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(1);
-  doc.roundedRect(cardMargin + 3, cardMargin + 3, cardWidth - 6, cardHeight - 6, 3, 3, 'S');
+  // Gold accent line at top of card
+  doc.setFillColor(202, 138, 4);
+  doc.rect(cardMargin, cardMargin, pageWidth - cardMargin * 2, 3, 'F');
+  
+  let yPos = cardMargin + 18;
+  
+  // School logo placeholder (circle)
+  const logoX = pageWidth / 2;
+  doc.setFillColor(30, 58, 138);
+  doc.circle(logoX, yPos, 8, 'F');
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text('TB', logoX, yPos + 3, { align: 'center' });
   
   // School name
-  let yPos = cardMargin + 20;
+  yPos += 15;
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(59, 130, 246);
+  doc.setTextColor(30, 58, 138);
   doc.text(schoolData?.nama_sekolah || 'SMK Globin', pageWidth / 2, yPos, { align: 'center' });
   
-  // School address
-  yPos += 6;
-  doc.setFontSize(8);
+  // Address
+  yPos += 5;
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(schoolData?.alamat_sekolah || 'Alamat Sekolah', pageWidth / 2, yPos, { align: 'center' });
   
   // Title
-  yPos += 15;
-  doc.setFontSize(18);
+  yPos += 12;
+  doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 30, 30);
+  doc.setTextColor(30, 58, 138);
   doc.text('BUKU TABUNGAN', pageWidth / 2, yPos, { align: 'center' });
   
-  yPos += 7;
-  doc.setFontSize(10);
+  // Decorative line
+  yPos += 5;
+  doc.setDrawColor(202, 138, 4);
+  doc.setLineWidth(0.5);
+  const lineWidth = 40;
+  doc.line(pageWidth / 2 - lineWidth / 2, yPos, pageWidth / 2 + lineWidth / 2, yPos);
+  
+  // Student info box
+  yPos += 8;
+  const infoBoxWidth = 100;
+  const infoBoxHeight = 28;
+  const infoBoxX = (pageWidth - infoBoxWidth) / 2;
+  
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.2);
+  doc.roundedRect(infoBoxX, yPos, infoBoxWidth, infoBoxHeight, 2, 2, 'FD');
+  
+  // Info content
+  const labelX = infoBoxX + 8;
+  const valueX = infoBoxX + 35;
+  let infoY = yPos + 8;
+  
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('No. Rekening', labelX, infoY);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 30, 30);
+  doc.text(`: ${student.nis}`, valueX, infoY);
+  
+  infoY += 6;
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
-  doc.text('Tahun Ajaran ' + (schoolData?.tahun_ajaran || '-'), pageWidth / 2, yPos, { align: 'center' });
-  
-  // Separator line
-  yPos += 8;
-  doc.setDrawColor(200, 200, 200);
-  doc.setLineWidth(0.3);
-  doc.line(cardMargin + 20, yPos, pageWidth - cardMargin - 20, yPos);
-  
-  // Student info section
-  yPos += 10;
-  const infoStartX = cardMargin + 25;
-  const infoValueX = cardMargin + 55;
-  
-  doc.setFontSize(10);
-  doc.setTextColor(80, 80, 80);
-  
+  doc.text('Nama Pemilik', labelX, infoY);
   doc.setFont('helvetica', 'bold');
-  doc.text('No. Rekening', infoStartX, yPos);
-  doc.setFont('helvetica', 'normal');
-  doc.text(': ' + student.nis, infoValueX, yPos);
+  doc.setTextColor(30, 30, 30);
+  doc.text(`: ${student.nama}`, valueX, infoY);
   
-  yPos += 7;
+  infoY += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Kelas', labelX, infoY);
   doc.setFont('helvetica', 'bold');
-  doc.text('Nama', infoStartX, yPos);
-  doc.setFont('helvetica', 'normal');
-  doc.text(': ' + student.nama, infoValueX, yPos);
+  doc.setTextColor(30, 30, 30);
+  doc.text(`: ${student.kelas_nama || '-'}`, valueX, infoY);
   
-  yPos += 7;
+  // Balance display
+  yPos += infoBoxHeight + 8;
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  doc.text('Saldo Terakhir', pageWidth / 2, yPos, { align: 'center' });
+  
+  yPos += 6;
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('Kelas', infoStartX, yPos);
-  doc.setFont('helvetica', 'normal');
-  doc.text(': ' + (student.kelas_nama || '-'), infoValueX, yPos);
+  doc.setTextColor(22, 163, 74);
+  doc.text(`Rp ${formatCurrency(student.saldo)}`, pageWidth / 2, yPos, { align: 'center' });
   
-  yPos += 7;
-  doc.setFont('helvetica', 'bold');
-  doc.text('Saldo Akhir', infoStartX, yPos);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(34, 139, 34);
-  doc.text(': Rp ' + formatCurrency(student.saldo), infoValueX, yPos);
-  
-  // Footer on cover
-  doc.setFontSize(7);
+  // Footer note
+  doc.setFontSize(6);
+  doc.setFont('helvetica', 'italic');
   doc.setTextColor(150, 150, 150);
-  doc.text('Simpan buku ini dengan baik. Segera laporkan jika hilang.', pageWidth / 2, pageHeight - cardMargin - 8, { align: 'center' });
+  doc.text('Simpan buku tabungan ini dengan baik', pageWidth / 2, pageHeight - cardMargin - 5, { align: 'center' });
   
-  // --- TRANSACTION PAGES ---
-  const entriesPerPage = 12;
+  // === TRANSACTION PAGES ===
+  const entriesPerPage = 10;
   const totalPages = Math.ceil(sortedTransactions.length / entriesPerPage) || 1;
   
   for (let page = 0; page < totalPages; page++) {
     doc.addPage();
     
-    // Page header
-    doc.setFillColor(248, 250, 252);
-    doc.rect(0, 0, pageWidth, 18, 'F');
+    // Header bar
+    doc.setFillColor(30, 58, 138);
+    doc.rect(0, 0, pageWidth, 14, 'F');
     
-    // Header text
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(59, 130, 246);
-    doc.text(schoolData?.nama_sekolah || 'SMK Globin', 8, 8);
-    
+    // Header content
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    doc.text(`No. Rek: ${student.nis}`, 8, 13);
-    doc.text(`Nama: ${student.nama}`, 60, 13);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(schoolData?.nama_sekolah || 'SMK Globin', margin, 7);
+    doc.text('BUKU TABUNGAN', pageWidth / 2, 7, { align: 'center' });
     
-    doc.text(`Halaman ${page + 1}/${totalPages}`, pageWidth - 8, 8, { align: 'right' });
-    doc.text(`Kelas: ${student.kelas_nama || '-'}`, pageWidth - 8, 13, { align: 'right' });
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Hal. ${page + 1}/${totalPages}`, pageWidth - margin, 7, { align: 'right' });
+    
+    // Sub header
+    doc.setFontSize(7);
+    doc.setTextColor(200, 200, 200);
+    doc.text(`${student.nis} - ${student.nama}`, margin, 12);
+    doc.text(`Kelas: ${student.kelas_nama || '-'}`, pageWidth - margin, 12, { align: 'right' });
     
     // Transaction table
     const startIndex = page * entriesPerPage;
     const pageTransactions = sortedTransactions.slice(startIndex, startIndex + entriesPerPage);
     
-    const tableData = pageTransactions.map((trans, index) => {
-      const debit = trans.jenis === 'Tarik' ? formatCurrency(trans.jumlah) : '-';
-      const kredit = trans.jenis === 'Setor' ? formatCurrency(trans.jumlah) : '-';
+    const tableData = pageTransactions.map((trans) => {
+      const debit = trans.jenis === 'Tarik' ? formatCurrency(trans.jumlah) : '';
+      const kredit = trans.jenis === 'Setor' ? formatCurrency(trans.jumlah) : '';
       
       return [
         formatShortDate(trans.tanggal),
@@ -206,47 +225,53 @@ export const exportPassbookToPDF = (options: ExportPassbookOptions): void => {
       ];
     });
     
-    // Add empty rows to fill the page
+    // Fill empty rows
     while (tableData.length < entriesPerPage) {
       tableData.push(['', '', '', '', '']);
     }
 
     autoTable(doc, {
-      startY: 22,
-      head: [['Tanggal', 'Keterangan', 'Debit (-)', 'Kredit (+)', 'Saldo']],
+      startY: 18,
+      head: [['Tanggal', 'Keterangan', 'Debit', 'Kredit', 'Saldo']],
       body: tableData,
       theme: 'grid',
       styles: {
         fontSize: 8,
-        cellPadding: 2,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.2,
+        cellPadding: 2.5,
+        lineColor: [220, 220, 220],
+        lineWidth: 0.1,
+        minCellHeight: 8,
       },
       headStyles: {
-        fillColor: [59, 130, 246],
-        textColor: 255,
+        fillColor: [248, 250, 252],
+        textColor: [30, 58, 138],
         fontStyle: 'bold',
         halign: 'center',
-        fontSize: 8,
+        fontSize: 7,
       },
       columnStyles: {
-        0: { cellWidth: 22, halign: 'center' },
-        1: { cellWidth: 65 },
-        2: { cellWidth: 28, halign: 'right' },
-        3: { cellWidth: 28, halign: 'right' },
+        0: { cellWidth: 25, halign: 'center' },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 30, halign: 'right' },
+        3: { cellWidth: 30, halign: 'right' },
         4: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
       },
       alternateRowStyles: {
-        fillColor: [250, 250, 250],
+        fillColor: [255, 255, 255],
       },
       didParseCell: (data) => {
-        // Color debit (red) and credit (green) columns
         if (data.section === 'body') {
-          if (data.column.index === 2 && data.cell.raw !== '-' && data.cell.raw !== '') {
-            data.cell.styles.textColor = [220, 53, 69];
+          // Debit column (red)
+          if (data.column.index === 2 && data.cell.raw !== '') {
+            data.cell.styles.textColor = [220, 38, 38];
           }
-          if (data.column.index === 3 && data.cell.raw !== '-' && data.cell.raw !== '') {
-            data.cell.styles.textColor = [34, 139, 34];
+          // Kredit column (green)
+          if (data.column.index === 3 && data.cell.raw !== '') {
+            data.cell.styles.textColor = [22, 163, 74];
+          }
+          // Saldo column (blue)
+          if (data.column.index === 4 && data.cell.raw !== '') {
+            data.cell.styles.textColor = [30, 58, 138];
           }
         }
       },
@@ -255,28 +280,28 @@ export const exportPassbookToPDF = (options: ExportPassbookOptions): void => {
     // Footer
     doc.setFontSize(6);
     doc.setTextColor(150, 150, 150);
+    doc.text(`Tahun Ajaran ${schoolData?.tahun_ajaran || '-'}`, margin, pageHeight - 4);
     doc.text(
-      `Dicetak: ${new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}`,
-      8,
-      pageHeight - 5
+      `Dicetak: ${new Date().toLocaleDateString('id-ID')}`,
+      pageWidth - margin,
+      pageHeight - 4,
+      { align: 'right' }
     );
-    doc.text('Buku ini adalah bukti sah kepemilikan tabungan', pageWidth - 8, pageHeight - 5, { align: 'right' });
   }
   
-  // --- SUMMARY PAGE ---
+  // === SUMMARY PAGE ===
   doc.addPage();
   
   // Header
-  doc.setFillColor(248, 250, 252);
-  doc.rect(0, 0, pageWidth, 18, 'F');
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, 0, pageWidth, 14, 'F');
   
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 30, 30);
-  doc.text('RINGKASAN TABUNGAN', pageWidth / 2, 11, { align: 'center' });
+  doc.setTextColor(255, 255, 255);
+  doc.text('RINGKASAN TABUNGAN', pageWidth / 2, 9, { align: 'center' });
   
-  // Summary content
-  yPos = 28;
+  yPos = 24;
   
   // Calculate statistics
   const totalSetor = sortedTransactions.filter(t => t.jenis === 'Setor').reduce((sum, t) => sum + t.jumlah, 0);
@@ -284,97 +309,83 @@ export const exportPassbookToPDF = (options: ExportPassbookOptions): void => {
   const jumlahSetor = sortedTransactions.filter(t => t.jenis === 'Setor').length;
   const jumlahTarik = sortedTransactions.filter(t => t.jenis === 'Tarik').length;
   
-  // Stats boxes
-  const boxWidth = 40;
-  const boxHeight = 25;
-  const boxGap = 8;
-  const boxStartX = (pageWidth - (boxWidth * 4 + boxGap * 3)) / 2;
+  // Summary cards
+  const cardWidth = (pageWidth - margin * 2 - 8) / 2;
+  const cardHeight = 28;
   
-  // Total Kredit box
+  // Left card - Kredit summary
   doc.setFillColor(220, 252, 231);
-  doc.roundedRect(boxStartX, yPos, boxWidth, boxHeight, 2, 2, 'F');
-  doc.setFontSize(7);
+  doc.roundedRect(margin, yPos, cardWidth, cardHeight, 2, 2, 'F');
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(22, 101, 52);
-  doc.text('TOTAL KREDIT', boxStartX + boxWidth / 2, yPos + 8, { align: 'center' });
-  doc.setFontSize(10);
-  doc.text('Rp ' + formatCurrency(totalSetor), boxStartX + boxWidth / 2, yPos + 17, { align: 'center' });
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`(${jumlahSetor} kali)`, boxStartX + boxWidth / 2, yPos + 22, { align: 'center' });
-  
-  // Jumlah Setor box
-  doc.setFillColor(219, 234, 254);
-  doc.roundedRect(boxStartX + boxWidth + boxGap, yPos, boxWidth, boxHeight, 2, 2, 'F');
+  doc.text('TOTAL KREDIT (SETOR)', margin + cardWidth / 2, yPos + 8, { align: 'center' });
+  doc.setFontSize(14);
+  doc.text(`Rp ${formatCurrency(totalSetor)}`, margin + cardWidth / 2, yPos + 18, { align: 'center' });
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 64, 175);
-  doc.text('RATA-RATA SETOR', boxStartX + boxWidth + boxGap + boxWidth / 2, yPos + 8, { align: 'center' });
-  doc.setFontSize(10);
-  const avgSetor = jumlahSetor > 0 ? Math.round(totalSetor / jumlahSetor) : 0;
-  doc.text('Rp ' + formatCurrency(avgSetor), boxStartX + boxWidth + boxGap + boxWidth / 2, yPos + 17, { align: 'center' });
-  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.text('per transaksi', boxStartX + boxWidth + boxGap + boxWidth / 2, yPos + 22, { align: 'center' });
+  doc.text(`${jumlahSetor} transaksi`, margin + cardWidth / 2, yPos + 24, { align: 'center' });
   
-  // Total Debit box
+  // Right card - Debit summary
   doc.setFillColor(254, 226, 226);
-  doc.roundedRect(boxStartX + (boxWidth + boxGap) * 2, yPos, boxWidth, boxHeight, 2, 2, 'F');
-  doc.setFontSize(7);
+  doc.roundedRect(margin + cardWidth + 8, yPos, cardWidth, cardHeight, 2, 2, 'F');
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(153, 27, 27);
-  doc.text('TOTAL DEBIT', boxStartX + (boxWidth + boxGap) * 2 + boxWidth / 2, yPos + 8, { align: 'center' });
-  doc.setFontSize(10);
-  doc.text('Rp ' + formatCurrency(totalTarik), boxStartX + (boxWidth + boxGap) * 2 + boxWidth / 2, yPos + 17, { align: 'center' });
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`(${jumlahTarik} kali)`, boxStartX + (boxWidth + boxGap) * 2 + boxWidth / 2, yPos + 22, { align: 'center' });
-  
-  // Saldo box
-  doc.setFillColor(254, 243, 199);
-  doc.roundedRect(boxStartX + (boxWidth + boxGap) * 3, yPos, boxWidth, boxHeight, 2, 2, 'F');
+  doc.text('TOTAL DEBIT (TARIK)', margin + cardWidth + 8 + cardWidth / 2, yPos + 8, { align: 'center' });
+  doc.setFontSize(14);
+  doc.text(`Rp ${formatCurrency(totalTarik)}`, margin + cardWidth + 8 + cardWidth / 2, yPos + 18, { align: 'center' });
   doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(146, 64, 14);
-  doc.text('SALDO AKHIR', boxStartX + (boxWidth + boxGap) * 3 + boxWidth / 2, yPos + 8, { align: 'center' });
-  doc.setFontSize(10);
-  doc.text('Rp ' + formatCurrency(student.saldo), boxStartX + (boxWidth + boxGap) * 3 + boxWidth / 2, yPos + 17, { align: 'center' });
-  doc.setFontSize(6);
   doc.setFont('helvetica', 'normal');
-  doc.text('terkini', boxStartX + (boxWidth + boxGap) * 3 + boxWidth / 2, yPos + 22, { align: 'center' });
+  doc.text(`${jumlahTarik} transaksi`, margin + cardWidth + 8 + cardWidth / 2, yPos + 24, { align: 'center' });
+  
+  // Balance card - full width
+  yPos += cardHeight + 8;
+  doc.setFillColor(30, 58, 138);
+  doc.roundedRect(margin, yPos, pageWidth - margin * 2, 24, 2, 2, 'F');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(200, 220, 255);
+  doc.text('SALDO AKHIR', pageWidth / 2, yPos + 8, { align: 'center' });
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  doc.text(`Rp ${formatCurrency(student.saldo)}`, pageWidth / 2, yPos + 18, { align: 'center' });
   
   // Signature section
-  yPos += 45;
-  doc.setFontSize(9);
-  doc.setTextColor(30, 30, 30);
+  yPos += 38;
+  const sigWidth = 50;
   
-  // Left signature (student)
-  const sigLeftX = 35;
-  doc.setFont('helvetica', 'normal');
-  doc.text('Pemilik Rekening,', sigLeftX, yPos, { align: 'center' });
-  doc.line(sigLeftX - 25, yPos + 25, sigLeftX + 25, yPos + 25);
-  doc.setFont('helvetica', 'bold');
-  doc.text(student.nama, sigLeftX, yPos + 30, { align: 'center' });
-  
-  // Right signature (admin)
-  const sigRightX = pageWidth - 35;
-  doc.setFont('helvetica', 'normal');
-  doc.text(schoolData?.jabatan_pengelola || 'Pengelola Tabungan', sigRightX, yPos, { align: 'center' });
-  doc.line(sigRightX - 25, yPos + 25, sigRightX + 25, yPos + 25);
-  doc.setFont('helvetica', 'bold');
-  doc.text(schoolData?.nama_pengelola || '________________', sigRightX, yPos + 30, { align: 'center' });
-  
-  // Print date
-  yPos += 45;
+  // Left signature
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Dicetak pada: ${new Date().toLocaleDateString('id-ID', { 
+  doc.setTextColor(80, 80, 80);
+  doc.text('Pemilik Rekening', margin + sigWidth / 2, yPos, { align: 'center' });
+  doc.setDrawColor(180, 180, 180);
+  doc.line(margin, yPos + 22, margin + sigWidth, yPos + 22);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 30, 30);
+  doc.text(student.nama, margin + sigWidth / 2, yPos + 28, { align: 'center' });
+  
+  // Right signature
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text(schoolData?.jabatan_pengelola || 'Pengelola', pageWidth - margin - sigWidth / 2, yPos, { align: 'center' });
+  doc.line(pageWidth - margin - sigWidth, yPos + 22, pageWidth - margin, yPos + 22);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 30, 30);
+  doc.text(schoolData?.nama_pengelola || '________________', pageWidth - margin - sigWidth / 2, yPos + 28, { align: 'center' });
+  
+  // Print date
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Dicetak: ${new Date().toLocaleDateString('id-ID', { 
     weekday: 'long',
     day: '2-digit', 
     month: 'long', 
     year: 'numeric' 
-  })}`, pageWidth / 2, yPos, { align: 'center' });
+  })}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
 
   // Generate filename
   const filename = `buku_tabungan_${student.nis}_${student.nama.replace(/\s+/g, '_')}.pdf`;
