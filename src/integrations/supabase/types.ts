@@ -37,6 +37,7 @@ export type Database = {
       }
       notification_settings: {
         Row: {
+          admin_whatsapp_number: string
           created_at: string
           id: string
           updated_at: string
@@ -44,6 +45,7 @@ export type Database = {
           whatsapp_send_time: string
         }
         Insert: {
+          admin_whatsapp_number?: string
           created_at?: string
           id?: string
           updated_at?: string
@@ -51,6 +53,7 @@ export type Database = {
           whatsapp_send_time?: string
         }
         Update: {
+          admin_whatsapp_number?: string
           created_at?: string
           id?: string
           updated_at?: string
@@ -436,6 +439,7 @@ export type Database = {
         Args: { p_student_id: string }
         Returns: string
       }
+      should_send_daily_report: { Args: never; Returns: boolean }
       verify_student_passbook: { Args: { student_nis: string }; Returns: Json }
       verify_student_session: { Args: { token: string }; Returns: string }
     }

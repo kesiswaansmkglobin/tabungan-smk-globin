@@ -19,15 +19,11 @@ serve(async (req) => {
 
   try {
     const FONNTE_API_KEY = Deno.env.get("FONNTE_API_KEY");
-    const ADMIN_WHATSAPP_NUMBER = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!FONNTE_API_KEY) {
       throw new Error("FONNTE_API_KEY is not configured");
-    }
-    if (!ADMIN_WHATSAPP_NUMBER) {
-      throw new Error("ADMIN_WHATSAPP_NUMBER is not configured");
     }
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Supabase credentials are not configured");
@@ -36,9 +32,64 @@ serve(async (req) => {
     // Create Supabase client with service role key for full access
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+    // Check if this is a cron job call (has cron_check param)
+    const url = new URL(req.url);
+    const isCronCheck = url.searchParams.get("cron_check") === "true";
+
+    // Get notification settings from database
+    const { data: notificationSettings, error: settingsError } = await supabase
+      .from("notification_settings")
+      .select("*")
+      .limit(1)
+      .single();
+
+    if (settingsError) {
+      console.error("Error fetching notification settings:", settingsError);
+      throw new Error("Failed to fetch notification settings");
+    }
+
+    // If this is a cron check, verify if we should send now
+    if (isCronCheck) {
+      if (!notificationSettings.whatsapp_enabled) {
+        console.log("WhatsApp notifications are disabled");
+        return new Response(
+          JSON.stringify({ success: true, message: "Notifications disabled, skipping" }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      // Check if current hour matches scheduled hour (WIB timezone)
+      const now = new Date();
+      const indonesiaOffset = 7 * 60;
+      const utcOffset = now.getTimezoneOffset();
+      const indonesiaTime = new Date(now.getTime() + (indonesiaOffset + utcOffset) * 60000);
+      const currentHour = indonesiaTime.getHours();
+      
+      const scheduledTime = notificationSettings.whatsapp_send_time;
+      const scheduledHour = parseInt(scheduledTime.split(":")[0], 10);
+
+      if (currentHour !== scheduledHour) {
+        console.log(`Not time to send. Current hour: ${currentHour}, Scheduled hour: ${scheduledHour}`);
+        return new Response(
+          JSON.stringify({ success: true, message: "Not scheduled time, skipping" }),
+          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    }
+
+    // Get admin WhatsApp number from database settings or fallback to env
+    let adminWhatsAppNumber = notificationSettings.admin_whatsapp_number;
+    if (!adminWhatsAppNumber) {
+      adminWhatsAppNumber = Deno.env.get("ADMIN_WHATSAPP_NUMBER");
+    }
+
+    if (!adminWhatsAppNumber) {
+      throw new Error("Admin WhatsApp number is not configured");
+    }
+
     // Get today's date in YYYY-MM-DD format (Indonesia timezone: UTC+7)
     const now = new Date();
-    const indonesiaOffset = 7 * 60; // UTC+7 in minutes
+    const indonesiaOffset = 7 * 60;
     const utcOffset = now.getTimezoneOffset();
     const indonesiaTime = new Date(now.getTime() + (indonesiaOffset + utcOffset) * 60000);
     const today = indonesiaTime.toISOString().split('T')[0];
@@ -148,10 +199,11 @@ serve(async (req) => {
     message += `━━━━━━━━━━━━━━━━━━`;
 
     console.log("Message to send:", message);
+    console.log("Sending to:", adminWhatsAppNumber);
 
     // Send WhatsApp message via Fonnte API
     const formData = new FormData();
-    formData.append("target", ADMIN_WHATSAPP_NUMBER);
+    formData.append("target", adminWhatsAppNumber);
     formData.append("message", message);
     formData.append("countryCode", "62");
 
