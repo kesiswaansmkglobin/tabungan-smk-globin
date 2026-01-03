@@ -61,6 +61,7 @@ const Pengaturan = () => {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
   const [isLoadingNotification, setIsLoadingNotification] = useState(true);
   const [isSavingNotification, setIsSavingNotification] = useState(false);
+  const [phoneInput, setPhoneInput] = useState('');
 
   // Load activity logs from localStorage
   useEffect(() => {
@@ -90,6 +91,7 @@ const Pengaturan = () => {
         
         if (error) throw error;
         setNotificationSettings(data);
+        setPhoneInput(data.admin_whatsapp_number || '');
       } catch (error) {
         console.error('Error loading notification settings:', error);
       } finally {
@@ -153,17 +155,17 @@ const Pengaturan = () => {
     }
   };
 
-  const handlePhoneNumberChange = async (phoneNumber: string) => {
-    if (!notificationSettings) return;
+  const handlePhoneNumberSave = async () => {
+    if (!notificationSettings || phoneInput === notificationSettings.admin_whatsapp_number) return;
     setIsSavingNotification(true);
     try {
       const { error } = await supabase
         .from('notification_settings')
-        .update({ admin_whatsapp_number: phoneNumber })
+        .update({ admin_whatsapp_number: phoneInput })
         .eq('id', notificationSettings.id);
       
       if (error) throw error;
-      setNotificationSettings({ ...notificationSettings, admin_whatsapp_number: phoneNumber });
+      setNotificationSettings({ ...notificationSettings, admin_whatsapp_number: phoneInput });
       toast({
         title: "Nomor WhatsApp Diperbarui",
         description: "Nomor penerima laporan berhasil diubah",
@@ -686,22 +688,27 @@ const Pengaturan = () => {
                         id="admin-phone"
                         type="tel"
                         placeholder="628123456789"
-                        value={notificationSettings.admin_whatsapp_number}
+                        value={phoneInput}
                         onChange={(e) => {
                           const value = e.target.value.replace(/\D/g, '');
-                          setNotificationSettings({ ...notificationSettings, admin_whatsapp_number: value });
+                          setPhoneInput(value);
                         }}
-                        onBlur={(e) => {
-                          if (e.target.value !== notificationSettings.admin_whatsapp_number) {
-                            handlePhoneNumberChange(e.target.value);
-                          }
-                        }}
+                        onBlur={handlePhoneNumberSave}
                         disabled={isSavingNotification}
                         className="w-48"
                       />
-                      {isSavingNotification && (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handlePhoneNumberSave}
+                        disabled={isSavingNotification || phoneInput === notificationSettings.admin_whatsapp_number}
+                      >
+                        {isSavingNotification ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          "Simpan"
+                        )}
+                      </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Format: 628xxx (tanpa + atau spasi)
