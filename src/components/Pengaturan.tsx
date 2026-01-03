@@ -43,6 +43,7 @@ interface NotificationSettings {
   id: string;
   whatsapp_enabled: boolean;
   whatsapp_send_time: string;
+  admin_whatsapp_number: string;
 }
 
 const ACTIVITY_LOG_KEY = 'pengaturan_activity_log';
@@ -145,6 +146,33 @@ const Pengaturan = () => {
       toast({
         title: "Gagal Menyimpan",
         description: "Terjadi kesalahan saat menyimpan pengaturan",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingNotification(false);
+    }
+  };
+
+  const handlePhoneNumberChange = async (phoneNumber: string) => {
+    if (!notificationSettings) return;
+    setIsSavingNotification(true);
+    try {
+      const { error } = await supabase
+        .from('notification_settings')
+        .update({ admin_whatsapp_number: phoneNumber })
+        .eq('id', notificationSettings.id);
+      
+      if (error) throw error;
+      setNotificationSettings({ ...notificationSettings, admin_whatsapp_number: phoneNumber });
+      toast({
+        title: "Nomor WhatsApp Diperbarui",
+        description: "Nomor penerima laporan berhasil diubah",
+      });
+    } catch (error) {
+      console.error('Error updating phone number:', error);
+      toast({
+        title: "Gagal Menyimpan",
+        description: "Terjadi kesalahan saat menyimpan nomor",
         variant: "destructive",
       });
     } finally {
@@ -649,6 +677,37 @@ const Pengaturan = () => {
                     />
                   </div>
                   
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-phone" className="text-sm font-medium">
+                      Nomor WhatsApp Penerima
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="admin-phone"
+                        type="tel"
+                        placeholder="628123456789"
+                        value={notificationSettings.admin_whatsapp_number}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          setNotificationSettings({ ...notificationSettings, admin_whatsapp_number: value });
+                        }}
+                        onBlur={(e) => {
+                          if (e.target.value !== notificationSettings.admin_whatsapp_number) {
+                            handlePhoneNumberChange(e.target.value);
+                          }
+                        }}
+                        disabled={isSavingNotification}
+                        className="w-48"
+                      />
+                      {isSavingNotification && (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Format: 628xxx (tanpa + atau spasi)
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="send-time" className="text-sm font-medium">
                       Jam Pengiriman
