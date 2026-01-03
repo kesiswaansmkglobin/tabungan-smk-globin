@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Database, Download, Upload, Trash2, AlertTriangle, History, Clock } from "lucide-react";
+import { Settings, Database, Download, Upload, Trash2, AlertTriangle, History, Clock, Bell, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import BulkTransactionImporter from "./BulkTransactionImporter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +39,12 @@ interface ActivityLog {
   type: 'delete' | 'backup' | 'restore' | 'info';
 }
 
+interface NotificationSettings {
+  id: string;
+  whatsapp_enabled: boolean;
+  whatsapp_send_time: string;
+}
+
 const ACTIVITY_LOG_KEY = 'pengaturan_activity_log';
 
 const Pengaturan = () => {
@@ -49,6 +57,9 @@ const Pengaturan = () => {
     transactions: false,
   });
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+  const [isLoadingNotification, setIsLoadingNotification] = useState(true);
+  const [isSavingNotification, setIsSavingNotification] = useState(false);
 
   // Load activity logs from localStorage
   useEffect(() => {
@@ -65,6 +76,81 @@ const Pengaturan = () => {
       }
     }
   }, []);
+
+  // Load notification settings
+  useEffect(() => {
+    const loadNotificationSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('notification_settings')
+          .select('*')
+          .limit(1)
+          .single();
+        
+        if (error) throw error;
+        setNotificationSettings(data);
+      } catch (error) {
+        console.error('Error loading notification settings:', error);
+      } finally {
+        setIsLoadingNotification(false);
+      }
+    };
+    loadNotificationSettings();
+  }, []);
+
+  const handleNotificationToggle = async (enabled: boolean) => {
+    if (!notificationSettings) return;
+    setIsSavingNotification(true);
+    try {
+      const { error } = await supabase
+        .from('notification_settings')
+        .update({ whatsapp_enabled: enabled })
+        .eq('id', notificationSettings.id);
+      
+      if (error) throw error;
+      setNotificationSettings({ ...notificationSettings, whatsapp_enabled: enabled });
+      toast({
+        title: enabled ? "Notifikasi Diaktifkan" : "Notifikasi Dinonaktifkan",
+        description: enabled ? "Laporan harian akan dikirim otomatis" : "Pengiriman laporan otomatis dinonaktifkan",
+      });
+    } catch (error) {
+      console.error('Error updating notification:', error);
+      toast({
+        title: "Gagal Menyimpan",
+        description: "Terjadi kesalahan saat menyimpan pengaturan",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingNotification(false);
+    }
+  };
+
+  const handleTimeChange = async (time: string) => {
+    if (!notificationSettings) return;
+    setIsSavingNotification(true);
+    try {
+      const { error } = await supabase
+        .from('notification_settings')
+        .update({ whatsapp_send_time: time })
+        .eq('id', notificationSettings.id);
+      
+      if (error) throw error;
+      setNotificationSettings({ ...notificationSettings, whatsapp_send_time: time });
+      toast({
+        title: "Jam Pengiriman Diperbarui",
+        description: `Laporan akan dikirim setiap hari pukul ${time}`,
+      });
+    } catch (error) {
+      console.error('Error updating time:', error);
+      toast({
+        title: "Gagal Menyimpan",
+        description: "Terjadi kesalahan saat menyimpan pengaturan",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingNotification(false);
+    }
+  };
 
   const addActivityLog = (action: string, details: string, type: ActivityLog['type']) => {
     const newLog: ActivityLog = {
@@ -531,6 +617,67 @@ const Pengaturan = () => {
         </Card>
 
         <div className="space-y-6">
+          {/* WhatsApp Notification Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Bell className="h-5 w-5 mr-2" />
+                Notifikasi WhatsApp
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingNotification ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : notificationSettings ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="whatsapp-enabled" className="text-base font-medium">
+                        Aktifkan Notifikasi
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Kirim laporan harian otomatis ke WhatsApp
+                      </p>
+                    </div>
+                    <Switch
+                      id="whatsapp-enabled"
+                      checked={notificationSettings.whatsapp_enabled}
+                      onCheckedChange={handleNotificationToggle}
+                      disabled={isSavingNotification}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="send-time" className="text-sm font-medium">
+                      Jam Pengiriman
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="send-time"
+                        type="time"
+                        value={notificationSettings.whatsapp_send_time.slice(0, 5)}
+                        onChange={(e) => handleTimeChange(e.target.value + ':00')}
+                        disabled={isSavingNotification || !notificationSettings.whatsapp_enabled}
+                        className="w-32"
+                      />
+                      <span className="text-sm text-muted-foreground">WIB</span>
+                      {isSavingNotification && (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Laporan akan dikirim setiap hari pada jam yang ditentukan
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Gagal memuat pengaturan notifikasi</p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Informasi Sistem</CardTitle>

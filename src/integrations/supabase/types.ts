@@ -35,6 +35,30 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_settings: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          whatsapp_enabled: boolean
+          whatsapp_send_time: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          whatsapp_enabled?: boolean
+          whatsapp_send_time?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          whatsapp_enabled?: boolean
+          whatsapp_send_time?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
