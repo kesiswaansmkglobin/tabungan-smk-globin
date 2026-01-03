@@ -48,15 +48,21 @@ serve(async (req) => {
       throw new Error("Failed to fetch notification settings");
     }
 
-    // If this is a cron check, verify if we should send now
+    console.log("Notification settings loaded:", JSON.stringify(notificationSettings));
+    console.log("Is cron check:", isCronCheck);
+    console.log("WhatsApp enabled:", notificationSettings.whatsapp_enabled);
+
+    // ALWAYS check if notifications are enabled (for both cron and manual calls)
+    if (!notificationSettings.whatsapp_enabled) {
+      console.log("WhatsApp notifications are DISABLED - not sending");
+      return new Response(
+        JSON.stringify({ success: true, message: "Notifications disabled, skipping" }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // If this is a cron check, also verify if we should send at this time
     if (isCronCheck) {
-      if (!notificationSettings.whatsapp_enabled) {
-        console.log("WhatsApp notifications are disabled");
-        return new Response(
-          JSON.stringify({ success: true, message: "Notifications disabled, skipping" }),
-          { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
 
       // Check if current hour matches scheduled hour (WIB timezone)
       const now = new Date();
