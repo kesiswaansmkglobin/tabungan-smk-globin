@@ -44,33 +44,39 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
       return;
     }
 
+    // Security: Validate email format before attempting login
+    if (!SecurityManager.isValidEmail(sanitizedEmail)) {
+      toast({
+        title: "Error",
+        description: "Format email tidak valid",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     const stopTimer = PerformanceMonitor.startTimer('login_attempt');
 
     try {
-      console.log('Attempting login with email:', sanitizedEmail);
-      
-      // Login menggunakan Supabase Authentication
+      // Login menggunakan Supabase Authentication (no logging of sensitive data)
       const { data, error } = await supabase.auth.signInWithPassword({
         email: sanitizedEmail,
         password: sanitizedPassword,
       });
 
       if (error) {
-        console.error('Login error:', error);
         SecurityManager.recordFailedLogin(sanitizedEmail);
         ErrorTracker.recordError(error);
         
         toast({
           title: "Login Gagal",
-          description: error.message,
+          description: "Email atau password salah",
           variant: "destructive",
         });
         return;
       }
 
       if (data.user) {
-        console.log('Login successful, user:', data.user.email);
         SecurityManager.clearLoginAttempts(sanitizedEmail);
         
         toast({
@@ -82,7 +88,7 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
         onLogin();
       }
     } catch (error) {
-      console.error('Login error:', error);
+      // Don't log sensitive authentication errors to console
       SecurityManager.recordFailedLogin(sanitizedEmail);
       ErrorTracker.recordError(error instanceof Error ? error : new Error('Login failed'));
       

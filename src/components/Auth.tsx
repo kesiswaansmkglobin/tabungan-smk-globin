@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Eye, EyeOff, LogIn, User, Lock, GraduationCap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { SecurityManager } from "@/utils/security";
 
 interface AuthProps {
   onAuth: () => void;
@@ -23,34 +24,74 @@ export default function Auth({ onAuth }: AuthProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Security: Sanitize inputs
+    const sanitizedEmail = SecurityManager.sanitizeInput(formData.email.trim().toLowerCase());
+    const sanitizedPassword = SecurityManager.sanitizeInput(formData.password);
+    
+    // Security: Validate email format
+    if (!SecurityManager.isValidEmail(sanitizedEmail)) {
+      toast({
+        title: "Error",
+        description: "Format email tidak valid",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Security: Check account lockout
+    if (SecurityManager.isAccountLocked(sanitizedEmail)) {
+      toast({
+        title: "Akun Terkunci",
+        description: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Security: Rate limiting
+    if (!SecurityManager.checkRateLimit(`auth_login_${sanitizedEmail}`, 5, 60000)) {
+      toast({
+        title: "Terlalu Cepat",
+        description: "Harap tunggu sebelum mencoba login lagi.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      // Login
       const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
+        email: sanitizedEmail,
+        password: sanitizedPassword
       });
 
-      if (error) throw error;
+      if (error) {
+        SecurityManager.recordFailedLogin(sanitizedEmail);
+        throw error;
+      }
 
+      // Clear failed attempts on success
+      SecurityManager.clearLoginAttempts(sanitizedEmail);
+      
       toast({
         title: "Berhasil",
         description: "Login berhasil"
       });
       onAuth();
-    } catch (error: any) {
-      console.error('Auth error:', error);
+    } catch (error: unknown) {
+      const err = error as { message?: string };
       
       let errorMessage = "Terjadi kesalahan";
       
-      if (error.message?.includes('Invalid login credentials')) {
+      if (err.message?.includes('Invalid login credentials')) {
         errorMessage = "Email atau password salah";
-      } else if (error.message?.includes('Email not confirmed')) {
+      } else if (err.message?.includes('Email not confirmed')) {
         errorMessage = "Email belum dikonfirmasi. Silakan cek email Anda.";
-      } else if (error.message?.includes('Password')) {
+      } else if (err.message?.includes('Password')) {
         errorMessage = "Password harus minimal 6 karakter";
-      } else if (error.message?.includes('email_address_invalid')) {
+      } else if (err.message?.includes('email_address_invalid')) {
         errorMessage = "Format email tidak valid";
       }
       

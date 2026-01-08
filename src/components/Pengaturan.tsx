@@ -233,17 +233,18 @@ const Pengaturan = () => {
     try {
       const { data: schoolData } = await supabase.from('school_data').select('*');
       const { data: classesData } = await supabase.from('classes').select('*');
-      const { data: studentsData } = await supabase.from('students').select('id, nis, nama, kelas_id, saldo, created_at, updated_at, password');
+      // SECURITY: Exclude password from backup to prevent offline brute-force attacks
+      const { data: studentsData } = await supabase.from('students').select('id, nis, nama, kelas_id, saldo, created_at, updated_at');
       const { data: transactionsData } = await supabase.from('transactions').select('*');
 
       const backup = {
         timestamp: new Date().toISOString(),
-        version: '2.0',
+        version: '2.1',
         school_data: schoolData || [],
         classes: classesData || [],
         students: studentsData || [],
         transactions: transactionsData || [],
-        security_notice: 'This backup contains hashed passwords. Store securely!'
+        security_notice: 'Passwords excluded for security. Students will need to reset passwords after restore.'
       };
 
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
