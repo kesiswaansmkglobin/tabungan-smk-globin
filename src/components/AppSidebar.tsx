@@ -7,7 +7,8 @@ import {
   Calendar,
   LogOut,
   User,
-  Settings
+  Settings,
+  Shield
 } from "lucide-react";
 import {
   Sidebar,
@@ -38,6 +39,7 @@ const adminMenuItems = [
   { title: "Transaksi Keuangan", key: "transaksi", icon: CreditCard },
   { title: "Laporan", key: "laporan", icon: FileText },
   { title: "Riwayat Harian", key: "riwayat-harian", icon: Calendar },
+  { title: "Audit Logs", key: "audit-logs", icon: Shield },
   { title: "Pengaturan", key: "pengaturan", icon: Settings },
 ];
 

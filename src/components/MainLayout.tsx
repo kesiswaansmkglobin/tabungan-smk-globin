@@ -14,6 +14,7 @@ import {
   LazyPengguna,
   LazyWaliKelasView,
   LazyWaliKelasDataSiswa,
+  LazyAuditLogs,
   LazyWrapper,
   prefetchComponent,
   usePrefetchOnIdle
@@ -97,6 +98,8 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
         return <LazyWrapper><LazyLaporan /></LazyWrapper>;
       case "riwayat-harian":
         return <LazyWrapper><LazyRiwayatHarian /></LazyWrapper>;
+      case "audit-logs":
+        return <LazyWrapper><LazyAuditLogs /></LazyWrapper>;
       case "pengaturan":
         return <LazyWrapper><LazyPengaturan /></LazyWrapper>;
       default:
