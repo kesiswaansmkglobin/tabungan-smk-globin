@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          record_id: string | null
+          table_name: string
+          user_id: string | null
+          user_identifier: string | null
+          user_type: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          record_id?: string | null
+          table_name: string
+          user_id?: string | null
+          user_identifier?: string | null
+          user_type?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          record_id?: string | null
+          table_name?: string
+          user_id?: string | null
+          user_identifier?: string | null
+          user_type?: string
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           created_at: string
@@ -430,6 +469,17 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_wali_kelas: { Args: never; Returns: boolean }
+      log_audit_event: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_record_id?: string
+          p_table_name: string
+          p_user_identifier?: string
+          p_user_type?: string
+        }
+        Returns: string
+      }
       logout_student_session: { Args: { token: string }; Returns: boolean }
       pgp_armor_headers: {
         Args: { "": string }
