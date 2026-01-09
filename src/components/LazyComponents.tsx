@@ -33,6 +33,7 @@ export const LazyPengaturan = createLazyComponent(() => import('./Pengaturan'), 
 export const LazyPengguna = createLazyComponent(() => import('./Pengguna'), 'Pengguna');
 export const LazyWaliKelasView = createLazyComponent(() => import('./WaliKelasView'), 'WaliKelasView');
 export const LazyWaliKelasDataSiswa = createLazyComponent(() => import('./WaliKelasDataSiswa'), 'WaliKelasDataSiswa');
+export const LazyAuditLogs = createLazyComponent(() => import('./AuditLogs'), 'AuditLogs');
 
 // Prefetch function with caching
 export const prefetchComponent = (component: string) => {
@@ -47,6 +48,7 @@ export const prefetchComponent = (component: string) => {
     'pengguna': () => import('./Pengguna'),
     'wali-kelas-view': () => import('./WaliKelasView'),
     'wali-kelas-data-siswa': () => import('./WaliKelasDataSiswa'),
+    'audit-logs': () => import('./AuditLogs'),
   };
 
   if (imports[component] && !componentCache.has(component)) {
