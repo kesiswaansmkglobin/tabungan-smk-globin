@@ -494,7 +494,7 @@ export type Database = {
       verify_student_session: { Args: { token: string }; Returns: string }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "student" | "wali_kelas"
+      app_role: "admin" | "teacher" | "student" | "wali_kelas" | "staff"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -622,7 +622,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "teacher", "student", "wali_kelas"],
+      app_role: ["admin", "teacher", "student", "wali_kelas", "staff"],
     },
   },
 } as const
