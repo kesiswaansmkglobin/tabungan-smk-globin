@@ -206,6 +206,13 @@ export type Database = {
             referencedRelation: "students"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "student_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       students: {
@@ -297,6 +304,13 @@ export type Database = {
             referencedRelation: "students"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -374,7 +388,44 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      students_safe: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          kelas_id: string | null
+          nama: string | null
+          nis: string | null
+          saldo: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          kelas_id?: string | null
+          nama?: string | null
+          nis?: string | null
+          saldo?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          kelas_id?: string | null
+          nama?: string | null
+          nis?: string | null
+          saldo?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_kelas_id_fkey"
+            columns: ["kelas_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       authenticate_student: {
@@ -430,6 +481,18 @@ export type Database = {
           keterangan: string
           saldo_setelah: number
           tanggal: string
+        }[]
+      }
+      get_students_for_staff: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          kelas_id: string
+          nama: string
+          nis: string
+          saldo: number
+          updated_at: string
         }[]
       }
       get_wali_kelas_class_id: { Args: never; Returns: string }
