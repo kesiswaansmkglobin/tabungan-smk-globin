@@ -15,6 +15,7 @@ import {
   LazyWaliKelasView,
   LazyWaliKelasDataSiswa,
   LazyAuditLogs,
+  LazyStaffDashboard,
   LazyWrapper,
   prefetchComponent,
   usePrefetchOnIdle
@@ -52,9 +53,13 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
             setUserRole(profile.role);
             if (profile.role === 'wali_kelas') {
               setActiveTab('wali-kelas-view');
-              // Prefetch wali kelas components
               prefetchComponent('wali-kelas-view');
               prefetchComponent('wali-kelas-data-siswa');
+            } else if (profile.role === 'staff') {
+              setActiveTab('staff-dashboard');
+              prefetchComponent('staff-dashboard');
+              prefetchComponent('transaksi');
+              prefetchComponent('riwayat-harian');
             }
           }
         }
@@ -80,6 +85,8 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
     switch (activeTab) {
       case "dashboard":
         return <Dashboard />;
+      case "staff-dashboard":
+        return <LazyWrapper><LazyStaffDashboard /></LazyWrapper>;
       case "data-sekolah":
         return <LazyWrapper><LazyDataSekolah /></LazyWrapper>;
       case "data-kelas":

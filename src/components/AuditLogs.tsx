@@ -6,10 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, RefreshCw, Shield, Eye, Plus, Pencil, Trash2, Calendar, User, FileText } from "lucide-react";
+import { Search, RefreshCw, Shield, Eye, Plus, Pencil, Trash2, Calendar, User, FileText, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { toast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface AuditLog {
   id: string;
@@ -127,6 +130,115 @@ export default function AuditLogs() {
     return userTypeLabels[userType] || { label: userType, color: "bg-gray-500/10 text-gray-500 border-gray-500/20" };
   };
 
+  const exportToCSV = async () => {
+    try {
+      // Fetch all logs for export (without pagination)
+      let query = supabase
+        .from("audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (actionFilter !== "all") {
+        query = query.eq("action", actionFilter);
+      }
+      if (userTypeFilter !== "all") {
+        query = query.eq("user_type", userTypeFilter);
+      }
+
+      const { data, error } = await query.limit(10000);
+      if (error) throw error;
+
+      const csvContent = [
+        ["Waktu", "Aksi", "Tipe User", "User", "Tabel", "Record ID", "Detail"].join(","),
+        ...(data || []).map(log => [
+          format(new Date(log.created_at), "yyyy-MM-dd HH:mm:ss"),
+          getActionInfo(log.action).label,
+          getUserTypeInfo(log.user_type).label,
+          log.user_identifier || "-",
+          log.table_name,
+          log.record_id || "-",
+          `"${formatDetails(log.details).replace(/"/g, '""')}"`
+        ].join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `audit_logs_${format(new Date(), "yyyyMMdd_HHmmss")}.csv`;
+      link.click();
+
+      toast({
+        title: "Export Berhasil",
+        description: `${data?.length || 0} log berhasil diekspor ke CSV`,
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Gagal",
+        description: "Terjadi kesalahan saat mengekspor data",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToPDF = async () => {
+    try {
+      // Fetch all logs for export (without pagination)
+      let query = supabase
+        .from("audit_logs")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (actionFilter !== "all") {
+        query = query.eq("action", actionFilter);
+      }
+      if (userTypeFilter !== "all") {
+        query = query.eq("user_type", userTypeFilter);
+      }
+
+      const { data, error } = await query.limit(1000);
+      if (error) throw error;
+
+      const doc = new jsPDF({ orientation: "landscape" });
+      
+      // Header
+      doc.setFontSize(16);
+      doc.text("Audit Logs - Transaksi Keuangan", 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Diekspor pada: ${format(new Date(), "dd MMMM yyyy HH:mm", { locale: id })}`, 14, 22);
+      doc.text(`Total: ${data?.length || 0} log`, 14, 28);
+
+      // Table
+      autoTable(doc, {
+        startY: 35,
+        head: [["Waktu", "Aksi", "Tipe User", "User", "Detail"]],
+        body: (data || []).map(log => [
+          format(new Date(log.created_at), "dd/MM/yy HH:mm"),
+          getActionInfo(log.action).label,
+          getUserTypeInfo(log.user_type).label,
+          log.user_identifier || "-",
+          formatDetails(log.details).substring(0, 50) + (formatDetails(log.details).length > 50 ? "..." : "")
+        ]),
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+
+      doc.save(`audit_logs_${format(new Date(), "yyyyMMdd_HHmmss")}.pdf`);
+
+      toast({
+        title: "Export Berhasil",
+        description: `${data?.length || 0} log berhasil diekspor ke PDF`,
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Gagal",
+        description: "Terjadi kesalahan saat mengekspor data",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -142,10 +254,20 @@ export default function AuditLogs() {
             </p>
           </div>
         </div>
-        <Button onClick={loadLogs} variant="outline" size="sm" disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={exportToCSV} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            CSV
+          </Button>
+          <Button onClick={exportToPDF} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+          <Button onClick={loadLogs} variant="outline" size="sm" disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

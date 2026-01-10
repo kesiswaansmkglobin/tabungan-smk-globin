@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { OptimizedTable } from "@/components/OptimizedTable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAppData } from "@/hooks/useAppData";
-import { Plus, Pencil, Trash2, UserCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, UserCheck, Users } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface WaliKelas {
@@ -39,6 +40,14 @@ interface Profile {
   role: string;
 }
 
+interface StaffMember {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  role: string;
+  created_at: string;
+}
+
 interface FormData {
   nama: string;
   nip: string;
@@ -48,18 +57,31 @@ interface FormData {
   password: string;
 }
 
+interface StaffFormData {
+  nama: string;
+  email: string;
+  password: string;
+}
+
 export default function Pengguna() {
   const { classes } = useAppData();
   const [waliKelasList, setWaliKelasList] = useState<WaliKelas[]>([]);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isStaffDialogOpen, setIsStaffDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     nama: "",
     nip: "",
     kelas_id: "",
     user_id: "",
+    email: "",
+    password: ""
+  });
+  const [staffFormData, setStaffFormData] = useState<StaffFormData>({
+    nama: "",
     email: "",
     password: ""
   });
@@ -133,10 +155,24 @@ export default function Pengguna() {
     }
   };
 
+  const fetchStaff = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, role, created_at')
+        .eq('role', 'staff')
+        .order('full_name');
+
+      if (error) throw error;
+      setStaffList(data || []);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+    }
+  };
+
   const fetchProfiles = async () => {
     try {
       console.log('Fetching profiles...');
-      // Get all profiles with admin role or no specific role (for new user creation)
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
@@ -144,10 +180,7 @@ export default function Pengguna() {
         .order('full_name');
 
       if (profilesError) throw profilesError;
-      
-      console.log('Available admin profiles:', profilesData);
 
-      // Get existing wali kelas user_ids to exclude them
       const { data: waliKelasData, error: waliKelasError } = await supabase
         .from('wali_kelas')
         .select('user_id');
@@ -155,27 +188,18 @@ export default function Pengguna() {
       if (waliKelasError) throw waliKelasError;
 
       const assignedUserIds = waliKelasData?.map(wk => wk.user_id) || [];
-      console.log('Already assigned user IDs:', assignedUserIds);
-      
-      // Filter out users who are already assigned as wali kelas
       const availableProfiles = profilesData?.filter(profile => 
         !assignedUserIds.includes(profile.id)
       ) || [];
 
-      console.log('Available profiles for wali kelas:', availableProfiles);
       setProfiles(availableProfiles);
     } catch (error) {
       console.error('Error fetching profiles:', error);
-      toast({
-        title: "Error",
-        description: "Gagal memuat data profil pengguna",
-        variant: "destructive"
-      });
     }
   };
 
   useEffect(() => {
-    Promise.all([fetchWaliKelas(), fetchProfiles()]).finally(() => setLoading(false));
+    Promise.all([fetchWaliKelas(), fetchProfiles(), fetchStaff()]).finally(() => setLoading(false));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -415,13 +439,70 @@ export default function Pengguna() {
     }
   ];
 
-  // Get available classes (not assigned to any wali kelas)
+  const staffColumns = [
+    { key: "full_name", label: "Nama" },
+    { key: "email", label: "Email" },
+  ];
+
+  const handleStaffSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('create-confirmed-user', {
+        body: {
+          email: staffFormData.email,
+          password: staffFormData.password,
+          full_name: staffFormData.nama,
+          role: 'staff'
+        }
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error);
+      
+      toast({ title: "Berhasil", description: "Staff berhasil ditambahkan" });
+      setIsStaffDialogOpen(false);
+      setStaffFormData({ nama: "", email: "", password: "" });
+      await fetchStaff();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Gagal menambah staff", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStaff = async (id: string) => {
+    try {
+      await supabase.from('profiles').update({ role: 'admin' }).eq('id', id);
+      toast({ title: "Berhasil", description: "Staff berhasil dihapus" });
+      await fetchStaff();
+    } catch (error) {
+      toast({ title: "Error", description: "Gagal menghapus staff", variant: "destructive" });
+    }
+  };
+
+  const staffActions = [
+    {
+      label: "Hapus",
+      icon: Trash2,
+      onClick: (row: StaffMember) => handleDeleteStaff(row.id),
+      variant: "ghost" as const,
+      className: "text-destructive"
+    }
+  ];
+
   const availableClasses = classes.filter(kelas => 
     !waliKelasList.some(wk => wk.kelas_id === kelas.id && wk.id !== editingId)
   );
 
   return (
     <div className="space-y-6">
+      <Tabs defaultValue="wali-kelas">
+        <TabsList>
+          <TabsTrigger value="wali-kelas"><UserCheck className="h-4 w-4 mr-2" />Wali Kelas</TabsTrigger>
+          <TabsTrigger value="staff"><Users className="h-4 w-4 mr-2" />Staff</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="wali-kelas">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle className="flex items-center gap-2">
@@ -554,6 +635,55 @@ export default function Pengguna() {
           />
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="staff">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Manajemen Staff
+              </CardTitle>
+              <Dialog open={isStaffDialogOpen} onOpenChange={setIsStaffDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button onClick={() => setStaffFormData({ nama: "", email: "", password: "" })}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Tambah Staff
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Tambah Staff Baru</DialogTitle>
+                    <DialogDescription>Staff hanya dapat input transaksi dan melihat riwayat harian.</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleStaffSubmit}>
+                    <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Nama *</Label>
+                        <Input value={staffFormData.nama} onChange={(e) => setStaffFormData(p => ({ ...p, nama: e.target.value }))} required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Email *</Label>
+                        <Input type="email" value={staffFormData.email} onChange={(e) => setStaffFormData(p => ({ ...p, email: e.target.value }))} required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Password *</Label>
+                        <Input type="password" value={staffFormData.password} onChange={(e) => setStaffFormData(p => ({ ...p, password: e.target.value }))} required />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit" disabled={loading}>{loading ? "Menyimpan..." : "Simpan"}</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <OptimizedTable data={staffList} columns={staffColumns} actions={staffActions} loading={loading} emptyMessage="Belum ada data staff" />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

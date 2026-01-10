@@ -48,6 +48,12 @@ const waliKelasMenuItems = [
   { title: "Data Siswa", key: "wali-kelas-data-siswa", icon: GraduationCap },
 ];
 
+const staffMenuItems = [
+  { title: "Dashboard", key: "staff-dashboard", icon: LayoutDashboard },
+  { title: "Transaksi Keuangan", key: "transaksi", icon: CreditCard },
+  { title: "Riwayat Harian", key: "riwayat-harian", icon: Calendar },
+];
+
 interface AppSidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -112,6 +118,9 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout, onTabHover }: Ap
     if (userProfile?.role === 'wali_kelas') {
       return waliKelasMenuItems;
     }
+    if (userProfile?.role === 'staff') {
+      return staffMenuItems;
+    }
     return adminMenuItems;
   };
 
@@ -119,6 +128,9 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout, onTabHover }: Ap
   const getPanelTitle = () => {
     if (userProfile?.role === 'wali_kelas') {
       return "Panel Wali Kelas";
+    }
+    if (userProfile?.role === 'staff') {
+      return "Panel Staff";
     }
     return "Admin Panel";
   };
