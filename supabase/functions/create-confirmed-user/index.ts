@@ -7,14 +7,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Input validation schema
-const createUserSchema = z.object({
+// Input validation schema for wali_kelas
+const waliKelasSchema = z.object({
   email: z.string().email({ message: "Invalid email format" }).max(255, { message: "Email too long" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100, { message: "Password too long" }),
   full_name: z.string().trim().min(3, { message: "Name must be at least 3 characters" }).max(100, { message: "Name too long" }),
   kelas_id: z.string().uuid({ message: "Invalid class ID format" }),
   nama: z.string().trim().min(3, { message: "Nama must be at least 3 characters" }).max(100, { message: "Nama too long" }),
-  nip: z.string().trim().max(50, { message: "NIP too long" }).optional()
+  nip: z.string().trim().max(50, { message: "NIP too long" }).optional(),
+  role: z.literal('wali_kelas').optional()
+})
+
+// Input validation schema for staff
+const staffSchema = z.object({
+  email: z.string().email({ message: "Invalid email format" }).max(255, { message: "Email too long" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100, { message: "Password too long" }),
+  full_name: z.string().trim().min(3, { message: "Name must be at least 3 characters" }).max(100, { message: "Name too long" }),
+  role: z.literal('staff')
 })
 
 serve(async (req) => {
@@ -60,9 +69,16 @@ serve(async (req) => {
       throw new Error('Only admins can create confirmed users')
     }
 
-    // Parse and validate input
+    // Parse request body
     const body = await req.json()
-    const validationResult = createUserSchema.safeParse(body)
+    
+    // Determine if this is a staff or wali_kelas creation
+    const isStaff = body.role === 'staff'
+    
+    // Validate based on role type
+    const validationResult = isStaff 
+      ? staffSchema.safeParse(body)
+      : waliKelasSchema.safeParse(body)
 
     if (!validationResult.success) {
       console.error('Input validation failed:', validationResult.error)
@@ -82,9 +98,13 @@ serve(async (req) => {
       )
     }
 
-    const { email, password, full_name, kelas_id, nama, nip } = validationResult.data
+    const { email, password, full_name } = validationResult.data
+    const targetRole = isStaff ? 'staff' : 'wali_kelas'
+    
+    // For wali_kelas, extract additional fields
+    const waliKelasData = !isStaff ? validationResult.data as z.infer<typeof waliKelasSchema> : null
 
-    console.log('Creating user with validated data:', { email, full_name, kelas_id, nama, nip })
+    console.log('Creating user with validated data:', { email, full_name, role: targetRole })
 
     // Check if user already exists
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers()
@@ -96,11 +116,11 @@ serve(async (req) => {
       console.log('User already exists, using existing user:', userExists.id)
       userId = userExists.id
       
-      // Update existing profile if needed
+      // Update existing profile
       const { error: profileUpdateError } = await supabaseAdmin
         .from('profiles')
         .update({ 
-          role: 'wali_kelas',
+          role: targetRole,
           full_name: full_name,
           email: email
         })
@@ -114,7 +134,7 @@ serve(async (req) => {
       const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         password: password,
-        email_confirm: true, // This auto-confirms the email
+        email_confirm: true,
         user_metadata: {
           full_name: full_name
         }
@@ -130,7 +150,7 @@ serve(async (req) => {
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .update({ 
-          role: 'wali_kelas',
+          role: targetRole,
           full_name: full_name,
           email: email
         })
@@ -141,42 +161,47 @@ serve(async (req) => {
       }
     }
 
-    // Check if wali_kelas record already exists
-    const { data: existingWaliKelas } = await supabaseAdmin
-      .from('wali_kelas')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (!existingWaliKelas) {
-      // Create wali_kelas record
-      const { error: waliKelasError } = await supabaseAdmin
+    // Only create wali_kelas record if not staff
+    if (!isStaff && waliKelasData) {
+      const { kelas_id, nama, nip } = waliKelasData
+      
+      // Check if wali_kelas record already exists
+      const { data: existingWaliKelas } = await supabaseAdmin
         .from('wali_kelas')
-        .insert({
-          user_id: userId,
-          kelas_id: kelas_id,
-          nama: nama,
-          nip: nip || null
-        })
-
-      if (waliKelasError) {
-        console.error('Error creating wali_kelas record:', waliKelasError)
-        throw waliKelasError
-      }
-    } else {
-      // Update existing wali_kelas record
-      const { error: waliKelasUpdateError } = await supabaseAdmin
-        .from('wali_kelas')
-        .update({
-          kelas_id: kelas_id,
-          nama: nama,
-          nip: nip || null
-        })
+        .select('id')
         .eq('user_id', userId)
+        .maybeSingle()
 
-      if (waliKelasUpdateError) {
-        console.error('Error updating wali_kelas record:', waliKelasUpdateError)
-        throw waliKelasUpdateError
+      if (!existingWaliKelas) {
+        // Create wali_kelas record
+        const { error: waliKelasError } = await supabaseAdmin
+          .from('wali_kelas')
+          .insert({
+            user_id: userId,
+            kelas_id: kelas_id,
+            nama: nama,
+            nip: nip || null
+          })
+
+        if (waliKelasError) {
+          console.error('Error creating wali_kelas record:', waliKelasError)
+          throw waliKelasError
+        }
+      } else {
+        // Update existing wali_kelas record
+        const { error: waliKelasUpdateError } = await supabaseAdmin
+          .from('wali_kelas')
+          .update({
+            kelas_id: kelas_id,
+            nama: nama,
+            nip: nip || null
+          })
+          .eq('user_id', userId)
+
+        if (waliKelasUpdateError) {
+          console.error('Error updating wali_kelas record:', waliKelasUpdateError)
+          throw waliKelasUpdateError
+        }
       }
     }
 
@@ -184,7 +209,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         user_id: userId,
-        message: 'Wali kelas created/updated successfully'
+        message: `${isStaff ? 'Staff' : 'Wali kelas'} created/updated successfully`
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
