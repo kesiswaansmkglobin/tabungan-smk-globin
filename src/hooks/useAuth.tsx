@@ -6,7 +6,7 @@ interface Profile {
   id: string;
   email: string | null;
   full_name: string | null;
-  role: 'admin' | 'wali_kelas' | 'student' | 'teacher';
+  role: 'admin' | 'wali_kelas' | 'student' | 'teacher' | 'staff';
 }
 
 interface WaliKelasInfo {
@@ -27,6 +27,7 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isWaliKelas: boolean;
+  isStaff: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -126,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = profile?.role === 'admin';
   const isWaliKelas = profile?.role === 'wali_kelas';
+  const isStaff = profile?.role === 'staff';
 
   return (
     <AuthContext.Provider
@@ -137,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         isAdmin,
         isWaliKelas,
+        isStaff,
         signOut
       }}
     >
