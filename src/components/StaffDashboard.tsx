@@ -26,6 +26,7 @@ export default function StaffDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
+  const [schoolName, setSchoolName] = useState("");
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -42,6 +43,12 @@ export default function StaffDashboard() {
           if (profile) {
             setUserName(profile.full_name || "Staff");
           }
+        }
+
+        // Get school name
+        const { data: schoolNameData } = await supabase.rpc('get_school_name');
+        if (schoolNameData) {
+          setSchoolName(schoolNameData);
         }
 
         // Get today's date
@@ -136,7 +143,7 @@ export default function StaffDashboard() {
                 Selamat Datang, {userName}! 👋
               </h1>
               <p className="text-muted-foreground mt-1">
-                Panel Staff Tabungan Siswa - SMK Global Indonesia
+                Panel Staff Tabungan Siswa{schoolName ? ` - ${schoolName}` : ''}
               </p>
             </div>
             <div className="flex items-center gap-4">
