@@ -16,6 +16,7 @@ import {
   LazyWaliKelasDataSiswa,
   LazyAuditLogs,
   LazyStaffDashboard,
+  LazyStaffClassSummary,
   LazyWrapper,
   prefetchComponent,
   usePrefetchOnIdle
@@ -24,7 +25,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Menu } from "lucide-react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ThemeColorPicker } from "@/components/ThemeColorPicker";
 import OfflineIndicator from "@/components/OfflineIndicator";
 
 interface MainLayoutProps {
@@ -58,6 +58,7 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
             } else if (profile.role === 'staff') {
               setActiveTab('staff-dashboard');
               prefetchComponent('staff-dashboard');
+              prefetchComponent('staff-class-summary');
               prefetchComponent('transaksi');
               prefetchComponent('riwayat-harian');
             }
@@ -87,6 +88,8 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
         return <Dashboard />;
       case "staff-dashboard":
         return <LazyWrapper><LazyStaffDashboard /></LazyWrapper>;
+      case "staff-class-summary":
+        return <LazyWrapper><LazyStaffClassSummary /></LazyWrapper>;
       case "data-sekolah":
         return <LazyWrapper><LazyDataSekolah /></LazyWrapper>;
       case "data-kelas":
@@ -141,7 +144,6 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <ThemeColorPicker />
                 <ThemeToggle />
               </div>
             </header>
