@@ -555,6 +555,10 @@ export type Database = {
         Returns: string
       }
       should_send_daily_report: { Args: never; Returns: boolean }
+      staff_update_student_balance: {
+        Args: { p_new_saldo: number; p_student_id: string }
+        Returns: undefined
+      }
       verify_student_passbook: { Args: { student_nis: string }; Returns: Json }
       verify_student_session: { Args: { token: string }; Returns: string }
     }
