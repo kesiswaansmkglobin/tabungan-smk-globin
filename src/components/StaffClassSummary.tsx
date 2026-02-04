@@ -6,14 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown, Users, Wallet, Search, Calendar, BarChart3, FileDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { TrendingUp, TrendingDown, Users, Wallet, Search, Calendar as CalendarIcon, BarChart3, FileDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { id } from "date-fns/locale";
 import { exportClassSummaryToPdf } from "@/utils/classSummaryPdfExport";
 import ClassTransactionChart from "@/components/ClassTransactionChart";
 import { toast } from "sonner";
-
+import { cn } from "@/lib/utils";
 interface ClassSummary {
   classId: string;
   className: string;
@@ -29,6 +31,8 @@ export default function StaffClassSummary() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [periodFilter, setPeriodFilter] = useState("current");
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [schoolName, setSchoolName] = useState("");
 
   useEffect(() => {
@@ -55,6 +59,15 @@ export default function StaffClassSummary() {
           case "last3":
             startDate = startOfMonth(subMonths(now, 2));
             endDate = endOfMonth(now);
+            break;
+          case "custom":
+            if (customStartDate && customEndDate) {
+              startDate = customStartDate;
+              endDate = customEndDate;
+            } else {
+              startDate = startOfMonth(now);
+              endDate = endOfMonth(now);
+            }
             break;
           default: // current
             startDate = startOfMonth(now);
@@ -118,7 +131,7 @@ export default function StaffClassSummary() {
     };
 
     loadData();
-  }, [periodFilter]);
+  }, [periodFilter, customStartDate, customEndDate]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -150,6 +163,11 @@ export default function StaffClassSummary() {
         return format(subMonths(now, 1), "MMMM yyyy", { locale: id });
       case "last3":
         return `${format(subMonths(now, 2), "MMMM", { locale: id })} - ${format(now, "MMMM yyyy", { locale: id })}`;
+      case "custom":
+        if (customStartDate && customEndDate) {
+          return `${format(customStartDate, "d MMM yyyy", { locale: id })} - ${format(customEndDate, "d MMM yyyy", { locale: id })}`;
+        }
+        return "Pilih Tanggal";
       default:
         return format(now, "MMMM yyyy", { locale: id });
     }
@@ -212,15 +230,68 @@ export default function StaffClassSummary() {
               </div>
               <Select value={periodFilter} onValueChange={setPeriodFilter}>
                 <SelectTrigger className="w-full sm:w-48">
-                  <Calendar className="h-4 w-4 mr-2" />
+                  <CalendarIcon className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="Pilih periode" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="current">Bulan Ini</SelectItem>
                   <SelectItem value="last">Bulan Lalu</SelectItem>
                   <SelectItem value="last3">3 Bulan Terakhir</SelectItem>
+                  <SelectItem value="custom">Rentang Custom</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {periodFilter === "custom" && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full sm:w-40 justify-start text-left font-normal",
+                          !customStartDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {customStartDate ? format(customStartDate, "dd/MM/yyyy") : "Dari"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customStartDate}
+                        onSelect={setCustomStartDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full sm:w-40 justify-start text-left font-normal",
+                          !customEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {customEndDate ? format(customEndDate, "dd/MM/yyyy") : "Sampai"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={customEndDate}
+                        onSelect={setCustomEndDate}
+                        disabled={(date) => customStartDate ? date < customStartDate : false}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
               <Button
                 variant="outline"
                 onClick={handleExportPdf}
