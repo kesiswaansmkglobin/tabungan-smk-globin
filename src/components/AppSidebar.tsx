@@ -8,7 +8,8 @@ import {
   LogOut,
   User,
   Settings,
-  Shield
+  Shield,
+  BarChart3
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,7 +29,6 @@ import { toast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { ThemeColorPicker } from "@/components/ThemeColorPicker";
 
 const adminMenuItems = [
   { title: "Dashboard", key: "dashboard", icon: LayoutDashboard },
@@ -50,6 +50,7 @@ const waliKelasMenuItems = [
 
 const staffMenuItems = [
   { title: "Dashboard", key: "staff-dashboard", icon: LayoutDashboard },
+  { title: "Ringkasan Kelas", key: "staff-class-summary", icon: BarChart3 },
   { title: "Transaksi Keuangan", key: "transaksi", icon: CreditCard },
   { title: "Riwayat Harian", key: "riwayat-harian", icon: Calendar },
 ];
@@ -198,7 +199,6 @@ export function AppSidebar({ activeTab, setActiveTab, onLogout, onTabHover }: Ap
           )}
         </div>
         <div className={`flex ${isCollapsed ? 'flex-col' : 'flex-row'} gap-2`}>
-          <ThemeColorPicker />
           <ThemeToggle />
           <Button 
             onClick={handleLogout}
