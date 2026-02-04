@@ -5,10 +5,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Users, Wallet, Search, Calendar, BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, TrendingDown, Users, Wallet, Search, Calendar, BarChart3, FileDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { id } from "date-fns/locale";
+import { exportClassSummaryToPdf } from "@/utils/classSummaryPdfExport";
+import ClassTransactionChart from "@/components/ClassTransactionChart";
+import { toast } from "sonner";
 
 interface ClassSummary {
   classId: string;
@@ -151,6 +155,22 @@ export default function StaffClassSummary() {
     }
   };
 
+  // Handle PDF export
+  const handleExportPdf = async () => {
+    try {
+      await exportClassSummaryToPdf({
+        classSummaries,
+        schoolName,
+        periodLabel: getPeriodLabel(),
+        totals,
+      });
+      toast.success("PDF berhasil diunduh");
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      toast.error("Gagal mengunduh PDF");
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -201,6 +221,14 @@ export default function StaffClassSummary() {
                   <SelectItem value="last3">3 Bulan Terakhir</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                variant="outline"
+                onClick={handleExportPdf}
+                className="gap-2"
+              >
+                <FileDown className="h-4 w-4" />
+                Export PDF
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -211,8 +239,8 @@ export default function StaffClassSummary() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Siswa</CardTitle>
-            <div className="p-2 bg-blue-500/10 rounded-lg">
-              <Users className="h-4 w-4 text-blue-500" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Users className="h-4 w-4 text-primary" />
             </div>
           </CardHeader>
           <CardContent>
@@ -224,8 +252,8 @@ export default function StaffClassSummary() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Saldo</CardTitle>
-            <div className="p-2 bg-purple-500/10 rounded-lg">
-              <Wallet className="h-4 w-4 text-purple-500" />
+            <div className="p-2 bg-accent/10 rounded-lg">
+              <Wallet className="h-4 w-4 text-accent" />
             </div>
           </CardHeader>
           <CardContent>
@@ -239,12 +267,12 @@ export default function StaffClassSummary() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Setoran</CardTitle>
-            <div className="p-2 bg-green-500/10 rounded-lg">
-              <TrendingUp className="h-4 w-4 text-green-500" />
+            <div className="p-2 bg-success/10 rounded-lg">
+              <TrendingUp className="h-4 w-4 text-success" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-success">
               Rp {totals.totalDeposit.toLocaleString("id-ID")}
             </div>
             <p className="text-xs text-muted-foreground">periode ini</p>
@@ -254,18 +282,27 @@ export default function StaffClassSummary() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Penarikan</CardTitle>
-            <div className="p-2 bg-red-500/10 rounded-lg">
-              <TrendingDown className="h-4 w-4 text-red-500" />
+            <div className="p-2 bg-destructive/10 rounded-lg">
+              <TrendingDown className="h-4 w-4 text-destructive" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-2xl font-bold text-destructive">
               Rp {totals.totalWithdraw.toLocaleString("id-ID")}
             </div>
             <p className="text-xs text-muted-foreground">periode ini</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Transaction Chart */}
+      <ClassTransactionChart 
+        data={classSummaries.map(cls => ({
+          className: cls.className,
+          setor: cls.monthlyDeposit,
+          tarik: cls.monthlyWithdraw,
+        }))}
+      />
 
       {/* Class Table */}
       <Card>
@@ -306,17 +343,17 @@ export default function StaffClassSummary() {
                         <TableCell className="text-right font-semibold">
                           Rp {cls.totalBalance.toLocaleString("id-ID")}
                         </TableCell>
-                        <TableCell className="text-right text-green-600">
+                        <TableCell className="text-right text-success">
                           +Rp {cls.monthlyDeposit.toLocaleString("id-ID")}
                         </TableCell>
-                        <TableCell className="text-right text-red-600">
+                        <TableCell className="text-right text-destructive">
                           -Rp {cls.monthlyWithdraw.toLocaleString("id-ID")}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="secondary">{cls.transactionCount}</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={netFlow >= 0 ? "text-green-600" : "text-red-600"}>
+                          <span className={netFlow >= 0 ? "text-success" : "text-destructive"}>
                             {netFlow >= 0 ? "+" : ""}Rp {netFlow.toLocaleString("id-ID")}
                           </span>
                         </TableCell>
@@ -336,7 +373,7 @@ export default function StaffClassSummary() {
           <div className="flex flex-wrap justify-between gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Net Flow Periode: </span>
-              <span className={`font-bold ${(totals.totalDeposit - totals.totalWithdraw) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`font-bold ${(totals.totalDeposit - totals.totalWithdraw) >= 0 ? 'text-success' : 'text-destructive'}`}>
                 {(totals.totalDeposit - totals.totalWithdraw) >= 0 ? '+' : ''}
                 Rp {(totals.totalDeposit - totals.totalWithdraw).toLocaleString("id-ID")}
               </span>

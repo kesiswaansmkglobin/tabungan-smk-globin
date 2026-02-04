@@ -161,13 +161,21 @@ const syncTransaction = async (pendingTx: PendingTransaction): Promise<boolean> 
       throw new Error('Saldo tidak mencukupi untuk transaksi offline');
     }
     
-    // Update student saldo
-    const { error: updateError } = await supabase
-      .from('students')
-      .update({ saldo: newSaldo })
-      .eq('id', pendingTx.student_id);
+    // Update student saldo using RPC function
+    const { error: updateError } = await supabase.rpc('staff_update_student_balance', {
+      p_student_id: pendingTx.student_id,
+      p_new_saldo: newSaldo
+    });
     
-    if (updateError) throw updateError;
+    if (updateError) {
+      // Fallback to direct update for admins
+      const { error: directError } = await supabase
+        .from('students')
+        .update({ saldo: newSaldo })
+        .eq('id', pendingTx.student_id);
+      
+      if (directError) throw directError;
+    }
     
     // Insert transaction
     const { error: txError } = await supabase

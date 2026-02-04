@@ -175,12 +175,21 @@ export const useTransactionForm = ({ students, onTransactionComplete }: UseTrans
         return;
       }
 
-      const { error: updateError } = await supabase
-        .from('students')
-        .update({ saldo: newSaldo })
-        .eq('id', selectedSiswa);
+      // Update student balance using RPC function (works for both admin and staff)
+      const { error: updateError } = await supabase.rpc('staff_update_student_balance', {
+        p_student_id: selectedSiswa,
+        p_new_saldo: newSaldo
+      });
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        // Fallback to direct update for admins if RPC fails
+        const { error: directUpdateError } = await supabase
+          .from('students')
+          .update({ saldo: newSaldo })
+          .eq('id', selectedSiswa);
+        
+        if (directUpdateError) throw directUpdateError;
+      }
 
       const { error: transactionError } = await supabase
         .from('transactions')
