@@ -2,10 +2,11 @@ import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, FileDown } from "lucide-react";
+import { BarChart3, FileDown, FileSpreadsheet } from "lucide-react";
 import { format, subMonths } from "date-fns";
 import { id } from "date-fns/locale";
 import { exportClassSummaryToPdf } from "@/utils/classSummaryPdfExport";
+import { exportClassSummaryToExcel } from "@/utils/classSummaryExcelExport";
 import ClassTransactionChart from "@/components/ClassTransactionChart";
 import ClassSummaryFilters from "@/components/staff/ClassSummaryFilters";
 import ClassSummaryStats from "@/components/staff/ClassSummaryStats";
@@ -52,21 +53,34 @@ export default function StaffClassSummary() {
     }
   }, [periodFilter, customStartDate, customEndDate]);
 
+  const exportData = useMemo(() => ({
+    classSummaries,
+    schoolName,
+    periodLabel: getPeriodLabel(),
+    totals,
+  }), [classSummaries, schoolName, getPeriodLabel, totals]);
+
   // Handle PDF export
   const handleExportPdf = useCallback(async () => {
     try {
-      await exportClassSummaryToPdf({
-        classSummaries,
-        schoolName,
-        periodLabel: getPeriodLabel(),
-        totals,
-      });
+      await exportClassSummaryToPdf(exportData);
       toast.success("PDF berhasil diunduh");
     } catch (error) {
       console.error("Error exporting PDF:", error);
       toast.error("Gagal mengunduh PDF");
     }
-  }, [classSummaries, schoolName, getPeriodLabel, totals]);
+  }, [exportData]);
+
+  // Handle Excel export
+  const handleExportExcel = useCallback(() => {
+    try {
+      exportClassSummaryToExcel(exportData);
+      toast.success("Excel berhasil diunduh");
+    } catch (error) {
+      console.error("Error exporting Excel:", error);
+      toast.error("Gagal mengunduh Excel");
+    }
+  }, [exportData]);
 
   // Reset all filters to default
   const handleReset = useCallback(() => {
@@ -124,7 +138,15 @@ export default function StaffClassSummary() {
                 className="gap-2 shrink-0"
               >
                 <FileDown className="h-4 w-4" />
-                Export PDF
+                PDF
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportExcel}
+                className="gap-2 shrink-0"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel
               </Button>
             </div>
           </div>
@@ -138,6 +160,7 @@ export default function StaffClassSummary() {
         totalBalance={totals.totalBalance}
         totalDeposit={totals.totalDeposit}
         totalWithdraw={totals.totalWithdraw}
+        totalTransactions={totals.totalTransactions}
       />
 
       {/* Transaction Chart */}
@@ -155,30 +178,6 @@ export default function StaffClassSummary() {
         searchTerm={searchTerm}
       />
 
-      {/* Summary Footer */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-6">
-          <div className="flex flex-wrap justify-between gap-4 text-sm">
-            <div>
-              <span className="text-muted-foreground">Net Flow Periode: </span>
-              <span className={`font-bold ${(totals.totalDeposit - totals.totalWithdraw) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {(totals.totalDeposit - totals.totalWithdraw) >= 0 ? '+' : ''}
-                Rp {(totals.totalDeposit - totals.totalWithdraw).toLocaleString("id-ID")}
-              </span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Total Transaksi: </span>
-              <span className="font-bold">{totals.totalTransactions} transaksi</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">Rata-rata Saldo/Siswa: </span>
-              <span className="font-bold">
-                Rp {totals.totalStudents > 0 ? Math.round(totals.totalBalance / totals.totalStudents).toLocaleString("id-ID") : 0}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
