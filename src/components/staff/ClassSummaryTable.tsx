@@ -1,8 +1,8 @@
-import { memo } from "react";
+import { memo, useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
 interface ClassSummary {
   classId: string;
@@ -19,7 +19,58 @@ interface ClassSummaryTableProps {
   searchTerm: string;
 }
 
+type SortKey = "className" | "studentCount" | "totalBalance" | "monthlyDeposit" | "monthlyWithdraw" | "transactionCount" | "netFlow";
+type SortDir = "asc" | "desc";
+
 function ClassSummaryTable({ summaries, searchTerm }: ClassSummaryTableProps) {
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  const handleSort = useCallback((key: SortKey) => {
+    setSortKey(prev => {
+      if (prev === key) {
+        setSortDir(d => d === "asc" ? "desc" : "asc");
+        return key;
+      }
+      setSortDir("asc");
+      return key;
+    });
+  }, []);
+
+  const sortedSummaries = useMemo(() => {
+    if (!sortKey) return summaries;
+    return [...summaries].sort((a, b) => {
+      let aVal: number | string;
+      let bVal: number | string;
+      if (sortKey === "netFlow") {
+        aVal = a.monthlyDeposit - a.monthlyWithdraw;
+        bVal = b.monthlyDeposit - b.monthlyWithdraw;
+      } else {
+        aVal = a[sortKey];
+        bVal = b[sortKey];
+      }
+      const cmp = typeof aVal === "string" ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [summaries, sortKey, sortDir]);
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ChevronsUpDown className="h-3 w-3 opacity-40" />;
+    return sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+  };
+
+  const sortableHead = (label: string, col: SortKey, className?: string) => (
+    <TableHead
+      className={`cursor-pointer select-none hover:bg-muted/70 transition-colors ${className || ""}`}
+      onClick={() => handleSort(col)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <SortIcon col={col} />
+      </div>
+    </TableHead>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -38,20 +89,23 @@ function ClassSummaryTable({ summaries, searchTerm }: ClassSummaryTableProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Kelas</TableHead>
-                  <TableHead className="text-center">Jumlah Siswa</TableHead>
-                  <TableHead className="text-right">Total Saldo</TableHead>
-                  <TableHead className="text-right">Setoran</TableHead>
-                  <TableHead className="text-right">Penarikan</TableHead>
-                  <TableHead className="text-center">Transaksi</TableHead>
-                  <TableHead className="text-right">Net Flow</TableHead>
+                  {sortableHead("Kelas", "className")}
+                  {sortableHead("Jumlah Siswa", "studentCount", "text-center")}
+                  {sortableHead("Total Saldo", "totalBalance", "text-right")}
+                  {sortableHead("Setoran", "monthlyDeposit", "text-right")}
+                  {sortableHead("Penarikan", "monthlyWithdraw", "text-right")}
+                  {sortableHead("Transaksi", "transactionCount", "text-center")}
+                  {sortableHead("Net Flow", "netFlow", "text-right")}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {summaries.map((cls) => {
+                {sortedSummaries.map((cls) => {
                   const netFlow = cls.monthlyDeposit - cls.monthlyWithdraw;
                   return (
-                    <TableRow key={cls.classId}>
+                    <TableRow
+                      key={cls.classId}
+                      className="animate-fade-in"
+                    >
                       <TableCell className="font-medium">{cls.className}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant="outline">{cls.studentCount} siswa</Badge>
