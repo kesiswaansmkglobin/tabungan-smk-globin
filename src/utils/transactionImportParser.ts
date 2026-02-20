@@ -140,9 +140,9 @@ export const parseFile = (file: File): Promise<ParseResult> => {
     reader.onload = (e) => {
       try {
         const data = e.target?.result;
-        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
 
         const totalRows = jsonData.length;
         const detectedColumns = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
@@ -175,6 +175,6 @@ export const parseFile = (file: File): Promise<ParseResult> => {
       }
     };
     reader.onerror = () => reject(new Error('Failed to read file'));
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   });
 };
