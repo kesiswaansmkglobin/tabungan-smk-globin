@@ -60,13 +60,23 @@ export const toISODate = (val: any): string => {
       if (month) return `${year}-${month}-${day}`;
     }
     
-    // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+    // DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY (auto-detect DD vs MM)
     const slashMatch = trimmed.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
     if (slashMatch) {
-      const dd = slashMatch[1].padStart(2, '0');
-      const mm = slashMatch[2].padStart(2, '0');
+      let part1 = parseInt(slashMatch[1]);
+      let part2 = parseInt(slashMatch[2]);
       const yyyy = slashMatch[3].length === 2 ? `20${slashMatch[3]}` : slashMatch[3];
-      return `${yyyy}-${mm}-${dd}`;
+      // Auto-detect: if first part > 12, it must be day (not month)
+      let dd: number, mm: number;
+      if (part1 > 12) {
+        dd = part1; mm = part2;
+      } else if (part2 > 12) {
+        dd = part2; mm = part1;
+      } else {
+        // Ambiguous - assume DD/MM/YYYY (Indonesian format)
+        dd = part1; mm = part2;
+      }
+      return `${yyyy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
     }
     
     // YYYY/MM/DD
@@ -142,7 +152,7 @@ export const parseFile = (file: File): Promise<ParseResult> => {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
 
         const totalRows = jsonData.length;
         const detectedColumns = jsonData.length > 0 ? Object.keys(jsonData[0]) : [];
