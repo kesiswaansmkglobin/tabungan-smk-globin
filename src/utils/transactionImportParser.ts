@@ -10,12 +10,19 @@ export interface ParsedTransaction {
   rowIndex: number;
 }
 
+export interface SkippedRow {
+  rowIndex: number;
+  reason: string;
+  rawData: string;
+}
+
 export interface ParseResult {
   parsed: ParsedTransaction[];
   totalRows: number;
   skippedNoNIS: number;
   skippedNoAmount: number;
   skippedNoDate: number;
+  skippedRows: SkippedRow[];
   detectedColumns: string[];
 }
 
@@ -160,6 +167,7 @@ export const parseFile = (file: File): Promise<ParseResult> => {
         let skippedNoAmount = 0;
         let skippedNoDate = 0;
         const parsed: ParsedTransaction[] = [];
+        const skippedRows: SkippedRow[] = [];
 
         for (let i = 0; i < jsonData.length; i++) {
           const row = jsonData[i];
@@ -169,17 +177,30 @@ export const parseFile = (file: File): Promise<ParseResult> => {
           const typeRaw = findColumn(row, TYPE_COLUMNS);
           const dateRaw = findColumn(row, DATE_COLUMNS);
           const amountRaw = findColumn(row, AMOUNT_COLUMNS);
+          const rowLabel = `Baris ${i + 2}${nama ? ` (${nama})` : ''}`;
 
-          if (!nis) { skippedNoNIS++; continue; }
+          if (!nis) { 
+            skippedNoNIS++; 
+            skippedRows.push({ rowIndex: i + 2, reason: 'NIS kosong', rawData: rowLabel });
+            continue; 
+          }
           const amount = parseAmount(amountRaw);
-          if (amount === 0) { skippedNoAmount++; continue; }
+          if (amount === 0) { 
+            skippedNoAmount++; 
+            skippedRows.push({ rowIndex: i + 2, reason: 'Jumlah 0 atau tidak valid', rawData: `${rowLabel} - NIS: ${nis}` });
+            continue; 
+          }
           const date = toISODate(dateRaw);
-          if (!date) { skippedNoDate++; continue; }
+          if (!date) { 
+            skippedNoDate++; 
+            skippedRows.push({ rowIndex: i + 2, reason: `Tanggal tidak valid: "${dateRaw}"`, rawData: `${rowLabel} - NIS: ${nis}` });
+            continue; 
+          }
 
           parsed.push({ nis, nama, kelas, type: normalizeType(typeRaw), date, amount, rowIndex: i + 2 });
         }
 
-        resolve({ parsed, totalRows, skippedNoNIS, skippedNoAmount, skippedNoDate, detectedColumns });
+        resolve({ parsed, totalRows, skippedNoNIS, skippedNoAmount, skippedNoDate, skippedRows, detectedColumns });
       } catch (error) {
         reject(error);
       }

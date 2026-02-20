@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { ParsedTransaction } from "@/utils/transactionImportParser";
+import type { ParsedTransaction, SkippedRow } from "@/utils/transactionImportParser";
 
 interface StudentMatch {
   nis: string;
@@ -25,6 +25,7 @@ interface ImportPreviewProps {
   skippedNoNIS: number;
   skippedNoAmount: number;
   skippedNoDate: number;
+  skippedRows: SkippedRow[];
   onConfirm: (validTransactions: PreviewTransaction[]) => void;
   onCancel: () => void;
 }
@@ -36,6 +37,7 @@ const ImportPreview = ({
   skippedNoNIS,
   skippedNoAmount,
   skippedNoDate,
+  skippedRows,
   onConfirm,
   onCancel,
 }: ImportPreviewProps) => {
@@ -100,10 +102,22 @@ const ImportPreview = ({
       </div>
 
       {parseSkipTotal > 0 && (
-        <div className="text-xs text-muted-foreground flex gap-3 flex-wrap">
-          {skippedNoNIS > 0 && <span>NIS kosong: {skippedNoNIS}</span>}
-          {skippedNoAmount > 0 && <span>Jumlah 0: {skippedNoAmount}</span>}
-          {skippedNoDate > 0 && <span>Tanggal kosong: {skippedNoDate}</span>}
+        <div className="space-y-2">
+          <div className="text-xs text-muted-foreground flex gap-3 flex-wrap">
+            {skippedNoNIS > 0 && <span>NIS kosong: {skippedNoNIS}</span>}
+            {skippedNoAmount > 0 && <span>Jumlah 0: {skippedNoAmount}</span>}
+            {skippedNoDate > 0 && <span>Tanggal kosong: {skippedNoDate}</span>}
+          </div>
+          {skippedRows.length > 0 && (
+            <ScrollArea className="h-[120px] border border-destructive/30 rounded-md bg-destructive/5 p-2">
+              <p className="text-xs font-medium text-destructive mb-1">Detail baris yang dilewati saat parsing:</p>
+              {skippedRows.map((row, i) => (
+                <p key={i} className="text-xs text-muted-foreground">
+                  <span className="font-mono font-medium">Baris {row.rowIndex}</span>: {row.reason} — {row.rawData}
+                </p>
+              ))}
+            </ScrollArea>
+          )}
         </div>
       )}
 
