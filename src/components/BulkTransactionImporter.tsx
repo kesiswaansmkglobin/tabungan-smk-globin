@@ -214,6 +214,7 @@ const BulkTransactionImporter = () => {
             skippedNoNIS={parseResult.skippedNoNIS}
             skippedNoAmount={parseResult.skippedNoAmount}
             skippedNoDate={parseResult.skippedNoDate}
+            skippedRows={parseResult.skippedRows}
             onConfirm={handleConfirmImport}
             onCancel={handleCancel}
           />
