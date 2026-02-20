@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
@@ -14,92 +15,120 @@ interface ImportStats {
   skippedDuplicates: number;
 }
 
+interface ParsedTransaction {
+  nis: string;
+  nama: string;
+  kelas: string;
+  type: 'Setor' | 'Tarik';
+  date: string;
+  amount: number;
+}
+
+const excelSerialToISO = (val: number): string => {
+  const jsDate = new Date(Math.round((val - 25569) * 86400 * 1000));
+  const year = jsDate.getUTCFullYear();
+  const month = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(jsDate.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toISODate = (val: any): string => {
+  if (!val) return '';
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    const year = val.getFullYear();
+    const month = String(val.getMonth() + 1).padStart(2, '0');
+    const day = String(val.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  if (typeof val === 'number') {
+    return excelSerialToISO(val);
+  }
+  if (typeof val === 'string') {
+    const m = val.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+    if (m) {
+      const dd = m[1].padStart(2, '0');
+      const mm = m[2].padStart(2, '0');
+      const yyyy = m[3].length === 2 ? `20${m[3]}` : m[3];
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  }
+  return '';
+};
+
+const normalizeType = (val: any): 'Setor' | 'Tarik' => {
+  const s = String(val || '').toLowerCase().trim();
+  if (s.includes('setor') || s.includes('masuk') || s.includes('pemasukan') || s === 'in' || s === 'deposit') return 'Setor';
+  if (s.includes('tarik') || s.includes('keluar') || s.includes('penarikan') || s === 'out' || s === 'withdraw') return 'Tarik';
+  return 'Setor';
+};
+
+const parseAmount = (val: any): number => {
+  if (typeof val === 'number') return Math.round(val);
+  if (typeof val === 'string') {
+    // Handle Indonesian format: 1.000.000 or 1,000,000 or plain
+    let cleaned = val.replace(/[Rp\s]/gi, '');
+    // If contains dots as thousand separators (Indonesian format)
+    if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+      cleaned = cleaned.replace(/\./g, '');
+    }
+    // If contains commas as thousand separators
+    else if (/^\d{1,3}(,\d{3})+$/.test(cleaned)) {
+      cleaned = cleaned.replace(/,/g, '');
+    }
+    return parseInt(cleaned.replace(/[^0-9-]/g, '')) || 0;
+  }
+  return 0;
+};
+
+const parseFile = (file: File): Promise<ParsedTransaction[]> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        const transactions = jsonData
+          .map((row: any) => {
+            const nis = (row['NIS'] ?? row['Nis'] ?? row['nis'] ?? '').toString().trim();
+            const nama = (row['Nama Siswa'] ?? row['Nama'] ?? row['nama'] ?? '').toString().trim();
+            const kelas = (row['Kelas'] ?? row['kelas'] ?? row['Class'] ?? '').toString().trim();
+            const typeRaw = row['Jenis Transaksi'] ?? row['Jenis'] ?? row['Tipe'] ?? row['Type'] ?? row['Transaksi'];
+            const dateRaw = row['Tanggal'] ?? row['Tanggal Transaksi'] ?? row['Date'] ?? row['Waktu'];
+            const amountRaw = row['Jumlah'] ?? row['Besaran'] ?? row['Amount'] ?? row['Nominal'];
+
+            return {
+              nis,
+              nama,
+              kelas,
+              type: normalizeType(typeRaw),
+              date: toISODate(dateRaw),
+              amount: parseAmount(amountRaw),
+            };
+          })
+          .filter((t) => t.nis && t.amount !== 0 && t.date);
+
+        resolve(transactions);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsBinaryString(file);
+  });
+};
+
+const BATCH_SIZE = 50;
+
 const BulkTransactionImporter = () => {
   const [isImporting, setIsImporting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [progressText, setProgressText] = useState('');
   const [stats, setStats] = useState<ImportStats | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const parseUploadedFile = async (file: File) => {
-    const excelSerialToISO = (val: number) => {
-      // Excel serial date to JS Date (account for Excel epoch 1899-12-31)
-      const jsDate = new Date(Math.round((val - 25569) * 86400 * 1000));
-      return jsDate.toISOString().split('T')[0];
-    };
-
-    const toISODate = (val: any): string => {
-      if (!val) return '';
-      if (val instanceof Date && !isNaN(val.getTime())) {
-        // Format date without timezone conversion
-        const year = val.getFullYear();
-        const month = String(val.getMonth() + 1).padStart(2, '0');
-        const day = String(val.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      }
-      if (typeof val === 'number') {
-        return excelSerialToISO(val);
-      }
-      if (typeof val === 'string') {
-        // Handle dd/mm/yyyy or dd-mm-yyyy
-        const m = val.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
-        if (m) {
-          const dd = m[1].padStart(2, '0');
-          const mm = m[2].padStart(2, '0');
-          const yyyy = m[3].length === 2 ? `20${m[3]}` : m[3];
-          return `${yyyy}-${mm}-${dd}`;
-        }
-        // If already in YYYY-MM-DD format, return as is
-        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
-          return val;
-        }
-      }
-      return '';
-    };
-
-    const normalizeType = (val: any): 'Setor' | 'Tarik' => {
-      const s = String(val || '').toLowerCase().trim();
-      if (s.includes('setor') || s.includes('masuk') || s.includes('pemasukan') || s === 'in' || s === 'deposit') return 'Setor';
-      if (s.includes('tarik') || s.includes('keluar') || s.includes('penarikan') || s === 'out' || s === 'withdraw') return 'Tarik';
-      return 'Setor';
-    };
-
-    return new Promise<any[]>((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result as string | ArrayBuffer;
-          const workbook = XLSX.read(data, { type: 'binary', cellDates: true });
-          const sheetName = workbook.SheetNames[0];
-          const sheet = workbook.Sheets[sheetName];
-          const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-          const transactions = jsonData
-            .map((row: any) => {
-              const nis = (row['NIS'] ?? row['Nis'] ?? row['nis'] ?? '').toString().trim();
-              const nama = (row['Nama Siswa'] ?? row['Nama'] ?? row['nama'] ?? '').toString().trim();
-              const kelas = (row['Kelas'] ?? row['kelas'] ?? row['Class'] ?? '').toString().trim();
-              const typeRaw = row['Jenis Transaksi'] ?? row['Jenis'] ?? row['Tipe'] ?? row['Type'] ?? row['Transaksi'];
-              const dateRaw = row['Tanggal'] ?? row['Tanggal Transaksi'] ?? row['Date'] ?? row['Waktu'];
-              const amountRaw = row['Jumlah'] ?? row['Besaran'] ?? row['Amount'] ?? row['Nominal'];
-
-              const type = normalizeType(typeRaw);
-              const dateISO = toISODate(dateRaw);
-              const amount = parseInt(String(amountRaw).replace(/[^0-9-]/g, '')) || 0;
-
-              return { nis, nama, kelas, type, date: dateISO, amount };
-            })
-            .filter((t) => t.nis && t.amount !== 0 && t.date);
-
-          resolve(transactions);
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsBinaryString(file);
-    });
-  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -107,17 +136,30 @@ const BulkTransactionImporter = () => {
 
     setIsImporting(true);
     setStats(null);
-    
+    setProgress(0);
+    setProgressText('Membaca file...');
+
     const importStats: ImportStats = {
       totalTransactions: 0,
       successfulImports: 0,
       failedImports: 0,
-      skippedDuplicates: 0
+      skippedDuplicates: 0,
     };
 
     try {
-      const allTransactions = await parseUploadedFile(file);
-      
+      const allTransactions = await parseFile(file);
+      importStats.totalTransactions = allTransactions.length;
+
+      if (allTransactions.length === 0) {
+        toast({ title: "Info", description: "Tidak ada data transaksi valid dalam file" });
+        setIsImporting(false);
+        return;
+      }
+
+      setProgressText('Mencocokkan data siswa...');
+      setProgress(5);
+
+      // Fetch all matching students in one query
       const allNIS = [...new Set(allTransactions.map(t => t.nis))];
       const { data: students, error: studentsError } = await supabase
         .from("students")
@@ -127,103 +169,119 @@ const BulkTransactionImporter = () => {
       if (studentsError) throw studentsError;
 
       if (!students || students.length === 0) {
-        toast({
-          title: "Error",
-          description: "Tidak ada siswa yang ditemukan",
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: "Tidak ada siswa yang ditemukan", variant: "destructive" });
         setIsImporting(false);
         return;
       }
 
       const studentMap = new Map(students.map(s => [s.nis, s]));
-      const groupedTrans = allTransactions.reduce((acc, t) => {
-        if (!acc[t.nis]) acc[t.nis] = [];
-        acc[t.nis].push(t);
-        return acc;
-      }, {} as Record<string, any[]>);
 
-      for (const [nis, transactionList] of Object.entries(groupedTrans)) {
+      // Group transactions by NIS to calculate running balance
+      const groupedTrans: Record<string, ParsedTransaction[]> = {};
+      for (const t of allTransactions) {
+        if (!groupedTrans[t.nis]) groupedTrans[t.nis] = [];
+        groupedTrans[t.nis].push(t);
+      }
+
+      // Sort each group by date for correct balance calculation
+      for (const nis of Object.keys(groupedTrans)) {
+        groupedTrans[nis].sort((a, b) => a.date.localeCompare(b.date));
+      }
+
+      // Build all insert records with calculated balances
+      setProgressText('Menyiapkan data transaksi...');
+      setProgress(15);
+
+      const insertRecords: Array<{
+        student_id: string;
+        tanggal: string;
+        jenis: string;
+        jumlah: number;
+        saldo_setelah: number;
+        keterangan: string;
+        admin: string;
+      }> = [];
+
+      const balanceUpdates: Array<{ id: string; saldo: number }> = [];
+
+      for (const [nis, transactions] of Object.entries(groupedTrans)) {
         const student = studentMap.get(nis);
-        const transactions = transactionList as any[];
         if (!student) {
           importStats.failedImports += transactions.length;
           continue;
         }
 
         let currentBalance = student.saldo;
-        for (const transaction of transactions) {
-          importStats.totalTransactions++;
-          // Use date directly without conversion to avoid timezone issues
-          const dateStr = transaction.date;
-          const { data: existingTrans } = await supabase
-            .from("transactions")
-            .select("id")
-            .eq("student_id", student.id)
-            .eq("tanggal", dateStr)
-            .eq("jenis", transaction.type)
-            .eq("jumlah", transaction.amount)
-            .maybeSingle();
-
-          if (existingTrans) {
-            importStats.skippedDuplicates++;
-          } else {
-            // Update balance only if not duplicate
-            currentBalance += transaction.type === 'Setor' ? transaction.amount : -transaction.amount;
-            
-            // Insert transaction
-            const { error: transError } = await supabase
-              .from("transactions")
-              .insert({
-                student_id: student.id,
-                tanggal: dateStr,
-                jenis: transaction.type,
-                jumlah: transaction.amount,
-                saldo_setelah: currentBalance,
-                keterangan: "Import data dari Excel",
-                admin: "System Import"
-              });
-
-            if (transError) {
-              console.error(`Error importing transaction for ${nis}:`, transError);
-              importStats.failedImports++;
-              // Revert balance if insert failed
-              currentBalance -= transaction.type === 'Setor' ? transaction.amount : -transaction.amount;
-            } else {
-              importStats.successfulImports++;
-            }
-          }
+        for (const t of transactions) {
+          currentBalance += t.type === 'Setor' ? t.amount : -t.amount;
+          insertRecords.push({
+            student_id: student.id,
+            tanggal: t.date,
+            jenis: t.type,
+            jumlah: t.amount,
+            saldo_setelah: currentBalance,
+            keterangan: "Import data dari Excel",
+            admin: "System Import",
+          });
         }
-
-        // Update student balance
-        await supabase
-          .from("students")
-          .update({ saldo: currentBalance })
-          .eq("id", student.id);
+        balanceUpdates.push({ id: student.id, saldo: currentBalance });
       }
 
+      // Batch insert transactions
+      const totalBatches = Math.ceil(insertRecords.length / BATCH_SIZE);
+      let processedBatches = 0;
+
+      for (let i = 0; i < insertRecords.length; i += BATCH_SIZE) {
+        const batch = insertRecords.slice(i, i + BATCH_SIZE);
+        const { error: insertError } = await supabase
+          .from("transactions")
+          .insert(batch);
+
+        if (insertError) {
+          console.error('Batch insert error:', insertError);
+          importStats.failedImports += batch.length;
+        } else {
+          importStats.successfulImports += batch.length;
+        }
+
+        processedBatches++;
+        const pct = 20 + Math.round((processedBatches / totalBatches) * 70);
+        setProgress(pct);
+        setProgressText(`Mengimpor batch ${processedBatches}/${totalBatches}...`);
+
+        // Yield to UI thread
+        await new Promise(r => setTimeout(r, 10));
+      }
+
+      // Update student balances
+      setProgressText('Memperbarui saldo siswa...');
+      setProgress(92);
+
+      for (const update of balanceUpdates) {
+        await supabase
+          .from("students")
+          .update({ saldo: update.saldo })
+          .eq("id", update.id);
+      }
+
+      setProgress(100);
+      setProgressText('Selesai!');
       setStats(importStats);
-      
-      // Refresh the page to show new data
-      window.location.reload();
-      
+
       toast({
         title: "Import Selesai",
-        description: `Berhasil: ${importStats.successfulImports}, Gagal: ${importStats.failedImports}, Duplikat: ${importStats.skippedDuplicates}`
+        description: `Berhasil: ${importStats.successfulImports}, Gagal: ${importStats.failedImports}`,
       });
+
+      // Soft refresh after short delay
+      setTimeout(() => window.location.reload(), 1500);
 
     } catch (error) {
       console.error("Import error:", error);
-      toast({
-        title: "Error",
-        description: "Terjadi kesalahan saat import data",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Terjadi kesalahan saat import data", variant: "destructive" });
     } finally {
       setIsImporting(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -254,7 +312,10 @@ const BulkTransactionImporter = () => {
         />
 
         {isImporting && (
-          <p className="text-sm text-center text-muted-foreground">Mengimpor data...</p>
+          <div className="space-y-2">
+            <Progress value={progress} className="h-2" />
+            <p className="text-sm text-center text-muted-foreground">{progressText}</p>
+          </div>
         )}
 
         {stats && (
@@ -264,21 +325,17 @@ const BulkTransactionImporter = () => {
               <span>Berhasil: {stats.successfulImports}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <AlertCircle className="h-4 w-4 text-yellow-600" />
-              <span>Duplikat: {stats.skippedDuplicates}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
               <AlertCircle className="h-4 w-4 text-red-600" />
               <span>Gagal: {stats.failedImports}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm font-semibold">
+            <div className="flex items-center gap-2 text-sm font-semibold col-span-2">
               <span>Total: {stats.totalTransactions}</span>
             </div>
           </div>
         )}
 
-        <Button 
-          onClick={() => fileInputRef.current?.click()} 
+        <Button
+          onClick={() => fileInputRef.current?.click()}
           disabled={isImporting}
           className="w-full"
         >
@@ -287,7 +344,7 @@ const BulkTransactionImporter = () => {
         </Button>
 
         <p className="text-xs text-muted-foreground mt-2">
-          Catatan: Transaksi yang sudah ada akan dilewati untuk menghindari duplikasi.
+          Format kolom: NIS, Nama Siswa, Kelas, Jenis Transaksi (Setor/Tarik), Tanggal, Jumlah
         </p>
       </CardContent>
     </Card>
