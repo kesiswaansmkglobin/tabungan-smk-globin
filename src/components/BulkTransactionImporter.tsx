@@ -66,8 +66,12 @@ const BulkTransactionImporter = () => {
   };
 
   const handleConfirmImport = async (validTransactions: PreviewTransaction[]) => {
-    if (validTransactions.length === 0) return;
+    if (validTransactions.length === 0) {
+      toast({ title: "Tidak ada data", description: "Tidak ada transaksi valid untuk diimpor", variant: "destructive" });
+      return;
+    }
 
+    console.log(`[Import] Starting import of ${validTransactions.length} transactions`);
     setShowPreview(false);
     setIsImporting(true);
     setProgress(0);
@@ -75,52 +79,71 @@ const BulkTransactionImporter = () => {
 
     try {
       // Build insert records - transactions already have calculated saldo
-      const insertRecords = validTransactions.map(t => ({
-        student_id: studentMatches.get(t.nis)!.id,
-        tanggal: t.date,
-        jenis: t.type,
-        jumlah: t.amount,
-        saldo_setelah: t.calculatedSaldo,
-        keterangan: "Import data dari Excel",
-        admin: "System Import",
-      }));
+      const insertRecords = validTransactions.map(t => {
+        const student = studentMatches.get(t.nis);
+        if (!student) {
+          console.error(`[Import] Student not found for NIS: ${t.nis}`);
+          return null;
+        }
+        return {
+          student_id: student.id,
+          tanggal: t.date,
+          jenis: t.type,
+          jumlah: t.amount,
+          saldo_setelah: t.calculatedSaldo,
+          keterangan: "Import data dari Excel",
+          admin: "System Import",
+        };
+      }).filter(Boolean);
+
+      console.log(`[Import] ${insertRecords.length} records prepared for insert`);
+      console.log(`[Import] Sample record:`, JSON.stringify(insertRecords[0]));
 
       let successCount = 0;
       let failCount = 0;
       const totalBatches = Math.ceil(insertRecords.length / BATCH_SIZE);
+      const errors: string[] = [];
 
       for (let i = 0; i < insertRecords.length; i += BATCH_SIZE) {
         const batch = insertRecords.slice(i, i + BATCH_SIZE);
-        const { error } = await supabase.from("transactions").insert(batch);
+        console.log(`[Import] Inserting batch ${Math.floor(i / BATCH_SIZE) + 1}/${totalBatches}, size: ${batch.length}`);
+        
+        const { data, error } = await supabase.from("transactions").insert(batch).select();
 
         if (error) {
-          console.error('Batch error:', error);
+          console.error('[Import] Batch error:', error.message, error.details, error.hint);
+          errors.push(error.message);
           failCount += batch.length;
         } else {
+          console.log(`[Import] Batch success, inserted: ${data?.length ?? 0} rows`);
           successCount += batch.length;
         }
 
         const batchNum = Math.floor(i / BATCH_SIZE) + 1;
         setProgress(Math.round((batchNum / totalBatches) * 100));
         setProgressText(`Batch ${batchNum}/${totalBatches}...`);
-        await new Promise(r => setTimeout(r, 10));
+        await new Promise(r => setTimeout(r, 50));
       }
 
       setProgress(100);
-      setProgressText('Selesai!');
+      setProgressText(`Selesai! Berhasil: ${successCount}, Gagal: ${failCount}`);
 
-      toast({
-        title: "Import Selesai",
-        description: `Berhasil: ${successCount}, Gagal: ${failCount}`,
-      });
-
-      if (successCount > 0) {
-        setTimeout(() => window.location.reload(), 1500);
+      if (failCount > 0) {
+        toast({
+          title: "Import Selesai (dengan error)",
+          description: `Berhasil: ${successCount}, Gagal: ${failCount}. Error: ${errors.join('; ')}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Import Berhasil! ✅",
+          description: `${successCount} transaksi berhasil diimpor. Silakan refresh halaman untuk melihat data terbaru.`,
+        });
       }
 
-    } catch (error) {
-      console.error("Import error:", error);
-      toast({ title: "Error", description: "Terjadi kesalahan saat import", variant: "destructive" });
+    } catch (error: any) {
+      console.error("[Import] Fatal error:", error);
+      toast({ title: "Error", description: `Terjadi kesalahan: ${error?.message || 'Unknown'}`, variant: "destructive" });
     } finally {
       setIsImporting(false);
     }
