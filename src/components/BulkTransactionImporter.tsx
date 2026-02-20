@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,10 +9,16 @@ import * as XLSX from 'xlsx';
 import TransactionImportTemplate from "./TransactionImportTemplate";
 
 interface ImportStats {
-  totalTransactions: number;
+  totalRows: number;
+  totalParsed: number;
   successfulImports: number;
   failedImports: number;
-  skippedDuplicates: number;
+  skippedNoNIS: number;
+  skippedNoAmount: number;
+  skippedNoDate: number;
+  skippedStudentNotFound: number;
+  skippedNegativeBalance: number;
+  errors: string[];
 }
 
 interface ParsedTransaction {
@@ -22,7 +28,10 @@ interface ParsedTransaction {
   type: 'Setor' | 'Tarik';
   date: string;
   amount: number;
+  rowIndex: number;
 }
+
+// --- Parsing utilities ---
 
 const excelSerialToISO = (val: number): string => {
   const jsDate = new Date(Math.round((val - 25569) * 86400 * 1000));
@@ -44,6 +53,9 @@ const toISODate = (val: any): string => {
     return excelSerialToISO(val);
   }
   if (typeof val === 'string') {
+    // Try YYYY-MM-DD first
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    // Try DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
     const m = val.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
     if (m) {
       const dd = m[1].padStart(2, '0');
@@ -51,7 +63,11 @@ const toISODate = (val: any): string => {
       const yyyy = m[3].length === 2 ? `20${m[3]}` : m[3];
       return `${yyyy}-${mm}-${dd}`;
     }
-    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    // Try YYYY/MM/DD
+    const m2 = val.match(/^(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})$/);
+    if (m2) {
+      return `${m2[1]}-${m2[2].padStart(2, '0')}-${m2[3].padStart(2, '0')}`;
+    }
   }
   return '';
 };
@@ -64,24 +80,52 @@ const normalizeType = (val: any): 'Setor' | 'Tarik' => {
 };
 
 const parseAmount = (val: any): number => {
-  if (typeof val === 'number') return Math.round(val);
+  if (typeof val === 'number') return Math.abs(Math.round(val));
   if (typeof val === 'string') {
-    // Handle Indonesian format: 1.000.000 or 1,000,000 or plain
-    let cleaned = val.replace(/[Rp\s]/gi, '');
-    // If contains dots as thousand separators (Indonesian format)
-    if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
-      cleaned = cleaned.replace(/\./g, '');
-    }
-    // If contains commas as thousand separators
-    else if (/^\d{1,3}(,\d{3})+$/.test(cleaned)) {
-      cleaned = cleaned.replace(/,/g, '');
-    }
-    return parseInt(cleaned.replace(/[^0-9-]/g, '')) || 0;
+    let cleaned = val.replace(/[Rp\s.]/gi, '').replace(/,/g, '');
+    const num = parseInt(cleaned.replace(/[^0-9]/g, '')) || 0;
+    return Math.abs(num);
   }
   return 0;
 };
 
-const parseFile = (file: File): Promise<ParsedTransaction[]> => {
+// Flexible column matching - find the first matching key
+const findColumn = (row: any, candidates: string[]): any => {
+  // First try exact match
+  for (const key of candidates) {
+    if (row[key] !== undefined && row[key] !== '') return row[key];
+  }
+  // Then try case-insensitive match against all row keys
+  const rowKeys = Object.keys(row);
+  for (const candidate of candidates) {
+    const lower = candidate.toLowerCase();
+    for (const key of rowKeys) {
+      if (key.toLowerCase() === lower && row[key] !== undefined && row[key] !== '') {
+        return row[key];
+      }
+    }
+  }
+  // Then try partial match (column contains candidate or vice versa)
+  for (const candidate of candidates) {
+    const lower = candidate.toLowerCase();
+    for (const key of rowKeys) {
+      const keyLower = key.toLowerCase();
+      if ((keyLower.includes(lower) || lower.includes(keyLower)) && row[key] !== undefined && row[key] !== '') {
+        return row[key];
+      }
+    }
+  }
+  return undefined;
+};
+
+const NIS_COLUMNS = ['NIS', 'Nis', 'nis', 'No Induk', 'No. Induk', 'Nomor Induk', 'no_induk', 'NISN'];
+const NAMA_COLUMNS = ['Nama Siswa', 'Nama', 'nama', 'NAMA', 'Nama Lengkap', 'nama_siswa', 'Name'];
+const KELAS_COLUMNS = ['Kelas', 'kelas', 'KELAS', 'Class', 'class'];
+const TYPE_COLUMNS = ['Jenis Transaksi', 'Jenis', 'jenis', 'JENIS', 'Tipe', 'Type', 'Transaksi', 'Keterangan Transaksi'];
+const DATE_COLUMNS = ['Tanggal', 'tanggal', 'TANGGAL', 'Tanggal Transaksi', 'Date', 'Tgl', 'Waktu'];
+const AMOUNT_COLUMNS = ['Jumlah', 'jumlah', 'JUMLAH', 'Besaran', 'Amount', 'Nominal', 'nominal', 'Nilai', 'Uang'];
+
+const parseFile = (file: File): Promise<{ parsed: ParsedTransaction[]; totalRows: number; skippedNoNIS: number; skippedNoAmount: number; skippedNoDate: number }> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -91,27 +135,44 @@ const parseFile = (file: File): Promise<ParsedTransaction[]> => {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-        const transactions = jsonData
-          .map((row: any) => {
-            const nis = (row['NIS'] ?? row['Nis'] ?? row['nis'] ?? '').toString().trim();
-            const nama = (row['Nama Siswa'] ?? row['Nama'] ?? row['nama'] ?? '').toString().trim();
-            const kelas = (row['Kelas'] ?? row['kelas'] ?? row['Class'] ?? '').toString().trim();
-            const typeRaw = row['Jenis Transaksi'] ?? row['Jenis'] ?? row['Tipe'] ?? row['Type'] ?? row['Transaksi'];
-            const dateRaw = row['Tanggal'] ?? row['Tanggal Transaksi'] ?? row['Date'] ?? row['Waktu'];
-            const amountRaw = row['Jumlah'] ?? row['Besaran'] ?? row['Amount'] ?? row['Nominal'];
+        const totalRows = jsonData.length;
+        let skippedNoNIS = 0;
+        let skippedNoAmount = 0;
+        let skippedNoDate = 0;
+        const parsed: ParsedTransaction[] = [];
 
-            return {
-              nis,
-              nama,
-              kelas,
-              type: normalizeType(typeRaw),
-              date: toISODate(dateRaw),
-              amount: parseAmount(amountRaw),
-            };
-          })
-          .filter((t) => t.nis && t.amount !== 0 && t.date);
+        // Log first row keys for debugging
+        if (jsonData.length > 0) {
+          console.log('Excel columns detected:', Object.keys(jsonData[0]));
+        }
 
-        resolve(transactions);
+        for (let i = 0; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          const nis = String(findColumn(row, NIS_COLUMNS) ?? '').trim();
+          const nama = String(findColumn(row, NAMA_COLUMNS) ?? '').trim();
+          const kelas = String(findColumn(row, KELAS_COLUMNS) ?? '').trim();
+          const typeRaw = findColumn(row, TYPE_COLUMNS);
+          const dateRaw = findColumn(row, DATE_COLUMNS);
+          const amountRaw = findColumn(row, AMOUNT_COLUMNS);
+
+          if (!nis) { skippedNoNIS++; continue; }
+          const amount = parseAmount(amountRaw);
+          if (amount === 0) { skippedNoAmount++; continue; }
+          const date = toISODate(dateRaw);
+          if (!date) { skippedNoDate++; continue; }
+
+          parsed.push({
+            nis,
+            nama,
+            kelas,
+            type: normalizeType(typeRaw),
+            date,
+            amount,
+            rowIndex: i + 2, // Excel row (1-indexed header + 1)
+          });
+        }
+
+        resolve({ parsed, totalRows, skippedNoNIS, skippedNoAmount, skippedNoDate });
       } catch (error) {
         reject(error);
       }
@@ -140,26 +201,40 @@ const BulkTransactionImporter = () => {
     setProgressText('Membaca file...');
 
     const importStats: ImportStats = {
-      totalTransactions: 0,
+      totalRows: 0,
+      totalParsed: 0,
       successfulImports: 0,
       failedImports: 0,
-      skippedDuplicates: 0,
+      skippedNoNIS: 0,
+      skippedNoAmount: 0,
+      skippedNoDate: 0,
+      skippedStudentNotFound: 0,
+      skippedNegativeBalance: 0,
+      errors: [],
     };
 
     try {
-      const allTransactions = await parseFile(file);
-      importStats.totalTransactions = allTransactions.length;
+      const { parsed: allTransactions, totalRows, skippedNoNIS, skippedNoAmount, skippedNoDate } = await parseFile(file);
+      importStats.totalRows = totalRows;
+      importStats.totalParsed = allTransactions.length;
+      importStats.skippedNoNIS = skippedNoNIS;
+      importStats.skippedNoAmount = skippedNoAmount;
+      importStats.skippedNoDate = skippedNoDate;
 
       if (allTransactions.length === 0) {
-        toast({ title: "Info", description: "Tidak ada data transaksi valid dalam file" });
+        toast({ 
+          title: "Info", 
+          description: `Tidak ada data valid. Total baris: ${totalRows}, Skip: NIS kosong=${skippedNoNIS}, Jumlah=0: ${skippedNoAmount}, Tanggal kosong=${skippedNoDate}`,
+        });
         setIsImporting(false);
+        setStats(importStats);
         return;
       }
 
       setProgressText('Mencocokkan data siswa...');
       setProgress(5);
 
-      // Fetch all matching students in one query
+      // Fetch all matching students
       const allNIS = [...new Set(allTransactions.map(t => t.nis))];
       const { data: students, error: studentsError } = await supabase
         .from("students")
@@ -169,26 +244,30 @@ const BulkTransactionImporter = () => {
       if (studentsError) throw studentsError;
 
       if (!students || students.length === 0) {
-        toast({ title: "Error", description: "Tidak ada siswa yang ditemukan", variant: "destructive" });
+        importStats.skippedStudentNotFound = allTransactions.length;
+        importStats.errors.push(`NIS tidak ditemukan di database: ${allNIS.join(', ')}`);
+        toast({ title: "Error", description: "Tidak ada siswa yang cocok dengan NIS di file", variant: "destructive" });
         setIsImporting(false);
+        setStats(importStats);
         return;
       }
 
       const studentMap = new Map(students.map(s => [s.nis, s]));
+      const unmatchedNIS = allNIS.filter(nis => !studentMap.has(nis));
+      if (unmatchedNIS.length > 0) {
+        importStats.errors.push(`NIS tidak ditemukan: ${unmatchedNIS.join(', ')}`);
+      }
 
-      // Group transactions by NIS to calculate running balance
+      // Group transactions by NIS and sort by date
       const groupedTrans: Record<string, ParsedTransaction[]> = {};
       for (const t of allTransactions) {
         if (!groupedTrans[t.nis]) groupedTrans[t.nis] = [];
         groupedTrans[t.nis].push(t);
       }
-
-      // Sort each group by date for correct balance calculation
       for (const nis of Object.keys(groupedTrans)) {
         groupedTrans[nis].sort((a, b) => a.date.localeCompare(b.date));
       }
 
-      // Build all insert records with calculated balances
       setProgressText('Menyiapkan data transaksi...');
       setProgress(15);
 
@@ -202,17 +281,21 @@ const BulkTransactionImporter = () => {
         admin: string;
       }> = [];
 
-      const balanceUpdates: Array<{ id: string; saldo: number }> = [];
-
       for (const [nis, transactions] of Object.entries(groupedTrans)) {
         const student = studentMap.get(nis);
         if (!student) {
-          importStats.failedImports += transactions.length;
+          importStats.skippedStudentNotFound += transactions.length;
           continue;
         }
 
         let currentBalance = student.saldo;
         for (const t of transactions) {
+          if (t.type === 'Tarik' && currentBalance < t.amount) {
+            importStats.skippedNegativeBalance++;
+            importStats.errors.push(`Baris ${t.rowIndex}: Penarikan Rp ${t.amount.toLocaleString('id-ID')} melebihi saldo Rp ${currentBalance.toLocaleString('id-ID')} (${nis} - ${t.nama})`);
+            continue;
+          }
+
           currentBalance += t.type === 'Setor' ? t.amount : -t.amount;
           insertRecords.push({
             student_id: student.id,
@@ -224,10 +307,16 @@ const BulkTransactionImporter = () => {
             admin: "System Import",
           });
         }
-        balanceUpdates.push({ id: student.id, saldo: currentBalance });
       }
 
-      // Batch insert transactions
+      if (insertRecords.length === 0) {
+        toast({ title: "Info", description: "Tidak ada transaksi yang bisa diimpor setelah validasi" });
+        setIsImporting(false);
+        setStats(importStats);
+        return;
+      }
+
+      // Batch insert
       const totalBatches = Math.ceil(insertRecords.length / BATCH_SIZE);
       let processedBatches = 0;
 
@@ -240,6 +329,7 @@ const BulkTransactionImporter = () => {
         if (insertError) {
           console.error('Batch insert error:', insertError);
           importStats.failedImports += batch.length;
+          importStats.errors.push(`Batch ${processedBatches + 1} gagal: ${insertError.message}`);
         } else {
           importStats.successfulImports += batch.length;
         }
@@ -248,33 +338,25 @@ const BulkTransactionImporter = () => {
         const pct = 20 + Math.round((processedBatches / totalBatches) * 70);
         setProgress(pct);
         setProgressText(`Mengimpor batch ${processedBatches}/${totalBatches}...`);
-
-        // Yield to UI thread
         await new Promise(r => setTimeout(r, 10));
-      }
-
-      // Update student balances
-      setProgressText('Memperbarui saldo siswa...');
-      setProgress(92);
-
-      for (const update of balanceUpdates) {
-        await supabase
-          .from("students")
-          .update({ saldo: update.saldo })
-          .eq("id", update.id);
       }
 
       setProgress(100);
       setProgressText('Selesai!');
       setStats(importStats);
 
-      toast({
-        title: "Import Selesai",
-        description: `Berhasil: ${importStats.successfulImports}, Gagal: ${importStats.failedImports}`,
-      });
+      const description = [
+        `Berhasil: ${importStats.successfulImports}`,
+        importStats.failedImports > 0 ? `Gagal: ${importStats.failedImports}` : null,
+        importStats.skippedNegativeBalance > 0 ? `Skip saldo kurang: ${importStats.skippedNegativeBalance}` : null,
+        importStats.skippedStudentNotFound > 0 ? `NIS tidak ditemukan: ${importStats.skippedStudentNotFound}` : null,
+      ].filter(Boolean).join(', ');
 
-      // Soft refresh after short delay
-      setTimeout(() => window.location.reload(), 1500);
+      toast({ title: "Import Selesai", description });
+
+      if (importStats.successfulImports > 0) {
+        setTimeout(() => window.location.reload(), 2000);
+      }
 
     } catch (error) {
       console.error("Import error:", error);
@@ -319,18 +401,64 @@ const BulkTransactionImporter = () => {
         )}
 
         {stats && (
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span>Berhasil: {stats.successfulImports}</span>
+          <div className="space-y-3 mt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Info className="h-4 w-4 text-muted-foreground" />
+                <span>Total baris: {stats.totalRows}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Info className="h-4 w-4 text-muted-foreground" />
+                <span>Terbaca: {stats.totalParsed}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span>Berhasil: {stats.successfulImports}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <span>Gagal: {stats.failedImports}</span>
+              </div>
+              {stats.skippedNoNIS > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span>NIS kosong: {stats.skippedNoNIS}</span>
+                </div>
+              )}
+              {stats.skippedNoAmount > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span>Jumlah 0: {stats.skippedNoAmount}</span>
+                </div>
+              )}
+              {stats.skippedNoDate > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span>Tanggal kosong: {stats.skippedNoDate}</span>
+                </div>
+              )}
+              {stats.skippedStudentNotFound > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span>NIS tidak ditemukan: {stats.skippedStudentNotFound}</span>
+                </div>
+              )}
+              {stats.skippedNegativeBalance > 0 && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                  <span>Saldo kurang: {stats.skippedNegativeBalance}</span>
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <span>Gagal: {stats.failedImports}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm font-semibold col-span-2">
-              <span>Total: {stats.totalTransactions}</span>
-            </div>
+
+            {stats.errors.length > 0 && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 max-h-40 overflow-y-auto">
+                <p className="text-xs font-medium text-destructive mb-1">Detail masalah:</p>
+                {stats.errors.map((err, i) => (
+                  <p key={i} className="text-xs text-destructive/80">{err}</p>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
