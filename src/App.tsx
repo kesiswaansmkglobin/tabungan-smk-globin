@@ -9,6 +9,7 @@ import { InstallPWA } from "@/components/InstallPWA";
 import Index from "./pages/Index";
 import StudentIndex from "./pages/StudentIndex";
 import Verifikasi from "./pages/Verifikasi";
+import UserGuide from "./components/UserGuide";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/student" element={<StudentIndex />} />
           <Route path="/verifikasi" element={<Verifikasi />} />
+          <Route path="/panduan" element={<UserGuide />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

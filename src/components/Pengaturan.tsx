@@ -501,7 +501,10 @@ const Pengaturan = () => {
       </div>
 
       <div className="mb-6">
-        <BulkTransactionImporter />
+        <BulkTransactionImporter onImportComplete={() => {
+          addActivityLog('Import transaksi berhasil', 'Saldo siswa diperbarui otomatis', 'info');
+          toast({ title: "Saldo Diperbarui", description: "Saldo siswa telah diperbarui otomatis setelah import." });
+        }} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
