@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,43 +42,45 @@ const ImportPreview = ({
   onConfirm,
   onCancel,
 }: ImportPreviewProps) => {
-  // Build preview with validation
-  const preview: PreviewTransaction[] = [];
-  const balanceTracker = new Map<string, number>();
+  const { preview, validCount, skipCount, parseSkipTotal } = useMemo(() => {
+    const result: PreviewTransaction[] = [];
+    const balanceTracker = new Map<string, number>();
 
-  // Initialize balances from current student data
-  studentMatches.forEach((student, nis) => {
-    balanceTracker.set(nis, student.saldo);
-  });
+    studentMatches.forEach((student, nis) => {
+      balanceTracker.set(nis, student.saldo);
+    });
 
-  // Sort by NIS then date
-  const sorted = [...transactions].sort((a, b) => {
-    if (a.nis !== b.nis) return a.nis.localeCompare(b.nis);
-    return a.date.localeCompare(b.date);
-  });
+    const sorted = [...transactions].sort((a, b) => {
+      if (a.nis !== b.nis) return a.nis.localeCompare(b.nis);
+      return a.date.localeCompare(b.date);
+    });
 
-  for (const t of sorted) {
-    const student = studentMatches.get(t.nis);
-    const currentBal = balanceTracker.get(t.nis) ?? 0;
+    for (const t of sorted) {
+      const student = studentMatches.get(t.nis);
+      const currentBal = balanceTracker.get(t.nis) ?? 0;
 
-    if (!student) {
-      preview.push({ ...t, studentFound: false, willImport: false, skipReason: 'NIS tidak ditemukan', calculatedSaldo: 0 });
-      continue;
+      if (!student) {
+        result.push({ ...t, studentFound: false, willImport: false, skipReason: 'NIS tidak ditemukan', calculatedSaldo: 0 });
+        continue;
+      }
+
+      if (t.type === 'Tarik' && currentBal < t.amount) {
+        result.push({ ...t, studentFound: true, willImport: false, skipReason: `Saldo kurang (Rp ${currentBal.toLocaleString('id-ID')})`, calculatedSaldo: currentBal });
+        continue;
+      }
+
+      const newBal = currentBal + (t.type === 'Setor' ? t.amount : -t.amount);
+      balanceTracker.set(t.nis, newBal);
+      result.push({ ...t, studentFound: true, willImport: true, calculatedSaldo: newBal });
     }
 
-    if (t.type === 'Tarik' && currentBal < t.amount) {
-      preview.push({ ...t, studentFound: true, willImport: false, skipReason: `Saldo kurang (Rp ${currentBal.toLocaleString('id-ID')})`, calculatedSaldo: currentBal });
-      continue;
-    }
-
-    const newBal = currentBal + (t.type === 'Setor' ? t.amount : -t.amount);
-    balanceTracker.set(t.nis, newBal);
-    preview.push({ ...t, studentFound: true, willImport: true, calculatedSaldo: newBal });
-  }
-
-  const validCount = preview.filter(p => p.willImport).length;
-  const skipCount = preview.filter(p => !p.willImport).length;
-  const parseSkipTotal = skippedNoNIS + skippedNoAmount + skippedNoDate;
+    return {
+      preview: result,
+      validCount: result.filter(p => p.willImport).length,
+      skipCount: result.filter(p => !p.willImport).length,
+      parseSkipTotal: skippedNoNIS + skippedNoAmount + skippedNoDate,
+    };
+  }, [transactions, studentMatches, skippedNoNIS, skippedNoAmount, skippedNoDate]);
 
   return (
     <div className="space-y-4">
@@ -184,4 +187,4 @@ const ImportPreview = ({
   );
 };
 
-export default ImportPreview;
+export default memo(ImportPreview);
