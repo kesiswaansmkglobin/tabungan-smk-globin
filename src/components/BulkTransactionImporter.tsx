@@ -6,12 +6,16 @@ import TransactionImportTemplate from "./TransactionImportTemplate";
 import ImportPreview from "./ImportPreview";
 import { useBulkImport } from "@/hooks/useBulkImport";
 
-const BulkTransactionImporter = () => {
+interface BulkTransactionImporterProps {
+  onImportComplete?: () => void;
+}
+
+const BulkTransactionImporter = ({ onImportComplete }: BulkTransactionImporterProps) => {
   const {
     isImporting, isParsing, progress, progressText,
     showPreview, parseResult, studentMatches,
     fileInputRef, handleFileSelect, handleConfirmImport, handleCancel,
-  } = useBulkImport();
+  } = useBulkImport(onImportComplete);
 
   return (
     <Card>

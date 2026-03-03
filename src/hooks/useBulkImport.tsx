@@ -6,7 +6,7 @@ import type { PreviewTransaction } from "@/components/ImportPreview";
 
 const BATCH_SIZE = 100;
 
-export const useBulkImport = () => {
+export const useBulkImport = (onImportComplete?: () => void) => {
   const [isImporting, setIsImporting] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -122,8 +122,13 @@ export const useBulkImport = () => {
       } else {
         toast({
           title: "Import Berhasil! ✅",
-          description: `${successCount} transaksi berhasil diimpor.`,
+          description: `${successCount} transaksi berhasil diimpor. Saldo siswa telah diperbarui otomatis.`,
         });
+      }
+
+      // Refresh data after successful import
+      if (successCount > 0 && onImportComplete) {
+        onImportComplete();
       }
     } catch (error: any) {
       console.error("[Import] Fatal error:", error);
@@ -131,7 +136,7 @@ export const useBulkImport = () => {
     } finally {
       setIsImporting(false);
     }
-  }, [studentMatches]);
+  }, [studentMatches, onImportComplete]);
 
   const handleCancel = useCallback(() => {
     setShowPreview(false);

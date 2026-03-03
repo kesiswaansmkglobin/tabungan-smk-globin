@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Eye, EyeOff, LogIn, User, Lock, GraduationCap } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff, LogIn, User, Lock, GraduationCap, BookOpen } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import { SecurityManager } from "@/utils/security";
 
 interface AuthProps {
@@ -196,6 +196,14 @@ export default function Auth({ onAuth }: AuthProps) {
               <GraduationCap className="w-4 h-4 mr-2" />
               Masuk sebagai Siswa
             </Button>
+            
+            <Link
+              to="/panduan"
+              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mt-3"
+            >
+              <BookOpen className="h-4 w-4" />
+              Panduan Pengguna
+            </Link>
           </div>
         </CardContent>
       </Card>
