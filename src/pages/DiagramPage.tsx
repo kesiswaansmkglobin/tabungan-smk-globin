@@ -891,12 +891,21 @@ const generatePDF = async (contentRef: React.RefObject<HTMLDivElement | null>) =
     const svgs = contentRef.current.querySelectorAll("svg");
     for (const svg of svgs) {
       try {
-        const svgData = new XMLSerializer().serializeToString(svg);
+        const svgClone = svg.cloneNode(true) as SVGElement;
+        // Inline all computed styles to avoid external references
+        const allElements = svgClone.querySelectorAll("*");
+        allElements.forEach((el) => {
+          const computed = window.getComputedStyle(el as Element);
+          (el as HTMLElement).style.cssText = computed.cssText;
+        });
+        if (!svgClone.getAttribute("xmlns")) {
+          svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+        }
+        const svgData = new XMLSerializer().serializeToString(svgClone);
+        const svgBase64 = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         const img = new Image();
-        const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-        const url = URL.createObjectURL(svgBlob);
 
         await new Promise<void>((resolve) => {
           img.onload = () => {
@@ -907,7 +916,6 @@ const generatePDF = async (contentRef: React.RefObject<HTMLDivElement | null>) =
             ctx!.fillRect(0, 0, canvas.width, canvas.height);
             ctx!.scale(scale, scale);
             ctx!.drawImage(img, 0, 0);
-            URL.revokeObjectURL(url);
 
             const imgData = canvas.toDataURL("image/png");
             doc.addPage();
@@ -917,11 +925,8 @@ const generatePDF = async (contentRef: React.RefObject<HTMLDivElement | null>) =
             doc.addImage(imgData, "PNG", m, m, imgW, finalH);
             resolve();
           };
-          img.onerror = () => {
-            URL.revokeObjectURL(url);
-            resolve();
-          };
-          img.src = url;
+          img.onerror = () => resolve();
+          img.src = svgBase64;
         });
       } catch {
         // Skip failed SVGs
