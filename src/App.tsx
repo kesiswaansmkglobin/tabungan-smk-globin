@@ -10,6 +10,7 @@ import LandingPage from "./pages/LandingPage";
 import Index from "./pages/Index";
 import StudentIndex from "./pages/StudentIndex";
 import Verifikasi from "./pages/Verifikasi";
+import DiagramPage from "./pages/DiagramPage";
 import UserGuide from "./components/UserGuide";
 import NotFound from "./pages/NotFound";
 
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/student" element={<StudentIndex />} />
           <Route path="/verifikasi" element={<Verifikasi />} />
           <Route path="/panduan" element={<UserGuide />} />
+          <Route path="/diagram" element={<DiagramPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
