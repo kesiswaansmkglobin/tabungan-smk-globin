@@ -35,7 +35,6 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  // Prefetch common components on idle
   usePrefetchOnIdle(['transaksi', 'data-siswa', 'laporan', 'data-kelas']);
 
   useEffect(() => {
@@ -72,48 +71,31 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
     fetchUserRole();
   }, []);
 
-  // Handle tab change with prefetch on hover
   const handleTabChange = useCallback((tab: string) => {
     setActiveTab(tab);
   }, []);
 
-  // Prefetch on hover
   const handleTabHover = useCallback((tab: string) => {
     prefetchComponent(tab);
   }, []);
 
   const renderContent = useMemo(() => {
     switch (activeTab) {
-      case "dashboard":
-        return <Dashboard />;
-      case "staff-dashboard":
-        return <LazyWrapper><LazyStaffDashboard /></LazyWrapper>;
-      case "staff-class-summary":
-        return <LazyWrapper><LazyStaffClassSummary /></LazyWrapper>;
-      case "data-sekolah":
-        return <LazyWrapper><LazyDataSekolah /></LazyWrapper>;
-      case "data-kelas":
-        return <LazyWrapper><LazyDataKelas /></LazyWrapper>;
-      case "data-siswa":
-        return <LazyWrapper><LazyDataSiswa /></LazyWrapper>;
-      case "pengguna":
-        return <LazyWrapper><LazyPengguna /></LazyWrapper>;
-      case "wali-kelas-view":
-        return <LazyWrapper><LazyWaliKelasView /></LazyWrapper>;
-      case "wali-kelas-data-siswa":
-        return <LazyWrapper><LazyWaliKelasDataSiswa /></LazyWrapper>;
-      case "transaksi":
-        return <LazyWrapper><LazyTransaksi /></LazyWrapper>;
-      case "laporan":
-        return <LazyWrapper><LazyLaporan /></LazyWrapper>;
-      case "riwayat-harian":
-        return <LazyWrapper><LazyRiwayatHarian /></LazyWrapper>;
-      case "audit-logs":
-        return <LazyWrapper><LazyAuditLogs /></LazyWrapper>;
-      case "pengaturan":
-        return <LazyWrapper><LazyPengaturan /></LazyWrapper>;
-      default:
-        return <Dashboard />;
+      case "dashboard": return <Dashboard />;
+      case "staff-dashboard": return <LazyWrapper><LazyStaffDashboard /></LazyWrapper>;
+      case "staff-class-summary": return <LazyWrapper><LazyStaffClassSummary /></LazyWrapper>;
+      case "data-sekolah": return <LazyWrapper><LazyDataSekolah /></LazyWrapper>;
+      case "data-kelas": return <LazyWrapper><LazyDataKelas /></LazyWrapper>;
+      case "data-siswa": return <LazyWrapper><LazyDataSiswa /></LazyWrapper>;
+      case "pengguna": return <LazyWrapper><LazyPengguna /></LazyWrapper>;
+      case "wali-kelas-view": return <LazyWrapper><LazyWaliKelasView /></LazyWrapper>;
+      case "wali-kelas-data-siswa": return <LazyWrapper><LazyWaliKelasDataSiswa /></LazyWrapper>;
+      case "transaksi": return <LazyWrapper><LazyTransaksi /></LazyWrapper>;
+      case "laporan": return <LazyWrapper><LazyLaporan /></LazyWrapper>;
+      case "riwayat-harian": return <LazyWrapper><LazyRiwayatHarian /></LazyWrapper>;
+      case "audit-logs": return <LazyWrapper><LazyAuditLogs /></LazyWrapper>;
+      case "pengaturan": return <LazyWrapper><LazyPengaturan /></LazyWrapper>;
+      default: return <Dashboard />;
     }
   }, [activeTab]);
 
@@ -127,28 +109,26 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
             onLogout={onLogout}
             onTabHover={handleTabHover}
           />
-          <div className="flex-1 flex flex-col">
-            {/* Mobile Header with Sidebar Trigger */}
-            <header className="md:hidden bg-card border-b border-border p-4 flex items-center justify-between">
-              <div className="flex items-center space-x-3">
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Mobile Header */}
+            <header className="md:hidden bg-card border-b border-border px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
                 <SidebarTrigger className="h-8 w-8 p-0 hover:bg-accent border-none bg-transparent">
                   <Menu className="h-4 w-4" />
                 </SidebarTrigger>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <img 
                     src="/lovable-uploads/70e205f3-a154-4080-aafb-efcf72ea7c09.png" 
                     alt="Logo SMK Globin" 
                     className="h-6 w-6 object-contain"
                   />
-                  <h1 className="font-bold text-foreground text-sm">SMK Globin</h1>
+                  <span className="font-semibold text-foreground text-sm">SMK Globin</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-              </div>
+              <ThemeToggle />
             </header>
             
-            <main className="flex-1 p-4 md:p-6">
+            <main className="flex-1 p-4 md:p-6 overflow-auto">
               {renderContent}
             </main>
           </div>
