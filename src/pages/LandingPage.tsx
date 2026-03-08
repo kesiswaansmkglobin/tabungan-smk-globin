@@ -107,7 +107,7 @@ export default function LandingPage() {
               </div>
               <h1 className="text-4xl md:text-5xl font-bold text-foreground leading-tight mb-5">
                 Kelola Tabungan Siswa{" "}
-                <span className="bg-gradient-primary bg-clip-text text-transparent">Lebih Mudah & Aman</span>
+                <span className="text-primary">Lebih Mudah & Aman</span>
               </h1>
               <p className="text-lg text-muted-foreground max-w-xl mb-8 leading-relaxed">
                 Platform digital untuk mengelola tabungan siswa {schoolName} dengan sistem keamanan modern, laporan real-time, dan akses multi-platform.
@@ -204,7 +204,7 @@ export default function LandingPage() {
                 <Reveal key={s.label} delay={i * 0.1}>
                   <Card className="text-center border-border/50 h-full">
                     <CardContent className="p-5">
-                      <p className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">{s.value}</p>
+                      <p className="text-2xl font-bold text-primary">{s.value}</p>
                       <p className="text-sm font-medium text-foreground mt-1">{s.label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
                     </CardContent>
