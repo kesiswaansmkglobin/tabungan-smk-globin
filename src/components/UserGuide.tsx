@@ -426,7 +426,7 @@ const generatePDF = () => {
         doc.setFont("helvetica", "italic");
         section.tips.forEach((tip) => {
           checkPage(6);
-          const tipLines = doc.splitTextToSize(`💡 ${tip}`, contentWidth - 8);
+          const tipLines = doc.splitTextToSize(`* ${tip}`, contentWidth - 8);
           doc.text(tipLines, margin + 6, y);
           y += tipLines.length * 3.5 + 1;
         });
