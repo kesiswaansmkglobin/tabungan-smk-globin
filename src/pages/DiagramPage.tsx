@@ -1068,7 +1068,7 @@ const DiagramPage = () => {
   }, []);
 
   const handleDownload = useCallback(() => {
-    generatePDF(contentRef);
+    generatePDF();
   }, []);
 
   return (
