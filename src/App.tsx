@@ -33,17 +33,15 @@ const App = () => (
       <Sonner />
       <InstallPWA />
       <BrowserRouter>
-        <StudentAuthProvider>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Index />} />
-            <Route path="/student" element={<StudentIndex />} />
-            <Route path="/verifikasi" element={<Verifikasi />} />
-            <Route path="/panduan" element={<UserGuide />} />
-            <Route path="/diagram" element={<DiagramPage />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </StudentAuthProvider>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Index />} />
+          <Route path="/student" element={<StudentAuthProvider><StudentIndex /></StudentAuthProvider>} />
+          <Route path="/verifikasi" element={<Verifikasi />} />
+          <Route path="/panduan" element={<UserGuide />} />
+          <Route path="/diagram" element={<DiagramPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
