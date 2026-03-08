@@ -93,8 +93,8 @@ const DiagramPage = () => {
       <div ref={contentRef} className="max-w-5xl mx-auto px-4 py-8 space-y-10">
 
         {/* 1. Flowchart */}
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg text-foreground">1. Flowchart — Alur Sistem Tabungan</CardTitle></CardHeader>
+        <Card className="border-border/50 diagram-card">
+          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">1. Flowchart — Alur Sistem Tabungan</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
 {`
@@ -145,8 +145,8 @@ const DiagramPage = () => {
         </Card>
 
         {/* 2. ERD */}
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg text-foreground">2. Entity Relationship Diagram (ERD)</CardTitle></CardHeader>
+        <Card className="border-border/50 diagram-card">
+          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">2. Entity Relationship Diagram (ERD)</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
 {`
@@ -210,8 +210,8 @@ Relasi:
         </Card>
 
         {/* 3. LRS */}
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg text-foreground">3. Logical Record Structure (LRS)</CardTitle></CardHeader>
+        <Card className="border-border/50 diagram-card">
+          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">3. Logical Record Structure (LRS)</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
 {`
@@ -250,8 +250,8 @@ Keterangan:
         </Card>
 
         {/* 4. DFD */}
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg text-foreground">4. Data Flow Diagram (DFD)</CardTitle></CardHeader>
+        <Card className="border-border/50 diagram-card">
+          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">4. Data Flow Diagram (DFD)</CardTitle></CardHeader>
           <CardContent className="space-y-6 overflow-x-auto">
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-2">Level 0 — Context Diagram</h4>
@@ -319,8 +319,8 @@ Keterangan:
         </Card>
 
         {/* 5. Use Case */}
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg text-foreground">5. Use Case Diagram</CardTitle></CardHeader>
+        <Card className="border-border/50 diagram-card">
+          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">5. Use Case Diagram</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
 {`
@@ -372,8 +372,8 @@ Keterangan:
         </Card>
 
         {/* 6. Class Diagram */}
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg text-foreground">6. Class Diagram</CardTitle></CardHeader>
+        <Card className="border-border/50 diagram-card">
+          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">6. Class Diagram</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto">
             <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
 {`
@@ -453,8 +453,8 @@ Keterangan:
         </Card>
 
         {/* 7. Sequence Diagram */}
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg text-foreground">7. Sequence Diagram</CardTitle></CardHeader>
+        <Card className="border-border/50 diagram-card">
+          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">7. Sequence Diagram</CardTitle></CardHeader>
           <CardContent className="space-y-6 overflow-x-auto">
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-2">a. Proses Setoran (Admin/Staff)</h4>
@@ -541,8 +541,8 @@ Admin                Frontend             Supabase DB           jsPDF
         </Card>
 
         {/* 8. Activity Diagram */}
-        <Card className="border-border/50">
-          <CardHeader><CardTitle className="text-lg text-foreground">8. Activity Diagram</CardTitle></CardHeader>
+        <Card className="border-border/50 diagram-card">
+          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">8. Activity Diagram</CardTitle></CardHeader>
           <CardContent className="space-y-6 overflow-x-auto">
             <div>
               <h4 className="text-sm font-semibold text-foreground mb-2">a. Aktivitas Transaksi Tabungan</h4>
