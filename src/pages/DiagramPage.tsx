@@ -1,764 +1,1073 @@
-import React, { useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useEffect, useRef, useCallback, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ArrowLeft, Download, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
+import mermaid from "mermaid";
 
+// ─── Mermaid Renderer ───────────────────────────────────────────────
+const MermaidChart = ({ id, chart }: { id: string; chart: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.innerHTML = "";
+    mermaid
+      .render(`mermaid-${id}`, chart.trim())
+      .then(({ svg }) => {
+        if (ref.current) ref.current.innerHTML = svg;
+      })
+      .catch(() => {
+        if (ref.current)
+          ref.current.innerHTML = `<pre class="text-xs text-destructive p-4">Diagram gagal dirender</pre>`;
+      });
+  }, [id, chart]);
+
+  return <div ref={ref} className="flex justify-center overflow-x-auto py-2" />;
+};
+
+// ─── Diagram Data ───────────────────────────────────────────────────
+interface DiagramSection {
+  id: string;
+  number: number;
+  title: string;
+  badge: string;
+  description: string;
+  details: string[];
+  charts: { subtitle?: string; code: string }[];
+}
+
+const diagrams: DiagramSection[] = [
+  {
+    id: "flowchart",
+    number: 1,
+    title: "Flowchart — Alur Sistem Tabungan",
+    badge: "Flowchart",
+    description:
+      "Flowchart menggambarkan alur kerja utama sistem tabungan siswa, mulai dari proses autentikasi pengguna hingga operasi transaksi keuangan. Diagram ini mencakup decision point untuk validasi login, pemilihan jenis transaksi, dan pengecekan saldo sebelum penarikan.",
+    details: [
+      "Sistem dimulai dengan halaman landing publik yang menyediakan tiga jalur masuk: Login Admin/Staff, Portal Siswa (NIS/QR), dan Verifikasi Buku Tabungan.",
+      "Proses autentikasi Admin/Staff menggunakan Supabase Auth dengan email dan password, sedangkan siswa menggunakan fungsi RPC khusus yang memverifikasi NIS dan password via bcrypt.",
+      "Setelah login berhasil, sistem mendeteksi role pengguna (admin, staff, wali_kelas) dan mengarahkan ke dashboard yang sesuai dengan hak akses masing-masing.",
+      "Proses transaksi memiliki dua jalur: Setoran (langsung menambah saldo) dan Penarikan (memerlukan validasi saldo mencukupi sebelum diproses).",
+      "Setiap transaksi yang berhasil akan memicu database trigger untuk memperbarui saldo siswa secara atomik dan mencatat aktivitas di audit log.",
+    ],
+    charts: [
+      {
+        code: `flowchart TD
+    A([Mulai]) --> B[Buka Aplikasi]
+    B --> C{Pilih Akses}
+    C -->|Admin/Staff| D[Input Email & Password]
+    C -->|Siswa| E[Input NIS & Password / Scan QR]
+    C -->|Publik| F[Verifikasi Buku Tabungan]
+    D --> G{Autentikasi Valid?}
+    E --> H{Autentikasi Valid?}
+    G -->|Ya| I{Deteksi Role}
+    G -->|Tidak| J[Tampilkan Error] --> D
+    H -->|Ya| K[Dashboard Siswa]
+    H -->|Tidak| L[Tampilkan Error] --> E
+    I -->|Admin| M[Dashboard Admin]
+    I -->|Staff| N[Dashboard Staff]
+    I -->|Wali Kelas| O[Dashboard Wali Kelas]
+    M --> P{Pilih Menu}
+    P --> Q[Transaksi]
+    P --> R[Data Master]
+    P --> S[Laporan]
+    P --> T[Pengaturan]
+    Q --> U{Jenis Transaksi}
+    U -->|Setor| V[Input Jumlah Setoran]
+    U -->|Tarik| W[Input Jumlah Penarikan]
+    V --> X[Proses & Simpan]
+    W --> Y{Saldo Cukup?}
+    Y -->|Ya| X
+    Y -->|Tidak| Z[Tampilkan Error Saldo] --> Q
+    X --> AA[Update Saldo Siswa]
+    AA --> AB[Catat Audit Log]
+    AB --> AC[Tampilkan Notifikasi Sukses]
+    AC --> AD([Selesai])
+    F --> AE[Input NIS / Scan QR]
+    AE --> AF{Data Ditemukan?}
+    AF -->|Ya| AG[Tampilkan Info Siswa & Saldo]
+    AF -->|Tidak| AH[Data Tidak Ditemukan]
+    K --> AD
+    AG --> AD`,
+      },
+    ],
+  },
+  {
+    id: "erd",
+    number: 2,
+    title: "Entity Relationship Diagram (ERD)",
+    badge: "ERD",
+    description:
+      "ERD menggambarkan struktur database dan hubungan antar entitas dalam sistem tabungan siswa. Database menggunakan PostgreSQL melalui Supabase dengan Row-Level Security (RLS) untuk mengamankan akses data berdasarkan role pengguna.",
+    details: [
+      "Entitas utama adalah students yang menyimpan data siswa termasuk NIS (unik), nama, password (di-hash dengan bcrypt), saldo, dan QR login token.",
+      "Relasi classes ke students bersifat one-to-many (1:N) — satu kelas memiliki banyak siswa, namun setiap siswa hanya terdaftar di satu kelas.",
+      "Relasi students ke transactions bersifat one-to-many (1:N) — setiap siswa dapat memiliki banyak transaksi, dengan field saldo_setelah yang mencatat saldo setelah setiap transaksi.",
+      "Entitas wali_kelas memiliki relasi one-to-one (1:1) dengan classes dan profiles, memastikan setiap kelas hanya diampu oleh satu wali kelas.",
+      "Tabel user_roles terpisah dari profiles untuk mencegah privilege escalation — role dikelola melalui security definer function has_role().",
+      "Tabel audit_logs mencatat semua aktivitas CRUD dengan detail perubahan dalam format JSON, user identifier, dan IP address untuk keperluan audit trail.",
+      "student_sessions menyimpan token sesi siswa dengan mekanisme expiry (7 hari) untuk keamanan akses portal siswa.",
+    ],
+    charts: [
+      {
+        code: `erDiagram
+    school_data {
+        uuid id PK
+        varchar nama_sekolah
+        varchar alamat_sekolah
+        varchar tahun_ajaran
+        varchar nama_pengelola
+        varchar jabatan_pengelola
+        varchar kontak_pengelola
+        text logo_sekolah
+        text tanda_tangan_pengelola
+    }
+    classes {
+        uuid id PK
+        varchar nama_kelas
+        timestamp created_at
+        timestamp updated_at
+    }
+    students {
+        uuid id PK
+        uuid kelas_id FK
+        varchar nis UK
+        varchar nama
+        varchar password
+        numeric saldo
+        varchar qr_login_token
+    }
+    transactions {
+        uuid id PK
+        uuid student_id FK
+        varchar jenis
+        numeric jumlah
+        numeric saldo_setelah
+        date tanggal
+        varchar admin
+        text keterangan
+    }
+    profiles {
+        uuid id PK
+        varchar email
+        varchar full_name
+        enum role
+        boolean email_visible
+    }
+    user_roles {
+        uuid id PK
+        uuid user_id FK
+        enum role
+    }
+    wali_kelas {
+        uuid id PK
+        uuid user_id FK
+        uuid kelas_id FK
+        varchar nama
+        varchar nip
+    }
+    student_sessions {
+        uuid id PK
+        uuid student_id FK
+        varchar session_token
+        timestamp expires_at
+        timestamp last_accessed
+    }
+    audit_logs {
+        uuid id PK
+        varchar action
+        varchar table_name
+        varchar record_id
+        varchar user_id
+        varchar user_type
+        jsonb details
+        varchar ip_address
+    }
+    notification_settings {
+        uuid id PK
+        boolean whatsapp_enabled
+        varchar admin_whatsapp_number
+        time whatsapp_send_time
+    }
+
+    classes ||--o{ students : "memiliki"
+    students ||--o{ transactions : "melakukan"
+    students ||--o{ student_sessions : "memiliki"
+    classes ||--|| wali_kelas : "diampu"
+    profiles ||--|| wali_kelas : "berperan"
+    profiles ||--o{ user_roles : "memiliki"`,
+      },
+    ],
+  },
+  {
+    id: "lrs",
+    number: 3,
+    title: "Logical Record Structure (LRS)",
+    badge: "LRS",
+    description:
+      "LRS menunjukkan struktur logis record dan relasi antar tabel secara lebih ringkas dibandingkan ERD. Setiap tabel ditampilkan dengan primary key, foreign key, dan atribut-atribut utama beserta tipe datanya.",
+    details: [
+      "Primary Key (PK) menggunakan UUID v4 yang di-generate otomatis oleh PostgreSQL menggunakan gen_random_uuid() untuk menghindari konflik ID.",
+      "Foreign Key (FK) menerapkan ON DELETE CASCADE pada relasi kritis seperti student_sessions dan transactions, sehingga data terkait otomatis terhapus saat data induk dihapus.",
+      "Constraint UNIQUE diterapkan pada nis di tabel students dan kombinasi (user_id, role) di tabel user_roles untuk menjaga integritas data.",
+      "Tipe enum app_role didefinisikan di level database dengan nilai: admin, teacher, student, wali_kelas, staff — memastikan hanya role valid yang bisa disimpan.",
+      "Field saldo pada tabel students menggunakan tipe numeric untuk presisi desimal yang akurat dalam pencatatan keuangan.",
+    ],
+    charts: [
+      {
+        code: `classDiagram
+    class school_data {
+        +uuid id [PK]
+        +varchar nama_sekolah
+        +varchar alamat_sekolah
+        +varchar tahun_ajaran
+        +varchar nama_pengelola
+        +varchar jabatan_pengelola
+        +varchar kontak_pengelola
+        +text logo_sekolah
+        +text tanda_tangan_pengelola
+    }
+    class classes {
+        +uuid id [PK]
+        +varchar nama_kelas
+        +timestamp created_at
+        +timestamp updated_at
+    }
+    class students {
+        +uuid id [PK]
+        +uuid kelas_id [FK]
+        +varchar nis [UNIQUE]
+        +varchar nama
+        +varchar password [bcrypt]
+        +numeric saldo
+        +varchar qr_login_token
+    }
+    class transactions {
+        +uuid id [PK]
+        +uuid student_id [FK]
+        +varchar jenis
+        +numeric jumlah
+        +numeric saldo_setelah
+        +date tanggal
+        +varchar admin
+        +text keterangan
+    }
+    class profiles {
+        +uuid id [PK]
+        +varchar email
+        +varchar full_name
+        +enum role
+    }
+    class user_roles {
+        +uuid id [PK]
+        +uuid user_id [FK]
+        +enum role
+    }
+    class wali_kelas {
+        +uuid id [PK]
+        +uuid user_id [FK, UNIQUE]
+        +uuid kelas_id [FK, UNIQUE]
+        +varchar nama
+        +varchar nip
+    }
+    class student_sessions {
+        +uuid id [PK]
+        +uuid student_id [FK]
+        +varchar session_token
+        +timestamp expires_at
+    }
+    class audit_logs {
+        +uuid id [PK]
+        +varchar action
+        +varchar table_name
+        +jsonb details
+    }
+    class notification_settings {
+        +uuid id [PK]
+        +boolean whatsapp_enabled
+        +varchar admin_whatsapp_number
+    }
+
+    classes "1" --> "*" students : kelas_id
+    students "1" --> "*" transactions : student_id
+    students "1" --> "*" student_sessions : student_id
+    classes "1" --> "1" wali_kelas : kelas_id
+    profiles "1" --> "1" wali_kelas : user_id
+    profiles "1" --> "*" user_roles : user_id`,
+      },
+    ],
+  },
+  {
+    id: "dfd",
+    number: 4,
+    title: "Data Flow Diagram (DFD)",
+    badge: "DFD",
+    description:
+      "DFD menggambarkan aliran data antara entitas eksternal, proses, dan data store dalam sistem. Diagram ini disajikan dalam dua level: Context Diagram (Level 0) yang menunjukkan gambaran besar, dan Decomposition (Level 1) yang merinci setiap proses utama.",
+    details: [
+      "Level 0 (Context Diagram) menunjukkan empat entitas eksternal: Admin, Staff, Wali Kelas, dan Siswa — masing-masing berinteraksi dengan sistem melalui aliran data yang berbeda.",
+      "Level 1 merinci sistem menjadi 6 proses utama: Manajemen Data Master, Proses Transaksi, Laporan & Analitik, Manajemen Pengguna, Portal Siswa, dan Monitoring Kelas.",
+      "Data Store utama meliputi: D1 (classes), D2 (students), D3 (school_data), D4 (transactions), D5 (profiles), D6 (user_roles), D7 (audit_logs), D8 (wali_kelas), D9 (student_sessions).",
+      "Aliran data transaksi bersifat bidirectional — data masuk berupa input transaksi dan data keluar berupa konfirmasi saldo terupdate.",
+      "Proses Laporan & Analitik mengambil data dari multiple data store (transactions, students, school_data) untuk menghasilkan output PDF/Excel.",
+    ],
+    charts: [
+      {
+        subtitle: "Level 0 — Context Diagram",
+        code: `flowchart LR
+    Admin([Admin]) -->|Data Siswa, Kelas, Transaksi, Pengaturan| SYS[Sistem Tabungan Siswa]
+    SYS -->|Laporan, Dashboard, Audit Log| Admin
+    Staff([Staff]) -->|Input Transaksi| SYS
+    SYS -->|Ringkasan Kelas, Riwayat| Staff
+    WK([Wali Kelas]) ---|Read-only: Data Siswa Kelas| SYS
+    Siswa([Siswa]) -->|NIS / Password / QR Code| SYS
+    SYS -->|Saldo, Riwayat Transaksi| Siswa
+    Publik([Publik]) -->|NIS / QR untuk Verifikasi| SYS
+    SYS -->|Hasil Verifikasi Buku Tabungan| Publik`,
+      },
+      {
+        subtitle: "Level 1 — Decomposition",
+        code: `flowchart TD
+    subgraph External Entities
+        A([Admin])
+        B([Staff])
+        C([Wali Kelas])
+        D([Siswa])
+    end
+    subgraph "Proses Utama"
+        P1((1.0 Manajemen Data Master))
+        P2((2.0 Proses Transaksi))
+        P3((3.0 Laporan dan Analitik))
+        P4((4.0 Manajemen Pengguna))
+        P5((5.0 Portal Siswa))
+        P6((6.0 Monitoring Kelas))
+    end
+    subgraph Data Stores
+        D1[(D1 classes)]
+        D2[(D2 students)]
+        D3[(D3 school_data)]
+        D4[(D4 transactions)]
+        D5[(D5 profiles)]
+        D6[(D6 user_roles)]
+        D7[(D7 audit_logs)]
+        D8[(D8 wali_kelas)]
+        D9[(D9 student_sessions)]
+    end
+    A --> P1
+    A --> P2
+    A --> P3
+    A --> P4
+    B --> P2
+    B --> P3
+    C --> P6
+    D --> P5
+    P1 --> D1
+    P1 --> D2
+    P1 --> D3
+    P2 --> D4
+    P2 --> D2
+    P2 --> D7
+    P3 --> D4
+    P3 --> D2
+    P4 --> D5
+    P4 --> D6
+    P4 --> D8
+    P5 --> D2
+    P5 --> D4
+    P5 --> D9
+    P6 --> D2
+    P6 --> D4`,
+      },
+    ],
+  },
+  {
+    id: "usecase",
+    number: 5,
+    title: "Use Case Diagram",
+    badge: "Use Case",
+    description:
+      "Use Case Diagram menggambarkan interaksi antara aktor (pengguna) dengan fungsionalitas sistem. Setiap aktor memiliki hak akses yang berbeda sesuai role, diimplementasikan melalui Row-Level Security (RLS) di Supabase dan pengecekan role di frontend.",
+    details: [
+      "Admin memiliki akses penuh ke seluruh use case termasuk CRUD data master, proses transaksi, manajemen pengguna, backup/restore, dan konfigurasi notifikasi WhatsApp.",
+      "Staff dapat memproses transaksi (setoran/penarikan), melihat riwayat harian (read-only), dan mengekspor ringkasan kelas — namun tidak bisa mengedit/menghapus transaksi atau mengakses data master.",
+      "Wali Kelas memiliki akses read-only yang terbatas pada kelas yang diampu — bisa melihat daftar siswa, saldo, dan riwayat transaksi siswa di kelasnya.",
+      "Siswa hanya bisa mengakses portal siswa untuk melihat saldo dan riwayat transaksi pribadi. Login menggunakan NIS + password atau scan QR Code.",
+      "Aktor Publik (tanpa login) dapat mengakses fitur verifikasi buku tabungan, halaman landing, dan panduan pengguna.",
+      "Relationship include diterapkan pada: Proses Transaksi --include--> Validasi Saldo, dan Export Laporan --include--> Fetch Data Sekolah.",
+    ],
+    charts: [
+      {
+        code: `flowchart LR
+    subgraph Aktor
+        ADM([Admin])
+        STF([Staff])
+        WK([Wali Kelas])
+        SSW([Siswa])
+        PBK([Publik])
+    end
+    subgraph "Sistem Tabungan Siswa"
+        subgraph "Manajemen Data"
+            UC1[Kelola Data Sekolah]
+            UC2[Kelola Data Kelas]
+            UC3[Kelola Data Siswa]
+            UC4[Import Siswa Excel]
+        end
+        subgraph "Transaksi"
+            UC5[Proses Setoran]
+            UC6[Proses Penarikan]
+            UC7[Edit Transaksi]
+            UC8[Hapus Transaksi]
+            UC9[Import Transaksi Massal]
+        end
+        subgraph "Pelaporan"
+            UC10[Lihat Dashboard]
+            UC11[Generate Laporan]
+            UC12[Export PDF]
+            UC13[Export Excel]
+            UC14[Kirim Laporan WhatsApp]
+        end
+        subgraph "Pengguna"
+            UC15[Kelola Staff]
+            UC16[Kelola Wali Kelas]
+            UC17[Lihat Audit Log]
+        end
+        subgraph "Portal Siswa"
+            UC18[Login NIS dan Password]
+            UC19[Login QR Code]
+            UC20[Lihat Saldo]
+            UC21[Lihat Riwayat Transaksi]
+            UC22[Cetak Buku Tabungan]
+        end
+        subgraph "Akses Publik"
+            UC23[Verifikasi Buku Tabungan]
+            UC24[Lihat Landing Page]
+            UC25[Baca Panduan]
+        end
+        subgraph "Staff View"
+            UC26[Lihat Ringkasan Kelas]
+            UC27[Lihat Riwayat Harian]
+        end
+        subgraph "Wali Kelas View"
+            UC28[Lihat Siswa Perwalian]
+            UC29[Lihat Transaksi Kelas]
+        end
+        subgraph "Sistem"
+            UC30[Backup Database]
+            UC31[Restore Database]
+            UC32[Konfigurasi Notifikasi]
+        end
+    end
+    ADM --- UC1 & UC2 & UC3 & UC4
+    ADM --- UC5 & UC6 & UC7 & UC8 & UC9
+    ADM --- UC10 & UC11 & UC12 & UC13 & UC14
+    ADM --- UC15 & UC16 & UC17
+    ADM --- UC30 & UC31 & UC32
+    STF --- UC5 & UC6 & UC26 & UC27
+    STF --- UC12 & UC13
+    WK --- UC28 & UC29
+    SSW --- UC18 & UC19 & UC20 & UC21 & UC22
+    PBK --- UC23 & UC24 & UC25`,
+      },
+    ],
+  },
+  {
+    id: "class",
+    number: 6,
+    title: "Class Diagram",
+    badge: "Class",
+    description:
+      "Class Diagram menggambarkan struktur objek dalam sistem beserta atribut, method, dan hubungan antar class. Diagram ini merefleksikan arsitektur aplikasi yang menggunakan React hooks sebagai controller dan Supabase sebagai data layer.",
+    details: [
+      "Class Student merupakan entitas inti dengan method authenticate() yang memanggil fungsi RPC create_student_session, updateSaldo() melalui database trigger, dan generateQR() untuk membuat token login QR.",
+      "Class Transaction memiliki method process() yang menjalankan INSERT ke tabel transactions dan memicu trigger untuk update saldo atomik, serta delete() yang mengembalikan saldo.",
+      "Class Profile dan UserRole dipisahkan sesuai best practice keamanan — pengecekan role menggunakan security definer function has_role() untuk mencegah RLS recursion.",
+      "Class AuditLog bersifat append-only (hanya method log()) — tidak ada method update atau delete untuk menjaga integritas audit trail.",
+      "Class StudentSession menerapkan pattern session-based auth dengan method verify() untuk validasi token, logout() untuk invalidasi, dan cleanup() untuk pembersihan sesi expired.",
+      "Enum AppRole mendefinisikan 5 role: admin, teacher, student, wali_kelas, dan staff — digunakan di level database dan aplikasi.",
+    ],
+    charts: [
+      {
+        code: `classDiagram
+    class SchoolData {
+        -uuid id
+        -string nama_sekolah
+        -string alamat_sekolah
+        -string tahun_ajaran
+        -string nama_pengelola
+        -string jabatan_pengelola
+        -string kontak_pengelola
+        -string logo_sekolah
+        -string tanda_tangan
+        +update() void
+        +getSchoolName() string
+    }
+    class Class {
+        -uuid id
+        -string nama_kelas
+        -timestamp created_at
+        +getStudents() Student[]
+        +getWaliKelas() WaliKelas
+        +create() void
+        +update() void
+        +delete() void
+    }
+    class Student {
+        -uuid id
+        -string nis
+        -string nama
+        -uuid kelas_id
+        -string password
+        -numeric saldo
+        -string qr_login_token
+        +authenticate(nis, pw) Session
+        +updateSaldo(amount) void
+        +getTransactions() Transaction[]
+        +generateQR() string
+        +resetPassword() void
+    }
+    class Transaction {
+        -uuid id
+        -uuid student_id
+        -string jenis
+        -numeric jumlah
+        -numeric saldo_setelah
+        -date tanggal
+        -string admin
+        -string keterangan
+        +process() void
+        +update() void
+        +delete() void
+    }
+    class Profile {
+        -uuid id
+        -string email
+        -string full_name
+        -AppRole role
+        +getRole() AppRole
+        +hasRole(role) boolean
+    }
+    class UserRole {
+        -uuid id
+        -uuid user_id
+        -AppRole role
+        +hasRole(uid, role) boolean
+    }
+    class WaliKelas {
+        -uuid id
+        -uuid user_id
+        -uuid kelas_id
+        -string nama
+        -string nip
+        +getStudents() Student[]
+        +getClassInfo() Class
+    }
+    class StudentSession {
+        -uuid id
+        -uuid student_id
+        -string session_token
+        -timestamp expires_at
+        +verify(token) string
+        +logout(token) boolean
+        +cleanup() number
+    }
+    class AuditLog {
+        -uuid id
+        -string action
+        -string table_name
+        -string record_id
+        -jsonb details
+        +log() uuid
+    }
+
+    Class "1" --> "*" Student : contains
+    Student "1" --> "*" Transaction : performs
+    Student "1" --> "*" StudentSession : has
+    Class "1" --> "1" WaliKelas : assigned
+    Profile "1" --> "1" WaliKelas : maps
+    Profile "1" --> "*" UserRole : has`,
+      },
+    ],
+  },
+  {
+    id: "sequence",
+    number: 7,
+    title: "Sequence Diagram",
+    badge: "Sequence",
+    description:
+      "Sequence Diagram menggambarkan interaksi antar komponen sistem secara kronologis untuk setiap skenario utama. Diagram ini menunjukkan pesan yang dikirim dan diterima antara aktor, frontend (React), backend (Supabase), dan database.",
+    details: [
+      "Skenario Setoran: Admin/Staff memilih siswa, mengisi form, lalu sistem melakukan INSERT ke tabel transactions. Database trigger otomatis memperbarui saldo siswa dan mencatat audit log.",
+      "Skenario Login Siswa: Frontend memanggil RPC create_student_session yang memverifikasi password via pgcrypto, membuat session token, dan mengembalikannya untuk disimpan di localStorage.",
+      "Skenario Login Admin: Menggunakan Supabase Auth signInWithPassword, diikuti pengecekan role via get_current_user_role() untuk menentukan dashboard yang ditampilkan.",
+      "Skenario Export PDF: Frontend mengambil data sekolah dan transaksi dari Supabase, lalu menggunakan jsPDF untuk generate dokumen dengan kop surat, tabel, dan tanda tangan pengelola.",
+    ],
+    charts: [
+      {
+        subtitle: "a. Proses Setoran Tabungan",
+        code: `sequenceDiagram
+    actor A as Admin/Staff
+    participant FE as Frontend React
+    participant SB as Supabase
+    participant DB as PostgreSQL
+    participant AL as Audit Log
+
+    A->>FE: Pilih kelas & siswa
+    FE->>SB: fetch students by class
+    SB-->>FE: Daftar siswa + saldo
+    FE-->>A: Tampilkan info siswa & saldo
+    A->>FE: Input jumlah setoran
+    A->>FE: Klik Proses Transaksi
+    FE->>SB: INSERT INTO transactions
+    SB->>DB: Execute INSERT
+    DB->>DB: Trigger update saldo siswa
+    DB->>AL: INSERT audit_log (CREATE)
+    DB-->>SB: Success + new record
+    SB-->>FE: Response success
+    FE-->>A: Toast Transaksi Berhasil`,
+      },
+      {
+        subtitle: "b. Login Siswa (NIS & Password)",
+        code: `sequenceDiagram
+    actor S as Siswa
+    participant FE as Frontend React
+    participant RPC as Supabase RPC
+    participant DB as PostgreSQL
+
+    S->>FE: Input NIS & Password
+    S->>FE: Klik Masuk
+    FE->>RPC: create_student_session(nis, pw)
+    RPC->>DB: SELECT student by NIS
+    DB-->>RPC: Student record
+    RPC->>RPC: bcrypt verify password
+    alt Password Valid
+        RPC->>DB: INSERT student_session
+        DB-->>RPC: Session token
+        RPC-->>FE: token + student info
+        FE->>FE: Save token to localStorage
+        FE-->>S: Redirect ke Dashboard Siswa
+    else Password Invalid
+        RPC-->>FE: Error invalid credentials
+        FE-->>S: Tampilkan pesan error
+    end`,
+      },
+      {
+        subtitle: "c. Login Admin/Staff",
+        code: `sequenceDiagram
+    actor A as Admin/Staff
+    participant FE as Frontend React
+    participant Auth as Supabase Auth
+    participant DB as PostgreSQL
+
+    A->>FE: Input email & password
+    A->>FE: Klik Masuk
+    FE->>Auth: signInWithPassword(email, pw)
+    Auth->>Auth: Verify credentials
+    alt Credentials Valid
+        Auth-->>FE: Session + User object
+        FE->>DB: get_current_user_role()
+        DB-->>FE: Role (admin/staff/wali_kelas)
+        FE->>FE: Set active tab by role
+        FE-->>A: Redirect ke Dashboard sesuai role
+    else Credentials Invalid
+        Auth-->>FE: Error auth
+        FE-->>A: Tampilkan pesan error
+    end`,
+      },
+      {
+        subtitle: "d. Export Laporan PDF",
+        code: `sequenceDiagram
+    actor A as Admin
+    participant FE as Frontend React
+    participant SB as Supabase
+    participant PDF as jsPDF Library
+
+    A->>FE: Set filter tanggal & kelas
+    A->>FE: Klik Export PDF
+    FE->>SB: fetch school_data
+    SB-->>FE: Data sekolah + logo + ttd
+    FE->>SB: fetch transactions (filtered)
+    SB-->>FE: Data transaksi
+    FE->>PDF: Initialize jsPDF A4
+    FE->>PDF: Render kop surat + logo
+    FE->>PDF: Render tabel transaksi
+    FE->>PDF: Render tanda tangan pengelola
+    PDF-->>FE: PDF Blob
+    FE-->>A: Download file PDF`,
+      },
+    ],
+  },
+  {
+    id: "activity",
+    number: 8,
+    title: "Activity Diagram",
+    badge: "Activity",
+    description:
+      "Activity Diagram menggambarkan alur aktivitas detail untuk setiap proses bisnis utama. Diagram ini menunjukkan langkah-langkah, decision point, dan parallel activities yang terjadi dalam sistem.",
+    details: [
+      "Aktivitas Transaksi memiliki dua jalur paralel setelah pemilihan jenis: Setoran (langsung ke input jumlah) dan Penarikan (melewati validasi saldo terlebih dahulu).",
+      "Aktivitas Login Siswa menyediakan dua metode yang bertemu di decision point validasi — keduanya menghasilkan session token jika berhasil.",
+      "Aktivitas Kelola Data Siswa mencakup tiga sub-aktivitas: Tambah Manual (form input), Import Excel (upload + preview + validasi), dan Edit/Hapus (pilih dari tabel).",
+      "Aktivitas Generate Laporan menunjukkan proses dari pemilihan filter hingga output file, dengan fork ke dua format: PDF (dengan kop surat) dan Excel (data mentah).",
+    ],
+    charts: [
+      {
+        subtitle: "a. Aktivitas Proses Transaksi",
+        code: `flowchart TD
+    S([Mulai]) --> A[Login sebagai Admin/Staff]
+    A --> B[Buka Menu Transaksi]
+    B --> C[Pilih Kelas]
+    C --> D[Pilih Siswa]
+    D --> E[Sistem Menampilkan Info Saldo]
+    E --> F{Pilih Jenis Transaksi}
+    F -->|Setor| G[Input Jumlah Setoran]
+    F -->|Tarik| H[Input Jumlah Penarikan]
+    H --> I{Saldo Mencukupi?}
+    I -->|Ya| J[Input Keterangan Opsional]
+    I -->|Tidak| K[Tampilkan Error Saldo Tidak Cukup] --> F
+    G --> J
+    J --> L[Pilih Tanggal Transaksi]
+    L --> M[Preview Saldo Sebelum dan Sesudah]
+    M --> N[Klik Proses Transaksi]
+    N --> O[INSERT ke Tabel Transactions]
+    O --> P[Database Trigger: Update Saldo Siswa]
+    P --> Q[Catat di Audit Log]
+    Q --> R[Tampilkan Notifikasi Sukses]
+    R --> T([Selesai])`,
+      },
+      {
+        subtitle: "b. Aktivitas Login Siswa",
+        code: `flowchart TD
+    S([Mulai]) --> A[Buka Halaman /student]
+    A --> B{Pilih Metode Login}
+    B -->|NIS dan Password| C[Input NIS]
+    B -->|QR Code| D[Scan QR dari Buku Tabungan]
+    C --> E[Input Password]
+    E --> F[Klik Masuk]
+    D --> G[Decode QR Token]
+    F --> H{Verifikasi Kredensial}
+    G --> H
+    H -->|Valid| I[Buat Session Token]
+    H -->|Tidak Valid| J[Tampilkan Pesan Error] --> B
+    I --> K[Simpan Token di localStorage]
+    K --> L[Tampilkan Dashboard Siswa]
+    L --> M[Lihat Saldo Terkini]
+    M --> N[Lihat Riwayat Transaksi]
+    N --> O([Selesai])`,
+      },
+      {
+        subtitle: "c. Aktivitas Kelola Data Siswa",
+        code: `flowchart TD
+    S([Mulai]) --> A[Buka Menu Data Siswa]
+    A --> B{Pilih Aksi}
+    B -->|Tambah Manual| C[Isi Form: NIS, Nama, Kelas]
+    B -->|Import Excel| D[Download Template Excel]
+    B -->|Edit| E[Pilih Siswa dari Tabel]
+    B -->|Hapus| F[Pilih Siswa dari Tabel]
+    D --> G[Isi Data di Template]
+    G --> H[Upload File Excel/CSV]
+    H --> I[Preview Data Import]
+    I --> J{Data Valid?}
+    J -->|Ya| K[Simpan Semua ke Database]
+    J -->|Tidak| L[Tampilkan Error Validasi] --> I
+    C --> M{Validasi NIS Unik?}
+    M -->|Ya| N[Simpan ke Database]
+    M -->|Tidak| O[Tampilkan Error NIS Duplikat] --> C
+    E --> P[Edit NIS / Nama / Kelas]
+    P --> Q[Simpan Perubahan]
+    F --> R{Konfirmasi Hapus?}
+    R -->|Ya| T[Hapus Siswa + Transaksi Terkait]
+    R -->|Tidak| U[Batal]
+    K --> V[Catat di Audit Log]
+    N --> V
+    Q --> V
+    T --> V
+    V --> W([Selesai])`,
+      },
+      {
+        subtitle: "d. Aktivitas Generate Laporan",
+        code: `flowchart TD
+    S([Mulai]) --> A[Buka Menu Laporan]
+    A --> B[Set Filter Tanggal Mulai]
+    B --> C[Set Filter Tanggal Akhir]
+    C --> D[Pilih Filter Kelas - Opsional]
+    D --> E[Pilih Filter Siswa - Opsional]
+    E --> F[Sistem Menampilkan Ringkasan]
+    F --> G[Total Setoran, Penarikan, Saldo Bersih]
+    G --> H{Pilih Format Export}
+    H -->|PDF| I[Fetch Data Sekolah - Logo dan TTD]
+    H -->|Excel| J[Generate File XLSX]
+    I --> K[Generate PDF dengan Kop Surat]
+    K --> L[Render Tabel Transaksi]
+    L --> M[Render Tanda Tangan Pengelola]
+    M --> N[Download File PDF]
+    J --> O[Download File Excel]
+    N --> P([Selesai])
+    O --> P`,
+      },
+    ],
+  },
+];
+
+// ─── PDF Generator ──────────────────────────────────────────────────
+const generatePDF = async (contentRef: React.RefObject<HTMLDivElement | null>) => {
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const m = 15;
+  const cw = pw - m * 2;
+
+  // Title page
+  doc.setFontSize(24);
+  doc.setFont("helvetica", "bold");
+  doc.text("Dokumentasi Diagram Sistem", pw / 2, 45, { align: "center" });
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "normal");
+  doc.text("Sistem Tabungan Siswa Digital", pw / 2, 58, { align: "center" });
+  doc.setFontSize(10);
+  doc.text(
+    `Digenerate: ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`,
+    pw / 2,
+    70,
+    { align: "center" }
+  );
+
+  // Table of contents
+  doc.addPage();
+  let y = m;
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("Daftar Isi", m, y + 5);
+  y += 14;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  diagrams.forEach((d, i) => {
+    doc.text(`${d.number}. ${d.title}`, m + 4, y);
+    y += 7;
+  });
+
+  // Each diagram
+  diagrams.forEach((d) => {
+    doc.addPage();
+    let y = m;
+
+    // Title
+    doc.setFontSize(15);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${d.number}. ${d.title}`, m, y + 5);
+    y += 12;
+
+    // Description
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const descLines = doc.splitTextToSize(d.description, cw);
+    doc.text(descLines, m, y);
+    y += descLines.length * 4 + 4;
+
+    // Details
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Penjelasan Detail:", m, y);
+    y += 6;
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    d.details.forEach((detail, idx) => {
+      if (y > ph - 20) {
+        doc.addPage();
+        y = m;
+      }
+      const lines = doc.splitTextToSize(`${idx + 1}. ${detail}`, cw - 4);
+      doc.text(lines, m + 2, y);
+      y += lines.length * 3.8 + 2;
+    });
+  });
+
+  // Render SVG diagrams as images
+  if (contentRef.current) {
+    const svgs = contentRef.current.querySelectorAll("svg");
+    for (const svg of svgs) {
+      try {
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+        const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(svgBlob);
+
+        await new Promise<void>((resolve) => {
+          img.onload = () => {
+            const scale = 2;
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            ctx!.fillStyle = "#ffffff";
+            ctx!.fillRect(0, 0, canvas.width, canvas.height);
+            ctx!.scale(scale, scale);
+            ctx!.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+
+            const imgData = canvas.toDataURL("image/png");
+            doc.addPage();
+            const imgW = cw;
+            const imgH = (img.height / img.width) * imgW;
+            const finalH = Math.min(imgH, ph - m * 2);
+            doc.addImage(imgData, "PNG", m, m, imgW, finalH);
+            resolve();
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve();
+          };
+          img.src = url;
+        });
+      } catch {
+        // Skip failed SVGs
+      }
+    }
+  }
+
+  doc.save("Diagram_Sistem_Tabungan_SMK_Globin.pdf");
+};
+
+// ─── Component ──────────────────────────────────────────────────────
 const DiagramPage = () => {
   const navigate = useNavigate();
   const contentRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
 
-  const generatePDF = () => {
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pageW = doc.internal.pageSize.getWidth();
-    const pageH = doc.internal.pageSize.getHeight();
-    const margin = 12;
-    const maxW = pageW - margin * 2;
-
-    // Title page
-    doc.setFontSize(22);
-    doc.setFont("courier", "bold");
-    doc.text("Dokumentasi Diagram Sistem", pageW / 2, 50, { align: "center" });
-    doc.setFontSize(14);
-    doc.setFont("courier", "normal");
-    doc.text("Sistem Tabungan Siswa — SMK Globin", pageW / 2, 62, { align: "center" });
-    doc.setFontSize(10);
-    doc.text(`Digenerate: ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`, pageW / 2, 74, { align: "center" });
-
-    // Extract all pre elements
-    if (!contentRef.current) return;
-    const cards = contentRef.current.querySelectorAll("pre");
-
-    cards.forEach((pre) => {
-      doc.addPage();
-      let y = margin;
-
-      // Find the card title
-      const card = pre.closest(".diagram-card");
-      const titleEl = card?.querySelector(".diagram-title");
-      const subTitleEl = pre.previousElementSibling;
-
-      if (titleEl) {
-        doc.setFontSize(13);
-        doc.setFont("courier", "bold");
-        doc.text(titleEl.textContent || "", margin, y + 5);
-        y += 10;
-      }
-
-      if (subTitleEl && subTitleEl.tagName === "H4") {
-        doc.setFontSize(10);
-        doc.setFont("courier", "bold");
-        doc.text(subTitleEl.textContent || "", margin, y + 4);
-        y += 8;
-      }
-
-      // Render pre content
-      const text = pre.textContent || "";
-      const lines = text.split("\n");
-      doc.setFontSize(6.5);
-      doc.setFont("courier", "normal");
-
-      lines.forEach((line) => {
-        if (y > pageH - margin) {
-          doc.addPage();
-          y = margin;
-        }
-        // Truncate if too wide
-        const trimmed = line.substring(0, 160);
-        doc.text(trimmed, margin, y);
-        y += 3;
-      });
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: document.documentElement.classList.contains("dark") ? "dark" : "default",
+      securityLevel: "loose",
+      flowchart: { htmlLabels: true, curve: "basis" },
+      sequence: { mirrorActors: false },
     });
+  }, []);
 
-    doc.save("Diagram_Sistem_Tabungan_SMK_Globin.pdf");
-  };
+  const handleDownload = useCallback(() => {
+    generatePDF(contentRef);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-1.5">
-              <ArrowLeft className="h-4 w-4" />Beranda
+              <ArrowLeft className="h-4 w-4" />
+              Beranda
             </Button>
-            <h1 className="ml-4 text-sm font-semibold text-foreground">Dokumentasi Diagram Sistem</h1>
+            <Separator orientation="vertical" className="h-5" />
+            <h1 className="text-sm font-semibold text-foreground hidden sm:block">Dokumentasi Diagram Sistem</h1>
           </div>
-          <Button size="sm" onClick={generatePDF} className="gap-1.5">
-            <Download className="h-4 w-4" />Unduh PDF
+          <Button size="sm" onClick={handleDownload} className="gap-1.5">
+            <Download className="h-4 w-4" />
+            Unduh PDF
           </Button>
         </div>
       </div>
 
-      <div ref={contentRef} className="max-w-5xl mx-auto px-4 py-8 space-y-10">
+      <div ref={contentRef} className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+        {/* Title */}
+        <div className="text-center space-y-2 pb-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dokumentasi Diagram Sistem</h1>
+          <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+            Dokumentasi teknis lengkap Sistem Tabungan Siswa Digital — mencakup 8 jenis diagram standar industri dengan penjelasan detail setiap komponen.
+          </p>
+        </div>
 
-        {/* 1. Flowchart */}
-        <Card className="border-border/50 diagram-card">
-          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">1. Flowchart — Alur Sistem Tabungan</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-┌─────────────┐
-│   START     │
-└──────┬──────┘
-       ▼
-┌──────────────────┐
-│ Buka Aplikasi    │
-└──────┬───────────┘
-       ▼
-  ┌─────────────┐
-  │ Pilih Login │
-  └──┬──────┬───┘
-     │      │
-     ▼      ▼
-┌────────┐ ┌──────────┐
-│ Admin/ │ │  Siswa   │
-│ Staff  │ │ (NIS/QR) │
-└───┬────┘ └────┬─────┘
-    │           │
-    ▼           ▼
-┌────────────┐ ┌───────────────┐
-│ Dashboard  │ │ Dashboard     │
-│ Admin/Staff│ │ Siswa         │
-└───┬────────┘ │ (Lihat Saldo, │
-    │          │  Riwayat)     │
-    ▼          └───────────────┘
-┌──────────────┐
-│ Pilih Menu   │
-├──────────────┤
-│ • Transaksi  │──▶ Pilih Siswa ──▶ Setor/Tarik ──▶ Simpan ──▶ Saldo Update
-│ • Data Siswa │──▶ Tambah/Edit/Hapus/Import
-│ • Data Kelas │──▶ Tambah/Edit/Hapus
-│ • Laporan    │──▶ Filter Tanggal ──▶ Export PDF/Excel
-│ • Pengguna   │──▶ Tambah Staff/Wali Kelas
-│ • Pengaturan │──▶ Backup/Restore/Notifikasi WA
-│ • Audit Log  │──▶ Lihat Riwayat Aktivitas
-└──────────────┘
-       │
-       ▼
-┌─────────────┐
-│    END      │
-└─────────────┘
-`}
-            </pre>
-          </CardContent>
-        </Card>
-
-        {/* 2. ERD */}
-        <Card className="border-border/50 diagram-card">
-          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">2. Entity Relationship Diagram (ERD)</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-┌─────────────────┐       ┌─────────────────────┐       ┌────────────────────┐
-│   school_data   │       │      classes         │       │     students       │
-├─────────────────┤       ├─────────────────────┤       ├────────────────────┤
-│ PK id           │       │ PK id               │◄──┐   │ PK id              │
-│    nama_sekolah │       │    nama_kelas       │   │   │ FK kelas_id ───────┤──┐
-│    alamat       │       │    created_at       │   │   │    nis (UNIQUE)    │  │
-│    tahun_ajaran │       │    updated_at       │   │   │    nama            │  │
-│    nama_pengelola│       └─────────────────────┘   │   │    password (hash) │  │
-│    jabatan      │                                  │   │    saldo           │  │
-│    kontak       │       ┌─────────────────────┐   │   │    qr_login_token  │  │
-│    logo_sekolah │       │    wali_kelas       │   │   └────────────────────┘  │
-│    tanda_tangan │       ├─────────────────────┤   │            │              │
-└─────────────────┘       │ PK id              │   │            │ 1            │
-                          │ FK user_id ────────┤──┤            │              │
-                          │ FK kelas_id (1:1) ─┤──┘            ▼ N            │
-┌─────────────────┐       │    nama            │   ┌────────────────────┐     │
-│    profiles     │       │    nip             │   │   transactions     │     │
-├─────────────────┤       └─────────────────────┘   ├────────────────────┤     │
-│ PK id           │                                 │ PK id              │     │
-│    email        │       ┌─────────────────────┐   │ FK student_id ─────┤─────┘
-│    full_name    │       │   user_roles        │   │    jenis (enum)    │
-│    role (enum)  │       ├─────────────────────┤   │    jumlah          │
-│    email_visible│       │ PK id              │   │    saldo_setelah   │
-└─────────────────┘       │ FK user_id         │   │    tanggal         │
-        │                 │    role (enum)      │   │    admin           │
-        │                 └─────────────────────┘   │    keterangan      │
-        │                                           └────────────────────┘
-        │
-        │           ┌─────────────────────┐   ┌────────────────────────┐
-        │           │  student_sessions   │   │     audit_logs         │
-        │           ├─────────────────────┤   ├────────────────────────┤
-        │           │ PK id              │   │ PK id                  │
-        │           │ FK student_id      │   │    action              │
-        │           │    session_token   │   │    table_name          │
-        │           │    expires_at      │   │    record_id           │
-        │           │    last_accessed   │   │    user_id             │
-        │           └─────────────────────┘   │    user_type           │
-        │                                     │    details (JSON)      │
-        │           ┌─────────────────────┐   │    ip_address          │
-        └──────────▶│ notification_settings│   └────────────────────────┘
-                    ├─────────────────────┤
-                    │ PK id              │
-                    │    whatsapp_enabled │
-                    │    whatsapp_number  │
-                    │    send_time       │
-                    └─────────────────────┘
-
-Relasi:
-• classes 1 ──── N students (satu kelas memiliki banyak siswa)
-• students 1 ──── N transactions (satu siswa memiliki banyak transaksi)
-• classes 1 ──── 1 wali_kelas (satu kelas satu wali kelas)
-• profiles 1 ──── 1 wali_kelas (satu user satu wali kelas)
-• profiles 1 ──── N user_roles (satu user bisa punya beberapa role)
-• students 1 ──── N student_sessions (satu siswa bisa punya beberapa sesi)
-`}
-            </pre>
-          </CardContent>
-        </Card>
-
-        {/* 3. LRS */}
-        <Card className="border-border/50 diagram-card">
-          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">3. Logical Record Structure (LRS)</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-school_data (id*, nama_sekolah, alamat_sekolah, tahun_ajaran, nama_pengelola, jabatan_pengelola, kontak_pengelola, logo_sekolah, tanda_tangan_pengelola)
-
-classes (id*, nama_kelas, created_at, updated_at)
-
-students (id*, kelas_id**, nis, nama, password, saldo, qr_login_token, created_at, updated_at)
-    └── kelas_id REFERENCES classes(id)
-
-transactions (id*, student_id**, jenis, jumlah, saldo_setelah, tanggal, admin, keterangan, created_at, updated_at)
-    └── student_id REFERENCES students(id)
-
-profiles (id*, email, full_name, role, email_visible, created_at, updated_at)
-
-user_roles (id*, user_id**, role, created_at)
-    └── user_id REFERENCES auth.users(id)
-
-wali_kelas (id*, user_id**, kelas_id**, nama, nip, created_at, updated_at)
-    └── user_id REFERENCES profiles(id)
-    └── kelas_id REFERENCES classes(id) [UNIQUE]
-
-student_sessions (id*, student_id**, session_token, expires_at, last_accessed, created_at)
-    └── student_id REFERENCES students(id)
-
-audit_logs (id*, action, table_name, record_id, user_id, user_identifier, user_type, details, ip_address, created_at)
-
-notification_settings (id*, whatsapp_enabled, admin_whatsapp_number, whatsapp_send_time, created_at, updated_at)
-
-Keterangan:
-  * = Primary Key
-  ** = Foreign Key
-`}
-            </pre>
-          </CardContent>
-        </Card>
-
-        {/* 4. DFD */}
-        <Card className="border-border/50 diagram-card">
-          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">4. Data Flow Diagram (DFD)</CardTitle></CardHeader>
-          <CardContent className="space-y-6 overflow-x-auto">
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">Level 0 — Context Diagram</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-    ┌─────────┐                                    ┌──────────┐
-    │  Admin  │──── Data Siswa, Kelas, Transaksi ──▶│          │
-    │         │◀─── Laporan, Dashboard ────────────│          │
-    └─────────┘                                    │          │
-                                                   │  Sistem  │
-    ┌─────────┐                                    │ Tabungan │
-    │  Staff  │──── Input Transaksi ───────────────▶│  Siswa   │
-    │         │◀─── Ringkasan, Riwayat ────────────│          │
-    └─────────┘                                    │          │
-                                                   │          │
-    ┌──────────┐                                   │          │
-    │  Wali    │◀─── Data Siswa Kelas ─────────────│          │
-    │  Kelas   │                                   │          │
-    └──────────┘                                   │          │
-                                                   │          │
-    ┌─────────┐                                    │          │
-    │  Siswa  │──── NIS/Password/QR ───────────────▶│          │
-    │         │◀─── Saldo, Riwayat Transaksi ──────│          │
-    └─────────┘                                    └──────────┘
-`}
-              </pre>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">Level 1 — Decomposition</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-                    ┌───────────────────┐
-  Admin ──────────▶ │ 1.0 Manajemen    │ ──▶ [D1] classes
-                    │     Data Master  │ ──▶ [D2] students
-                    └───────────────────┘ ──▶ [D3] school_data
-
-                    ┌───────────────────┐
-  Admin/Staff ────▶ │ 2.0 Proses       │ ──▶ [D4] transactions
-                    │     Transaksi    │ ──▶ [D2] students (update saldo)
-                    └───────────────────┘ ──▶ [D7] audit_logs
-
-                    ┌───────────────────┐
-  Admin ──────────▶ │ 3.0 Laporan &    │ ◀── [D4] transactions
-                    │     Analitik     │ ◀── [D2] students
-                    └───────────────────┘ ──▶ PDF/Excel Export
-
-                    ┌───────────────────┐
-  Admin ──────────▶ │ 4.0 Manajemen    │ ──▶ [D5] profiles
-                    │     Pengguna     │ ──▶ [D6] user_roles
-                    └───────────────────┘ ──▶ [D8] wali_kelas
-
-                    ┌───────────────────┐
-  Siswa ──────────▶ │ 5.0 Portal       │ ◀── [D2] students
-                    │     Siswa        │ ◀── [D4] transactions
-                    └───────────────────┘ ◀── [D9] student_sessions
-
-                    ┌───────────────────┐
-  Wali Kelas ────▶  │ 6.0 Monitoring   │ ◀── [D2] students
-                    │     Kelas        │ ◀── [D4] transactions
-                    └───────────────────┘
-`}
-              </pre>
+        {/* Table of Contents */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold text-foreground">Daftar Isi</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {diagrams.map((d) => (
+                <a
+                  key={d.id}
+                  href={`#${d.id}`}
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  <Badge variant="outline" className="text-[10px] shrink-0 w-5 h-5 flex items-center justify-center p-0">
+                    {d.number}
+                  </Badge>
+                  <span className="truncate">{d.badge}</span>
+                </a>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* 5. Use Case */}
-        <Card className="border-border/50 diagram-card">
-          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">5. Use Case Diagram</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        Sistem Tabungan Siswa                               │
-│                                                                            │
-│  ┌─────────────────────────────────┐  ┌──────────────────────────────────┐ │
-│  │ <<Admin>>                       │  │ <<Staff>>                        │ │
-│  │                                 │  │                                  │ │
-│  │ ○ Kelola Data Sekolah           │  │ ○ Proses Setoran                 │ │
-│  │ ○ Kelola Data Kelas             │  │ ○ Proses Penarikan               │ │
-│  │ ○ Kelola Data Siswa             │  │ ○ Lihat Riwayat Harian           │ │
-│  │ ○ Import Siswa dari Excel       │  │ ○ Lihat Ringkasan Kelas          │ │
-│  │ ○ Proses Setoran                │  │ ○ Export Ringkasan PDF/Excel     │ │
-│  │ ○ Proses Penarikan              │  │ ○ Lihat Dashboard Staff          │ │
-│  │ ○ Edit/Hapus Transaksi          │  └──────────────────────────────────┘ │
-│  │ ○ Lihat Riwayat Harian          │                                      │
-│  │ ○ Generate Laporan              │  ┌──────────────────────────────────┐ │
-│  │ ○ Export PDF/Excel              │  │ <<Wali Kelas>>                   │ │
-│  │ ○ Kelola Pengguna (Staff/Wali)  │  │                                  │ │
-│  │ ○ Backup/Restore Database       │  │ ○ Lihat Daftar Siswa Kelas       │ │
-│  │ ○ Import Transaksi Massal       │  │ ○ Lihat Saldo Siswa              │ │
-│  │ ○ Konfigurasi Notifikasi WA     │  │ ○ Lihat Riwayat Transaksi Siswa  │ │
-│  │ ○ Lihat Audit Log               │  │ ○ Lihat Dashboard Kelas          │ │
-│  │ ○ Cetak Buku Tabungan           │  └──────────────────────────────────┘ │
-│  │ ○ Generate QR Code Siswa        │                                      │
-│  │ ○ Reset Password Siswa          │  ┌──────────────────────────────────┐ │
-│  │ ○ Kirim Laporan WhatsApp        │  │ <<Siswa>>                        │ │
-│  │ ○ Lihat Dashboard               │  │                                  │ │
-│  └─────────────────────────────────┘  │ ○ Login NIS & Password           │ │
-│                                       │ ○ Login QR Code                  │ │
-│                                       │ ○ Lihat Saldo                    │ │
-│                                       │ ○ Lihat Riwayat Transaksi        │ │
-│                                       │ ○ Cetak Buku Tabungan            │ │
-│                                       │ ○ Logout                         │ │
-│                                       └──────────────────────────────────┘ │
-│                                                                            │
-│  ┌──────────────────────────────────┐                                      │
-│  │ <<Publik / Tanpa Login>>         │                                      │
-│  │                                  │                                      │
-│  │ ○ Verifikasi Buku Tabungan      │                                      │
-│  │ ○ Lihat Landing Page            │                                      │
-│  │ ○ Baca Panduan Pengguna         │                                      │
-│  └──────────────────────────────────┘                                      │
-└──────────────────────────────────────────────────────────────────────────────┘
-`}
-            </pre>
-          </CardContent>
-        </Card>
+        {/* Diagrams */}
+        {diagrams.map((d) => (
+          <Card key={d.id} id={d.id} className="border-border/50 scroll-mt-16">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-[10px]">
+                      {d.badge}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-lg text-foreground">{d.number}. {d.title}</CardTitle>
+                  <CardDescription className="text-xs leading-relaxed">{d.description}</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-xs gap-1"
+                  onClick={() => setActiveSection(activeSection === d.id ? null : d.id)}
+                >
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 transition-transform ${activeSection === d.id ? "rotate-180" : ""}`}
+                  />
+                  Detail
+                </Button>
+              </div>
+            </CardHeader>
 
-        {/* 6. Class Diagram */}
-        <Card className="border-border/50 diagram-card">
-          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">6. Class Diagram</CardTitle></CardHeader>
-          <CardContent className="overflow-x-auto">
-            <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-┌──────────────────────────┐     ┌──────────────────────────┐
-│       SchoolData         │     │         Class            │
-├──────────────────────────┤     ├──────────────────────────┤
-│ - id: UUID               │     │ - id: UUID               │
-│ - nama_sekolah: string   │     │ - nama_kelas: string     │
-│ - alamat_sekolah: string │     │ - created_at: timestamp  │
-│ - tahun_ajaran: string   │     │ - updated_at: timestamp  │
-│ - nama_pengelola: string │     ├──────────────────────────┤
-│ - jabatan_pengelola: str │     │ + getStudents(): Student[]│
-│ - kontak_pengelola: str  │     │ + getWaliKelas(): WaliKls│
-│ - logo_sekolah: string?  │     └────────────┬─────────────┘
-│ - tanda_tangan: string?  │                  │ 1
-├──────────────────────────┤                  │
-│ + update(): void         │                  │ N
-│ + getSchoolName(): string│     ┌────────────▼─────────────┐
-└──────────────────────────┘     │        Student           │
-                                 ├──────────────────────────┤
-┌──────────────────────────┐     │ - id: UUID               │
-│       Profile            │     │ - nis: string (UNIQUE)   │
-├──────────────────────────┤     │ - nama: string           │
-│ - id: UUID               │     │ - kelas_id: UUID (FK)    │
-│ - email: string?         │     │ - password: string       │
-│ - full_name: string?     │     │ - saldo: number          │
-│ - role: AppRole          │     │ - qr_login_token: str?   │
-│ - email_visible: boolean │     ├──────────────────────────┤
-├──────────────────────────┤     │ + authenticate(): bool   │
-│ + getRole(): AppRole     │     │ + updateSaldo(): void    │
-│ + hasRole(): boolean     │     │ + getTransactions(): Tx[]│
-└──────────┬───────────────┘     │ + generateQR(): string   │
-           │ 1                   │ + resetPassword(): void  │
-           │                     └────────────┬─────────────┘
-           │ 1                                │ 1
-┌──────────▼───────────────┐                  │
-│       WaliKelas          │                  │ N
-├──────────────────────────┤     ┌────────────▼─────────────┐
-│ - id: UUID               │     │      Transaction         │
-│ - user_id: UUID (FK)     │     ├──────────────────────────┤
-│ - kelas_id: UUID (FK,UQ) │     │ - id: UUID               │
-│ - nama: string           │     │ - student_id: UUID (FK)  │
-│ - nip: string?           │     │ - jenis: "setor"|"tarik" │
-├──────────────────────────┤     │ - jumlah: number         │
-│ + getStudents(): Student[]│     │ - saldo_setelah: number  │
-│ + getClassInfo(): Class  │     │ - tanggal: date          │
-└──────────────────────────┘     │ - admin: string          │
-                                 │ - keterangan: string?    │
-┌──────────────────────────┐     ├──────────────────────────┤
-│       UserRole           │     │ + process(): void        │
-├──────────────────────────┤     │ + delete(): void         │
-│ - id: UUID               │     │ + update(): void         │
-│ - user_id: UUID (FK)     │     └──────────────────────────┘
-│ - role: AppRole          │
-├──────────────────────────┤     ┌──────────────────────────┐
-│ + hasRole(): boolean     │     │      AuditLog            │
-└──────────────────────────┘     ├──────────────────────────┤
-                                 │ - id: UUID               │
-┌──────────────────────────┐     │ - action: string         │
-│     StudentSession       │     │ - table_name: string     │
-├──────────────────────────┤     │ - record_id: string?     │
-│ - id: UUID               │     │ - user_id: string?       │
-│ - student_id: UUID (FK)  │     │ - user_type: string      │
-│ - session_token: string  │     │ - details: JSON?         │
-│ - expires_at: timestamp  │     │ - ip_address: string?    │
-│ - last_accessed: timestamp│     ├──────────────────────────┤
-├──────────────────────────┤     │ + log(): UUID            │
-│ + verify(): string       │     └──────────────────────────┘
-│ + logout(): boolean      │
-│ + cleanup(): number      │     enum AppRole {
-└──────────────────────────┘       admin, teacher, student,
-                                   wali_kelas, staff
-                                 }
-`}
-            </pre>
-          </CardContent>
-        </Card>
+            {/* Expandable Details */}
+            {activeSection === d.id && (
+              <CardContent className="pt-0 pb-4">
+                <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Penjelasan Detail
+                  </p>
+                  {d.details.map((detail, idx) => (
+                    <div key={idx} className="flex gap-2.5">
+                      <div className="shrink-0 w-4 h-4 rounded-full bg-primary/10 text-primary text-[9px] font-bold flex items-center justify-center mt-0.5">
+                        {idx + 1}
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            )}
 
-        {/* 7. Sequence Diagram */}
-        <Card className="border-border/50 diagram-card">
-          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">7. Sequence Diagram</CardTitle></CardHeader>
-          <CardContent className="space-y-6 overflow-x-auto">
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">a. Proses Setoran (Admin/Staff)</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-Admin/Staff          Frontend             Supabase DB           Audit Log
-    │                    │                     │                     │
-    │─── Pilih Kelas ───▶│                     │                     │
-    │                    │── fetch students ──▶│                     │
-    │                    │◀── daftar siswa ────│                     │
-    │─── Pilih Siswa ──▶│                     │                     │
-    │                    │── fetch saldo ─────▶│                     │
-    │                    │◀── saldo terkini ──│                     │
-    │─── Isi Jumlah ───▶│                     │                     │
-    │─── Klik Proses ──▶│                     │                     │
-    │                    │── INSERT transaction▶│                     │
-    │                    │                     │── trigger ──────────▶│
-    │                    │                     │   update saldo       │── log CREATE
-    │                    │◀── sukses ──────────│                     │
-    │◀── Toast Sukses ──│                     │                     │
-`}
-              </pre>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">b. Login Siswa (NIS & Password)</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-Siswa                Frontend             Supabase RPC          Session Store
-    │                    │                     │                     │
-    │─── Input NIS ─────▶│                     │                     │
-    │─── Input Password ▶│                     │                     │
-    │─── Klik Masuk ────▶│                     │                     │
-    │                    │── create_student   ─▶│                     │
-    │                    │   _session(nis,pw)   │                     │
-    │                    │                     │── verify password    │
-    │                    │                     │── bcrypt compare     │
-    │                    │                     │── generate token ───▶│
-    │                    │◀── {token, student} │                     │
-    │                    │── save token ───────▶│ (localStorage)      │
-    │◀── Dashboard ─────│                     │                     │
-`}
-              </pre>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">c. Login Admin/Staff (Email & Password)</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-Admin/Staff          Frontend             Supabase Auth         Database
-    │                    │                     │                     │
-    │─── Input Email ───▶│                     │                     │
-    │─── Input Password ▶│                     │                     │
-    │─── Klik Masuk ────▶│                     │                     │
-    │                    │── signInWithPassword▶│                     │
-    │                    │                     │── verify ────────────│
-    │                    │◀── session + user ──│                     │
-    │                    │── get_current_role()▶│                     │──▶ user_roles
-    │                    │◀── role ────────────│                     │
-    │◀── Dashboard ─────│ (sesuai role)       │                     │
-`}
-              </pre>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">d. Export Laporan PDF</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-Admin                Frontend             Supabase DB           jsPDF
-    │                    │                     │                     │
-    │─── Set Filter ────▶│                     │                     │
-    │    (tanggal, kelas)│                     │                     │
-    │─── Klik Export ───▶│                     │                     │
-    │                    │── fetch school_data ▶│                     │
-    │                    │◀── data sekolah ────│                     │
-    │                    │── fetch transactions▶│                     │
-    │                    │◀── data transaksi ──│                     │
-    │                    │                     │                     │
-    │                    │── generate PDF ─────────────────────────▶│
-    │                    │   (kop, tabel, ttd)                      │
-    │                    │◀── blob PDF ────────────────────────────│
-    │◀── Download PDF ──│                     │                     │
-`}
-              </pre>
-            </div>
-          </CardContent>
-        </Card>
+            <Separator />
 
-        {/* 8. Activity Diagram */}
-        <Card className="border-border/50 diagram-card">
-          <CardHeader><CardTitle className="text-lg text-foreground diagram-title">8. Activity Diagram</CardTitle></CardHeader>
-          <CardContent className="space-y-6 overflow-x-auto">
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">a. Aktivitas Transaksi Tabungan</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-    (●) Start
-     │
-     ▼
-┌──────────────────┐
-│ Login sebagai    │
-│ Admin / Staff    │
-└────────┬─────────┘
-         ▼
-┌──────────────────┐
-│ Buka menu        │
-│ Transaksi        │
-└────────┬─────────┘
-         ▼
-┌──────────────────┐
-│ Pilih Kelas      │
-└────────┬─────────┘
-         ▼
-┌──────────────────┐
-│ Pilih Siswa      │
-│ (info saldo      │
-│  ditampilkan)    │
-└────────┬─────────┘
-         ▼
-    ◇ Pilih Jenis
-   ╱             ╲
-  ▼               ▼
-┌────────┐   ┌────────┐
-│ SETOR  │   │ TARIK  │
-└───┬────┘   └───┬────┘
-    │             │
-    ▼             ▼
-┌────────────┐  ◇ Saldo cukup?
-│ Input      │  │           │
-│ Jumlah     │  ▼ Ya        ▼ Tidak
-└────┬───────┘ ┌────────┐ ┌────────────┐
-     │         │Input   │ │Tampil Error│
-     │         │Jumlah  │ │"Saldo tidak│
-     │         └───┬────┘ │ cukup"     │
-     │             │      └────────────┘
-     ▼             ▼
-┌──────────────────────┐
-│ Klik Proses Transaksi│
-└────────┬─────────────┘
-         ▼
-┌──────────────────────┐
-│ Simpan ke database   │
-│ + Update saldo siswa │
-│ + Catat audit log    │
-└────────┬─────────────┘
-         ▼
-┌──────────────────────┐
-│ Tampilkan notifikasi │
-│ "Transaksi Berhasil" │
-└────────┬─────────────┘
-         ▼
-        (●) End
-`}
-              </pre>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">b. Aktivitas Login Siswa</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-    (●) Start
-     │
-     ▼
-┌──────────────────┐
-│ Buka halaman     │
-│ /student         │
-└────────┬─────────┘
-         ▼
-    ◇ Metode Login
-   ╱             ╲
-  ▼               ▼
-┌────────────┐ ┌───────────┐
-│ NIS &      │ │ Scan QR   │
-│ Password   │ │ Code      │
-└─────┬──────┘ └─────┬─────┘
-      │               │
-      ▼               ▼
-┌────────────┐ ┌───────────┐
-│ Input NIS  │ │ Arahkan   │
-│ & Password │ │ kamera    │
-└─────┬──────┘ └─────┬─────┘
-      │               │
-      └───────┬───────┘
-              ▼
-         ◇ Valid?
-        ╱       ╲
-       ▼ Ya      ▼ Tidak
-┌───────────┐ ┌────────────┐
-│ Buat      │ │ Tampilkan  │
-│ Session   │ │ error msg  │
-└─────┬─────┘ └────────────┘
-      ▼
-┌───────────────────┐
-│ Tampilkan         │
-│ Dashboard Siswa   │
-│ (saldo, riwayat)  │
-└─────┬─────────────┘
-      ▼
-     (●) End
-`}
-              </pre>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">c. Aktivitas Kelola Data Siswa (Admin)</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-    (●) Start
-     │
-     ▼
-┌──────────────────┐
-│ Buka menu        │
-│ Data Siswa       │
-└────────┬─────────┘
-         ▼
-    ◇ Pilih Aksi
-   ╱     │      ╲
-  ▼      ▼       ▼
-┌──────┐┌──────┐┌────────┐
-│Tambah││Import││Edit/   │
-│Manual││Excel ││Hapus   │
-└──┬───┘└──┬───┘└───┬────┘
-   │       │        │
-   ▼       ▼        ▼
-┌──────┐┌────────┐┌──────────┐
-│Isi   ││Upload  ││Pilih     │
-│Form  ││file &  ││siswa dari│
-│(NIS, ││preview ││tabel     │
-│Nama, ││data    ││          │
-│Kelas)││        ││          │
-└──┬───┘└──┬─────┘└───┬──────┘
-   │       │          │
-   ▼       ▼          ▼
-┌────────────────────────────┐
-│ Validasi data              │
-│ (NIS unik, format benar)  │
-└────────┬───────────────────┘
-         ▼
-    ◇ Valid?
-   ╱       ╲
-  ▼ Ya      ▼ Tidak
-┌──────────┐┌────────────┐
-│Simpan ke ││Tampilkan   │
-│database  ││pesan error │
-│+ audit   ││             │
-└──────┬───┘└────────────┘
-       ▼
-      (●) End
-`}
-              </pre>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground mb-2">d. Aktivitas Generate Laporan (Admin)</h4>
-              <pre className="text-xs text-muted-foreground bg-muted/30 p-4 rounded-lg whitespace-pre leading-relaxed font-mono">
-{`
-    (●) Start
-     │
-     ▼
-┌──────────────────┐
-│ Buka menu        │
-│ Laporan          │
-└────────┬─────────┘
-         ▼
-┌──────────────────┐
-│ Set filter:      │
-│ - Tanggal mulai  │
-│ - Tanggal akhir  │
-│ - Kelas          │
-│ - Siswa          │
-└────────┬─────────┘
-         ▼
-┌──────────────────┐
-│ Sistem menampilkan│
-│ ringkasan:       │
-│ - Total setoran  │
-│ - Total penarikan│
-│ - Saldo bersih   │
-└────────┬─────────┘
-         ▼
-    ◇ Pilih Export
-   ╱             ╲
-  ▼               ▼
-┌────────┐   ┌────────┐
-│  PDF   │   │ Excel  │
-└───┬────┘   └───┬────┘
-    │             │
-    ▼             ▼
-┌───────────┐┌──────────┐
-│Generate   ││Generate  │
-│PDF dengan ││file XLSX │
-│kop surat, ││dengan    │
-│tabel,     ││data      │
-│tanda      ││transaksi │
-│tangan     ││          │
-└─────┬─────┘└────┬─────┘
-      │           │
-      └─────┬─────┘
-            ▼
-┌──────────────────┐
-│ Download file    │
-└────────┬─────────┘
-         ▼
-        (●) End
-`}
-              </pre>
-            </div>
-          </CardContent>
-        </Card>
-
+            {/* Charts */}
+            <CardContent className="pt-4 space-y-6">
+              {d.charts.map((chart, cIdx) => (
+                <div key={cIdx}>
+                  {chart.subtitle && (
+                    <h4 className="text-sm font-semibold text-foreground mb-3">{chart.subtitle}</h4>
+                  )}
+                  <div className="bg-muted/20 rounded-lg p-4 border border-border/30">
+                    <MermaidChart id={`${d.id}-${cIdx}`} chart={chart.code} />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );
