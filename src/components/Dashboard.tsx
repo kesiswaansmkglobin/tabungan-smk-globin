@@ -2,15 +2,22 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Send, Loader2 } from "lucide-react";
 import { useAppData } from "@/hooks/useAppData";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import DashboardStats from "./dashboard/DashboardStats";
 import MonthlyChart from "./dashboard/MonthlyChart";
 import ErrorBoundary from "./ErrorBoundary";
+import { SkeletonDashboard } from "./ui/skeleton-loaders";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const Dashboard = React.memo(() => {
   const { dashboardStats, isLoading, refreshData } = useAppData();
   const [isSendingReport, setIsSendingReport] = useState(false);
+
+  // Realtime sync: auto-refresh when students or transactions change
+  useRealtimeSync("students", [["appData"]], true);
+  useRealtimeSync("transactions", [["appData"]], true);
+  useRealtimeSync("classes", [["appData"]], true);
 
   const handleSendWhatsAppReport = async () => {
     setIsSendingReport(true);
@@ -30,11 +37,7 @@ const Dashboard = React.memo(() => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (

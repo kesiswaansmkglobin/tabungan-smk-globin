@@ -1,8 +1,8 @@
-
 import React from "react";
 import { useState } from "react";
 import { CreditCard } from "lucide-react";
 import { useAppData } from "@/hooks/useAppData";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import TransactionForm from "./transaksi/TransactionForm";
 import StudentInfo from "./transaksi/StudentInfo";
 import TodayStats from "./transaksi/TodayStats";
@@ -13,6 +13,10 @@ const Transaksi = React.memo(() => {
   const [selectedSiswa, setSelectedSiswa] = useState("");
   const [jenisTransaksiPreview, setJenisTransaksiPreview] = useState<"Setor" | "Tarik">("Setor");
   const [jumlahUangPreview, setJumlahUangPreview] = useState("");
+
+  // Realtime sync: auto-refresh saldo & transaksi saat ada perubahan
+  useRealtimeSync("transactions", [["appData"]], true);
+  useRealtimeSync("students", [["appData"]], true);
 
   const getCurrentSiswa = React.useCallback(() => {
     return students.find(siswa => siswa.id === selectedSiswa);
