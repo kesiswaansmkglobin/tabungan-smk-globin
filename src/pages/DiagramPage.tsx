@@ -818,236 +818,258 @@ const generatePDF = () => {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  const m = 20;
-  const cw = pw - m * 2;
-  const footerY = ph - 10;
-  let pageNum = 0;
+  const m = 20; // margin
+  const cw = pw - m * 2; // content width
+  const bottomLimit = ph - 25; // safe bottom boundary
+  const headerLineY = m + 2; // header line position
 
-  const addFooter = () => {
-    pageNum++;
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(150);
-    doc.text(`Dokumentasi Sistem Tabungan Siswa Digital`, m, footerY);
-    doc.text(`Halaman ${pageNum}`, pw - m, footerY, { align: "right" });
-    doc.setTextColor(0);
+  // Helper: add header line on content pages (not cover)
+  const drawHeaderLine = () => {
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.3);
+    doc.line(m, headerLineY, pw - m, headerLineY);
   };
 
-  const addNewPage = () => {
+  // Helper: safe page break
+  const newPage = (): number => {
     doc.addPage();
-    addFooter();
-    return m + 5;
+    drawHeaderLine();
+    return m + 8;
   };
 
-  const checkPage = (y: number, needed: number): number => {
-    if (y + needed > ph - 20) {
-      return addNewPage();
-    }
+  const ensureSpace = (y: number, needed: number): number => {
+    if (y + needed > bottomLimit) return newPage();
     return y;
   };
 
-  // ── Cover Page ──
+  // ════════════════════════════════════════════════════════════════════
+  // COVER PAGE
+  // ════════════════════════════════════════════════════════════════════
   doc.setFillColor(24, 24, 27);
   doc.rect(0, 0, pw, ph, "F");
 
+  // Accent line
+  doc.setDrawColor(80, 140, 250);
+  doc.setLineWidth(1.5);
+  doc.line(pw / 2 - 30, 65, pw / 2 + 30, 65);
+
   doc.setTextColor(255);
-  doc.setFontSize(28);
+  doc.setFontSize(30);
   doc.setFont("helvetica", "bold");
-  doc.text("DOKUMENTASI", pw / 2, 80, { align: "center" });
-  doc.text("DIAGRAM SISTEM", pw / 2, 95, { align: "center" });
+  doc.text("DOKUMENTASI", pw / 2, 82, { align: "center" });
+  doc.text("DIAGRAM SISTEM", pw / 2, 96, { align: "center" });
 
-  doc.setFontSize(14);
+  doc.setDrawColor(80, 140, 250);
+  doc.line(pw / 2 - 30, 104, pw / 2 + 30, 104);
+
+  doc.setFontSize(13);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(200);
-  doc.text("Sistem Tabungan Siswa Digital", pw / 2, 115, { align: "center" });
-  doc.text("SMK Globin", pw / 2, 125, { align: "center" });
+  doc.setTextColor(210);
+  doc.text("Sistem Tabungan Siswa Digital", pw / 2, 120, { align: "center" });
+  doc.setFontSize(12);
+  doc.text("SMK Globin", pw / 2, 130, { align: "center" });
 
-  doc.setDrawColor(100);
-  doc.setLineWidth(0.5);
-  doc.line(pw / 2 - 40, 135, pw / 2 + 40, 135);
-
-  doc.setFontSize(10);
-  doc.setTextColor(160);
   const dateStr = new Date().toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+    day: "numeric", month: "long", year: "numeric",
   });
-  doc.text(`Digenerate: ${dateStr}`, pw / 2, 148, { align: "center" });
+  doc.setFontSize(10);
+  doc.setTextColor(150);
+  doc.text(dateStr, pw / 2, 150, { align: "center" });
 
+  // Diagram list on cover
+  doc.setTextColor(130);
   doc.setFontSize(9);
-  doc.setTextColor(120);
-  doc.text("Dokumen ini berisi 8 diagram teknis lengkap:", pw / 2, 170, { align: "center" });
-  const diagramList = [
-    "Flowchart | ERD | LRS | DFD",
-    "Use Case | Class | Sequence | Activity",
-  ];
+  doc.text("Berisi 8 diagram teknis:", pw / 2, 175, { align: "center" });
   doc.setTextColor(180);
-  diagramList.forEach((line, i) => {
-    doc.text(line, pw / 2, 180 + i * 8, { align: "center" });
-  });
+  doc.setFontSize(10);
+  const coverItems = [
+    "1. Flowchart",  "2. ERD",  "3. LRS",  "4. DFD",
+    "5. Use Case",  "6. Class Diagram",  "7. Sequence Diagram",  "8. Activity Diagram",
+  ];
+  const col1 = coverItems.slice(0, 4);
+  const col2 = coverItems.slice(4);
+  col1.forEach((item, i) => doc.text(item, pw / 2 - 35, 186 + i * 7));
+  col2.forEach((item, i) => doc.text(item, pw / 2 + 15, 186 + i * 7));
 
+  // ════════════════════════════════════════════════════════════════════
+  // TABLE OF CONTENTS
+  // ════════════════════════════════════════════════════════════════════
+  let y = newPage();
   doc.setTextColor(0);
-  addFooter();
-
-  // ── Table of Contents ──
-  let y = addNewPage();
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.text("DAFTAR ISI", m, y);
-  y += 12;
-
+  y += 10;
   doc.setDrawColor(0);
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(0.4);
   doc.line(m, y, pw - m, y);
-  y += 8;
+  y += 10;
 
   diagrams.forEach((d) => {
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    const label = `${d.number}.  ${d.title}`;
-    doc.text(label, m + 2, y);
-
-    // Dotted line
-    const textW = doc.getTextWidth(label) + m + 4;
-    const pageLabel = `${d.number + 1}`;
-    const pageLabelW = doc.getTextWidth(pageLabel);
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(textW, y, pw - m - pageLabelW - 2, y);
-    doc.setLineDashPattern([], 0);
-    doc.text(pageLabel, pw - m, y, { align: "right" });
-    y += 8;
+    doc.text(`${d.number}.`, m + 2, y);
+    doc.text(d.title, m + 12, y);
+    y += 9;
   });
 
-  // ── Each Diagram Section ──
+  // ════════════════════════════════════════════════════════════════════
+  // DIAGRAM SECTIONS
+  // ════════════════════════════════════════════════════════════════════
   diagrams.forEach((d) => {
-    y = addNewPage();
+    y = newPage();
+    doc.setTextColor(0);
 
-    // Section header with accent bar
+    // ── Section Title ──
     doc.setFillColor(24, 24, 27);
-    doc.rect(m, y - 5, 4, 12, "F");
-
-    doc.setFontSize(16);
+    doc.rect(m, y - 4, 3.5, 10, "F");
+    doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
-    doc.text(`${d.number}. ${d.title}`, m + 8, y + 3);
+    doc.text(`${d.number}. ${d.title}`, m + 7, y + 3);
     y += 14;
 
-    // Badge
-    doc.setFontSize(8);
+    // ── Badge ──
+    doc.setFontSize(7.5);
     doc.setFont("helvetica", "bold");
-    doc.setFillColor(230, 230, 230);
-    const badgeW = doc.getTextWidth(d.badge) + 6;
-    doc.roundedRect(m, y - 3, badgeW, 5, 1, 1, "F");
+    doc.setFillColor(235, 235, 235);
+    const bw = doc.getTextWidth(d.badge) + 6;
+    doc.roundedRect(m, y - 3, bw, 5, 1, 1, "F");
+    doc.setTextColor(80);
     doc.text(d.badge, m + 3, y);
-    y += 10;
+    doc.setTextColor(0);
+    y += 9;
 
-    // Description
+    // ── Description ──
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    const descLines = doc.splitTextToSize(d.description, cw);
+    const descLines: string[] = doc.splitTextToSize(d.description, cw);
     descLines.forEach((line: string) => {
-      y = checkPage(y, 6);
+      y = ensureSpace(y, 5.5);
       doc.text(line, m, y);
       y += 5;
     });
-    y += 4;
+    y += 5;
 
-    // Separator
-    doc.setDrawColor(200);
+    // ── Separator ──
+    doc.setDrawColor(210);
     doc.setLineWidth(0.2);
     doc.line(m, y, pw - m, y);
-    y += 6;
+    y += 7;
 
-    // Penjelasan Detail header
+    // ── Detail Header ──
+    y = ensureSpace(y, 10);
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    y = checkPage(y, 10);
     doc.text("Penjelasan Detail", m, y);
     y += 8;
 
-    // Detail items
+    // ── Detail Items ──
     d.details.forEach((detail, idx) => {
-      doc.setFontSize(9);
       const numStr = `${idx + 1}.`;
-      const detailLines = doc.splitTextToSize(detail, cw - 10);
+      doc.setFontSize(9);
+      const detailLines: string[] = doc.splitTextToSize(detail, cw - 12);
+      const blockH = detailLines.length * 4.2 + 3;
+      y = ensureSpace(y, blockH);
 
-      y = checkPage(y, detailLines.length * 4.5 + 4);
-
-      // Number
       doc.setFont("helvetica", "bold");
       doc.text(numStr, m + 2, y);
-
-      // Text
       doc.setFont("helvetica", "normal");
       detailLines.forEach((line: string, li: number) => {
-        doc.text(line, m + 10, y + li * 4.2);
+        doc.text(line, m + 11, y + li * 4.2);
       });
-      y += detailLines.length * 4.2 + 3;
+      y += blockH;
     });
 
-    // Diagram Source Code sections
+    // ── Diagram Source Code ──
     if (d.charts.length > 0) {
-      y += 4;
-      doc.setDrawColor(200);
+      y += 5;
+      doc.setDrawColor(210);
       doc.line(m, y, pw - m, y);
-      y += 6;
+      y += 7;
 
+      y = ensureSpace(y, 10);
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      y = checkPage(y, 10);
       doc.text("Notasi Diagram (Mermaid)", m, y);
       y += 8;
 
       d.charts.forEach((chart) => {
         if (chart.subtitle) {
-          y = checkPage(y, 8);
+          y = ensureSpace(y, 8);
           doc.setFontSize(10);
           doc.setFont("helvetica", "bold");
           doc.text(chart.subtitle, m + 2, y);
-          y += 6;
+          y += 7;
         }
 
-        // Code block background
         const codeLines = chart.code.trim().split("\n");
-        const lineH = 3.5;
-        const blockH = codeLines.length * lineH + 6;
+        const lineH = 3.4;
 
-        // Split code into chunks that fit on pages
-        let codeIdx = 0;
-        while (codeIdx < codeLines.length) {
-          const availableH = ph - 25 - y;
-          const fittingLines = Math.max(1, Math.floor((availableH - 6) / lineH));
-          const chunk = codeLines.slice(codeIdx, codeIdx + fittingLines);
+        // Render code in page-safe chunks
+        let ci = 0;
+        while (ci < codeLines.length) {
+          const available = bottomLimit - y - 6;
+          const fitCount = Math.max(1, Math.floor(available / lineH));
+          const chunk = codeLines.slice(ci, ci + fitCount);
 
-          if (y + chunk.length * lineH + 8 > ph - 20) {
-            y = addNewPage();
+          if (y + chunk.length * lineH + 8 > bottomLimit) {
+            y = newPage();
           }
 
-          const chunkH = chunk.length * lineH + 6;
-          doc.setFillColor(245, 245, 245);
-          doc.roundedRect(m, y - 2, cw, chunkH, 2, 2, "F");
-          doc.setDrawColor(220);
-          doc.setLineWidth(0.2);
-          doc.roundedRect(m, y - 2, cw, chunkH, 2, 2, "S");
+          const chunkH = chunk.length * lineH + 5;
+          doc.setFillColor(248, 248, 248);
+          doc.setDrawColor(225);
+          doc.setLineWidth(0.15);
+          doc.roundedRect(m, y - 2, cw, chunkH, 1.5, 1.5, "FD");
 
-          doc.setFontSize(7);
+          doc.setFontSize(6.8);
           doc.setFont("courier", "normal");
+          doc.setTextColor(50);
           chunk.forEach((line, li) => {
-            const cleanLine = line.replace(/\t/g, "    ");
-            const trimmed = cleanLine.length > 95 ? cleanLine.substring(0, 92) + "..." : cleanLine;
+            const clean = line.replace(/\t/g, "    ");
+            const trimmed = clean.length > 100 ? clean.substring(0, 97) + "..." : clean;
             doc.text(trimmed, m + 3, y + 2 + li * lineH);
           });
+          doc.setTextColor(0);
 
-          y += chunkH + 4;
-          codeIdx += chunk.length;
+          y += chunkH + 3;
+          ci += chunk.length;
         }
-
         doc.setFont("helvetica", "normal");
         y += 2;
       });
     }
   });
 
+  // ════════════════════════════════════════════════════════════════════
+  // ADD PAGE NUMBERS TO ALL PAGES (post-render)
+  // ════════════════════════════════════════════════════════════════════
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+
+    // Footer line
+    doc.setDrawColor(210);
+    doc.setLineWidth(0.2);
+    doc.line(m, ph - 14, pw - m, ph - 14);
+
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+
+    if (i === 1) {
+      // Cover: light footer
+      doc.setTextColor(100);
+      doc.text("Dokumen Resmi — Sistem Tabungan Siswa Digital", pw / 2, ph - 8, { align: "center" });
+    } else {
+      doc.setTextColor(130);
+      doc.text("Dokumentasi Sistem Tabungan Siswa Digital — SMK Globin", m, ph - 8);
+      doc.setTextColor(80);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${i} / ${totalPages}`, pw - m, ph - 8, { align: "right" });
+    }
+  }
+
+  doc.setTextColor(0);
   doc.save("Diagram_Sistem_Tabungan_SMK_Globin.pdf");
 };
 
