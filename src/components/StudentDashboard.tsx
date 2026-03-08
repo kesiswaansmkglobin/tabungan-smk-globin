@@ -6,8 +6,9 @@ import { OptimizedTable } from "@/components/OptimizedTable";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
-import { History, LogOut, User, Wallet, RefreshCw } from "lucide-react";
+import { History, LogOut, User, Wallet, RefreshCw, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
 
 interface Transaction {
   id: string;
@@ -143,6 +144,41 @@ export default React.memo(function StudentDashboard() {
     return { totalSetor, totalTarik, count: transactions.length };
   }, [transactions]);
 
+  // Monthly balance trend chart data
+  const chartData = useMemo(() => {
+    if (!transactions.length) return [];
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+    // Group transactions by month, calculate monthly setor/tarik and running balance
+    const sorted = [...transactions].sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+    const monthlyData: Record<string, { setor: number; tarik: number; lastSaldo: number }> = {};
+
+    sorted.forEach(t => {
+      const d = new Date(`${t.tanggal}T00:00:00`);
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+      if (!monthlyData[key]) monthlyData[key] = { setor: 0, tarik: 0, lastSaldo: 0 };
+      const amount = Number(t.jumlah) || 0;
+      if (t.jenis?.toLowerCase() === 'setor') monthlyData[key].setor += amount;
+      else monthlyData[key].tarik += amount;
+      monthlyData[key].lastSaldo = Number(t.saldo_setelah) || 0;
+    });
+
+    // Convert to array sorted by date
+    return Object.entries(monthlyData)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-12) // Last 12 months
+      .map(([key, data]) => {
+        const [year, monthIdx] = key.split('-');
+        return {
+          bulan: `${months[parseInt(monthIdx)]} ${year.slice(2)}`,
+          saldo: data.lastSaldo,
+          setor: data.setor,
+          tarik: data.tarik,
+        };
+      });
+  }, [transactions]);
+
   if (!student) return null;
 
   return (
@@ -215,8 +251,57 @@ export default React.memo(function StudentDashboard() {
                 </CardContent>
               </Card>
             </>
-          )}
+        )}
         </div>
+
+        {/* Grafik Tren Saldo */}
+        {chartData.length >= 2 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                Tren Saldo Bulanan
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="saldoGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="bulan" className="text-xs fill-muted-foreground" tick={{ fontSize: 12 }} />
+                    <YAxis
+                      className="text-xs fill-muted-foreground"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--foreground))',
+                      }}
+                      formatter={(value: number) => [formatCurrency(value), 'Saldo']}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="saldo"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      fill="url(#saldoGradient)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Riwayat Transaksi */}
         <Card>
