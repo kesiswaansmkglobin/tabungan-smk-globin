@@ -56,8 +56,9 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
       return;
     }
 
-    supabase.rpc('get_student_info_secure', { token })
-      .then(({ data, error }) => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_student_info_secure', { token });
         const response = data as unknown as AuthResponse;
         if (error || !response?.success) {
           localStorage.removeItem(SESSION_TOKEN_KEY);
@@ -65,18 +66,18 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
           setStudent(null);
           setSessionToken(null);
         } else if (response.student) {
-          // Update with fresh data from server
           setStudent(response.student);
           localStorage.setItem(STUDENT_DATA_KEY, JSON.stringify(response.student));
         }
-      })
-      .catch(() => {
+      } catch {
         localStorage.removeItem(SESSION_TOKEN_KEY);
         localStorage.removeItem(STUDENT_DATA_KEY);
         setStudent(null);
         setSessionToken(null);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   const persistSession = useCallback((token: string, studentData: Student) => {
@@ -151,7 +152,7 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
     localStorage.removeItem(STUDENT_DATA_KEY);
 
     if (token) {
-      supabase.rpc('logout_student_session', { token }).catch(() => {});
+      supabase.rpc('logout_student_session', { token }).then(() => {}).catch?.(() => {});
     }
 
     toast({ title: "Logout Berhasil", description: "Anda telah keluar dari sistem" });

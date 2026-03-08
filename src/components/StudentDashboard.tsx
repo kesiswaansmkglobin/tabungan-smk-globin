@@ -198,7 +198,7 @@ export default React.memo(function StudentDashboard() {
                   <CardTitle className="text-base text-muted-foreground">Total Setor</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  <div className="text-2xl font-bold text-primary">
                     {formatCurrency(stats.totalSetor)}
                   </div>
                   <p className="text-sm text-muted-foreground">{stats.count} transaksi</p>
