@@ -183,6 +183,7 @@ export default function Auth({ onAuth }: AuthProps) {
                   Beranda
                 </Link>
               </div>
+            </div>
           </CardContent>
         </Card>
 
