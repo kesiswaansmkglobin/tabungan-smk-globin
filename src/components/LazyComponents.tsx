@@ -1,14 +1,21 @@
 import React, { Suspense, memo, useEffect } from 'react';
 import ErrorBoundary from './ErrorBoundary';
+import { SkeletonDashboard, SkeletonTable, SkeletonForm } from './ui/skeleton-loaders';
 
-// Ultra-lightweight loading spinner with skeleton
-const LoadingSpinner = memo(() => (
-  <div className="flex flex-col items-center justify-center h-32 gap-3">
-    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></div>
-    <span className="text-xs text-muted-foreground">Memuat...</span>
+// Skeleton mapping per component type
+const skeletonMap: Record<string, React.ReactNode> = {
+  dashboard: <SkeletonDashboard />,
+  table: <SkeletonTable rows={6} cols={5} />,
+  form: <SkeletonForm fields={5} />,
+};
+
+// Default loading with skeleton
+const LoadingFallback = memo(({ type = "table" }: { type?: string }) => (
+  <div className="animate-in">
+    {skeletonMap[type] || skeletonMap.table}
   </div>
 ));
-LoadingSpinner.displayName = 'LoadingSpinner';
+LoadingFallback.displayName = 'LoadingFallback';
 
 // Component cache to prevent re-imports
 const componentCache = new Map<string, Promise<any>>();
@@ -65,14 +72,33 @@ export const prefetchComponents = (components: string[]) => {
   components.forEach(prefetchComponent);
 };
 
+// Component type mapping for skeleton selection
+const componentTypeMap: Record<string, string> = {
+  Dashboard: 'dashboard',
+  StaffDashboard: 'dashboard',
+  DataSiswa: 'table',
+  DataKelas: 'table',
+  Transaksi: 'form',
+  Laporan: 'table',
+  RiwayatHarian: 'table',
+  AuditLogs: 'table',
+  Pengguna: 'table',
+  DataSekolah: 'form',
+  Pengaturan: 'form',
+  StaffClassSummary: 'table',
+  WaliKelasView: 'dashboard',
+  WaliKelasDataSiswa: 'table',
+};
+
 // Wrapper component for lazy loaded content
 interface LazyWrapperProps {
   children: React.ReactNode;
+  skeletonType?: string;
 }
 
-export const LazyWrapper = memo(({ children }: LazyWrapperProps) => (
+export const LazyWrapper = memo(({ children, skeletonType = "table" }: LazyWrapperProps) => (
   <ErrorBoundary>
-    <Suspense fallback={<LoadingSpinner />}>
+    <Suspense fallback={<LoadingFallback type={skeletonType} />}>
       {children}
     </Suspense>
   </ErrorBoundary>

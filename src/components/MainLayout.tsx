@@ -26,14 +26,40 @@ import { Menu } from "lucide-react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import OfflineIndicator from "@/components/OfflineIndicator";
+import { PageTransition } from "@/components/PageTransition";
+import IdleWarningModal from "@/components/IdleWarningModal";
+import { useIdleTimeout } from "@/hooks/useIdleTimeout";
+import { toast } from "@/hooks/use-toast";
 
 interface MainLayoutProps {
   onLogout: () => void;
 }
 
+const IDLE_TIMEOUT_ADMIN = 15 * 60 * 1000; // 15 minutes
+const IDLE_TIMEOUT_STAFF = 30 * 60 * 1000; // 30 minutes
+const IDLE_WARNING = 60 * 1000; // 60 second warning
+
 const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  const idleTimeout = userRole === "staff" ? IDLE_TIMEOUT_STAFF : IDLE_TIMEOUT_ADMIN;
+
+  const handleIdleLogout = useCallback(() => {
+    toast({
+      title: "Sesi Berakhir",
+      description: "Anda telah logout otomatis karena tidak ada aktivitas.",
+      variant: "destructive",
+    });
+    onLogout();
+  }, [onLogout]);
+
+  const { showWarning, remainingSeconds, stayActive } = useIdleTimeout({
+    timeoutMs: idleTimeout,
+    warningMs: IDLE_WARNING,
+    onTimeout: handleIdleLogout,
+    enabled: !!userRole,
+  });
 
   usePrefetchOnIdle(['transaksi', 'data-siswa', 'laporan', 'data-kelas']);
 
@@ -129,11 +155,21 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
             </header>
             
             <main className="flex-1 p-4 md:p-6 overflow-auto">
-              {renderContent}
+              <PageTransition activeKey={activeTab}>
+                {renderContent}
+              </PageTransition>
             </main>
           </div>
         </div>
         <OfflineIndicator />
+        
+        {/* Idle timeout warning */}
+        <IdleWarningModal
+          open={showWarning}
+          remainingSeconds={remainingSeconds}
+          onStayActive={stayActive}
+          onLogout={onLogout}
+        />
       </SidebarProvider>
     </ErrorBoundary>
   );

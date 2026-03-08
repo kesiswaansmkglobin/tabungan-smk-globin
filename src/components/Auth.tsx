@@ -31,7 +31,9 @@ export default function Auth({ onAuth }: AuthProps) {
     }
     
     if (SecurityManager.isAccountLocked(sanitizedEmail)) {
-      toast({ title: "Akun Terkunci", description: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.", variant: "destructive" });
+      const remaining = SecurityManager.getRemainingLockoutTime(sanitizedEmail);
+      const mins = Math.ceil(remaining / 60);
+      toast({ title: "Akun Terkunci", description: `Terlalu banyak percobaan login. Coba lagi dalam ${mins} menit.`, variant: "destructive" });
       return;
     }
     
