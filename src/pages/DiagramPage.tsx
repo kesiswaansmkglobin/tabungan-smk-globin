@@ -7,19 +7,90 @@ import jsPDF from "jspdf";
 
 const DiagramPage = () => {
   const navigate = useNavigate();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const generatePDF = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 12;
+    const maxW = pageW - margin * 2;
+
+    // Title page
+    doc.setFontSize(22);
+    doc.setFont("courier", "bold");
+    doc.text("Dokumentasi Diagram Sistem", pageW / 2, 50, { align: "center" });
+    doc.setFontSize(14);
+    doc.setFont("courier", "normal");
+    doc.text("Sistem Tabungan Siswa — SMK Globin", pageW / 2, 62, { align: "center" });
+    doc.setFontSize(10);
+    doc.text(`Digenerate: ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`, pageW / 2, 74, { align: "center" });
+
+    // Extract all pre elements
+    if (!contentRef.current) return;
+    const cards = contentRef.current.querySelectorAll("pre");
+
+    cards.forEach((pre) => {
+      doc.addPage();
+      let y = margin;
+
+      // Find the card title
+      const card = pre.closest(".diagram-card");
+      const titleEl = card?.querySelector(".diagram-title");
+      const subTitleEl = pre.previousElementSibling;
+
+      if (titleEl) {
+        doc.setFontSize(13);
+        doc.setFont("courier", "bold");
+        doc.text(titleEl.textContent || "", margin, y + 5);
+        y += 10;
+      }
+
+      if (subTitleEl && subTitleEl.tagName === "H4") {
+        doc.setFontSize(10);
+        doc.setFont("courier", "bold");
+        doc.text(subTitleEl.textContent || "", margin, y + 4);
+        y += 8;
+      }
+
+      // Render pre content
+      const text = pre.textContent || "";
+      const lines = text.split("\n");
+      doc.setFontSize(6.5);
+      doc.setFont("courier", "normal");
+
+      lines.forEach((line) => {
+        if (y > pageH - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        // Truncate if too wide
+        const trimmed = line.substring(0, 160);
+        doc.text(trimmed, margin, y);
+        y += 3;
+      });
+    });
+
+    doc.save("Diagram_Sistem_Tabungan_SMK_Globin.pdf");
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-1.5">
-            <ArrowLeft className="h-4 w-4" />Beranda
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/")} className="gap-1.5">
+              <ArrowLeft className="h-4 w-4" />Beranda
+            </Button>
+            <h1 className="ml-4 text-sm font-semibold text-foreground">Dokumentasi Diagram Sistem</h1>
+          </div>
+          <Button size="sm" onClick={generatePDF} className="gap-1.5">
+            <Download className="h-4 w-4" />Unduh PDF
           </Button>
-          <h1 className="ml-4 text-sm font-semibold text-foreground">Dokumentasi Diagram Sistem</h1>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
+      <div ref={contentRef} className="max-w-5xl mx-auto px-4 py-8 space-y-10">
 
         {/* 1. Flowchart */}
         <Card className="border-border/50">
