@@ -42,6 +42,21 @@ export class SecurityManager {
     return this.getLoginAttempts(identifier) >= this.MAX_LOGIN_ATTEMPTS;
   }
 
+  static getRemainingLockoutTime(identifier: string): number {
+    const key = `${this.STORAGE_PREFIX}la_${this.hashIdentifier(identifier)}`;
+    try {
+      const data = localStorage.getItem(key);
+      if (!data) return 0;
+      const { attempts, timestamp } = JSON.parse(data);
+      if (attempts < this.MAX_LOGIN_ATTEMPTS) return 0;
+      const elapsed = Date.now() - timestamp;
+      const remaining = this.LOCKOUT_DURATION - elapsed;
+      return remaining > 0 ? Math.ceil(remaining / 1000) : 0;
+    } catch {
+      return 0;
+    }
+  }
+
   private static hashIdentifier(identifier: string): string {
     let hash = 0;
     for (let i = 0; i < identifier.length; i++) {
@@ -54,7 +69,6 @@ export class SecurityManager {
   // Enhanced input sanitization
   static sanitizeInput(input: string): string {
     if (!input) return '';
-    // Only trim and limit length for auth inputs - don't HTML-encode as Supabase handles that
     return input.trim().substring(0, this.MAX_INPUT_LENGTH);
   }
 
@@ -80,9 +94,20 @@ export class SecurityManager {
     return /^[0-9]{4,20}$/.test(nis);
   }
 
+  // Enhanced password policy: min 8 chars, at least 1 letter + 1 number
   static isStrongPassword(password: string): { valid: boolean; message?: string } {
-    if (password.length < 6) return { valid: false, message: 'Password minimal 6 karakter' };
-    if (password.length > 100) return { valid: false, message: 'Password terlalu panjang' };
+    if (password.length < 8) {
+      return { valid: false, message: 'Password minimal 8 karakter' };
+    }
+    if (password.length > 100) {
+      return { valid: false, message: 'Password terlalu panjang' };
+    }
+    if (!/[a-zA-Z]/.test(password)) {
+      return { valid: false, message: 'Password harus mengandung minimal 1 huruf' };
+    }
+    if (!/[0-9]/.test(password)) {
+      return { valid: false, message: 'Password harus mengandung minimal 1 angka' };
+    }
     return { valid: true };
   }
 
@@ -113,5 +138,22 @@ export class SecurityManager {
     const array = new Uint8Array(16);
     crypto.getRandomValues(array);
     return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Session activity tracking
+  static recordSessionActivity(): void {
+    try {
+      localStorage.setItem(`${this.STORAGE_PREFIX}last_activity`, Date.now().toString());
+    } catch {
+      // ignore
+    }
+  }
+
+  static getLastActivity(): number {
+    try {
+      return parseInt(localStorage.getItem(`${this.STORAGE_PREFIX}last_activity`) || '0', 10);
+    } catch {
+      return 0;
+    }
   }
 }
