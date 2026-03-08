@@ -152,7 +152,7 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
     localStorage.removeItem(STUDENT_DATA_KEY);
 
     if (token) {
-      supabase.rpc('logout_student_session', { token }).then(() => {}).catch?.(() => {});
+      supabase.rpc('logout_student_session', { token }).then(() => {});
     }
 
     toast({ title: "Logout Berhasil", description: "Anda telah keluar dari sistem" });
