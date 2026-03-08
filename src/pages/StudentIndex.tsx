@@ -2,16 +2,17 @@ import React from "react";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
 import StudentAuth from "@/components/StudentAuth";
 import StudentDashboard from "@/components/StudentDashboard";
+import { Loader2 } from "lucide-react";
 
 const StudentIndex = () => {
   const { student, loading } = useStudentAuth();
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Memuat...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="mt-3 text-sm text-muted-foreground">Memuat...</p>
         </div>
       </div>
     );
