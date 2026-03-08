@@ -183,16 +183,6 @@ export default function Auth({ onAuth }: AuthProps) {
                   Beranda
                 </Link>
               </div>
-                </Link>
-                <Link
-                  to="/verifikasi"
-                  className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Shield className="h-3.5 w-3.5" />
-                  Verifikasi Buku
-                </Link>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
