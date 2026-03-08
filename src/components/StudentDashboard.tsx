@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { useStudentAuth } from "@/hooks/useStudentAuth";
 import { History, LogOut, User, Wallet, RefreshCw, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend } from "recharts";
 
 interface Transaction {
   id: string;
@@ -297,6 +297,38 @@ export default React.memo(function StudentDashboard() {
                       fill="url(#saldoGradient)"
                     />
                   </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Bar Chart Setor vs Tarik */}
+        {chartData.length >= 2 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Setor vs Tarik per Bulan</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="bulan" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                    <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                    <RechartsTooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                        color: 'hsl(var(--foreground))',
+                      }}
+                      formatter={(value: number, name: string) => [formatCurrency(value), name === 'setor' ? 'Setor' : 'Tarik']}
+                    />
+                    <Legend formatter={(value) => value === 'setor' ? 'Setor' : 'Tarik'} />
+                    <Bar dataKey="setor" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="tarik" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
