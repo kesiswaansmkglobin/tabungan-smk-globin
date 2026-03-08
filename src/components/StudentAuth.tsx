@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,11 +9,11 @@ import { useStudentAuth } from "@/hooks/useStudentAuth";
 import { SecurityManager } from "@/utils/security";
 import { toast } from "@/hooks/use-toast";
 
-export default function StudentAuth() {
+export default React.memo(function StudentAuth() {
   const [searchParams] = useSearchParams();
   const qrToken = searchParams.get("qr");
   const nisFromQR = searchParams.get("nis");
-  
+
   const [nis, setNis] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,28 +21,17 @@ export default function StudentAuth() {
   const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
   const { login, loginWithQRToken } = useStudentAuth();
 
-  // Auto-login via QR token (no password required)
+  // Auto-login via QR token
   useEffect(() => {
-    const handleQRLogin = async () => {
-      if (qrToken && !isAutoLoggingIn) {
-        setIsAutoLoggingIn(true);
-        try {
-          const success = await loginWithQRToken(qrToken);
-          if (!success) {
-            // QR token invalid, show login form
-            setIsAutoLoggingIn(false);
-          }
-        } catch (error) {
-          console.error('QR login error:', error);
-          setIsAutoLoggingIn(false);
-        }
-      }
-    };
-
-    handleQRLogin();
+    if (qrToken && !isAutoLoggingIn) {
+      setIsAutoLoggingIn(true);
+      loginWithQRToken(qrToken).then(success => {
+        if (!success) setIsAutoLoggingIn(false);
+      }).catch(() => setIsAutoLoggingIn(false));
+    }
   }, [qrToken, loginWithQRToken, isAutoLoggingIn]);
 
-  // Pre-fill NIS from URL parameter (legacy support)
+  // Pre-fill NIS from URL
   useEffect(() => {
     if (nisFromQR && !qrToken) {
       setNis(nisFromQR);
@@ -50,44 +39,28 @@ export default function StudentAuth() {
     }
   }, [nisFromQR, qrToken]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const sanitizedNIS = SecurityManager.sanitizeInput(nis);
-    
+
     if (!sanitizedNIS || !password) {
-      toast({
-        title: "Error",
-        description: "NIS dan password harus diisi",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "NIS dan password harus diisi", variant: "destructive" });
       return;
     }
 
     if (!SecurityManager.isValidNIS(sanitizedNIS)) {
-      toast({
-        title: "Error",
-        description: "Format NIS tidak valid (harus angka)",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Format NIS tidak valid (harus angka)", variant: "destructive" });
       return;
     }
 
     if (SecurityManager.isAccountLocked(sanitizedNIS)) {
-      toast({
-        title: "Akun Terkunci",
-        description: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.",
-        variant: "destructive",
-      });
+      toast({ title: "Akun Terkunci", description: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.", variant: "destructive" });
       return;
     }
 
     if (!SecurityManager.checkRateLimit(`student_login_${sanitizedNIS}`, 3, 60000)) {
-      toast({
-        title: "Terlalu Cepat",
-        description: "Harap tunggu sebelum mencoba login lagi",
-        variant: "destructive",
-      });
+      toast({ title: "Terlalu Cepat", description: "Harap tunggu sebelum mencoba login lagi", variant: "destructive" });
       return;
     }
 
@@ -95,17 +68,16 @@ export default function StudentAuth() {
     try {
       await login(sanitizedNIS, password);
       SecurityManager.clearLoginAttempts(sanitizedNIS);
-    } catch (error) {
+    } catch {
       SecurityManager.recordFailedLogin(sanitizedNIS);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [nis, password, login]);
 
-  // Show loading screen when auto-logging in via QR
   if (isAutoLoggingIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center space-y-4">
@@ -124,22 +96,15 @@ export default function StudentAuth() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background to-muted/50 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            {isFromQR ? (
-              <QrCode className="h-6 w-6 text-primary" />
-            ) : (
-              <GraduationCap className="h-6 w-6 text-primary" />
-            )}
+            {isFromQR ? <QrCode className="h-6 w-6 text-primary" /> : <GraduationCap className="h-6 w-6 text-primary" />}
           </div>
           <CardTitle className="text-2xl">Login Siswa</CardTitle>
           <p className="text-sm text-muted-foreground">
-            {isFromQR 
-              ? "NIS Anda sudah terisi, silakan masukkan password"
-              : "Masuk dengan NIS dan password Anda"
-            }
+            {isFromQR ? "NIS Anda sudah terisi, silakan masukkan password" : "Masuk dengan NIS dan password Anda"}
           </p>
         </CardHeader>
         <CardContent>
@@ -153,10 +118,7 @@ export default function StudentAuth() {
                   type="text"
                   placeholder="Masukkan NIS"
                   value={nis}
-                  onChange={(e) => {
-                    setNis(e.target.value);
-                    if (isFromQR) setIsFromQR(false);
-                  }}
+                  onChange={(e) => { setNis(e.target.value); if (isFromQR) setIsFromQR(false); }}
                   className="pl-10"
                   required
                   autoComplete="username"
@@ -182,21 +144,15 @@ export default function StudentAuth() {
                 />
               </div>
             </div>
-            <Button 
-              type="submit" 
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft" 
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Memuat..." : "Masuk"}
             </Button>
           </form>
           <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Lupa password? Hubungi admin sekolah
-            </p>
+            <p className="text-sm text-muted-foreground">Lupa password? Hubungi admin sekolah</p>
           </div>
         </CardContent>
       </Card>
     </div>
   );
-}
+});
