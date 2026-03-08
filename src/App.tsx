@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PerformanceMonitor } from "@/utils/monitoring";
 import { initializeTheme } from "@/utils/theme";
 import { InstallPWA } from "@/components/InstallPWA";
+import { StudentAuthProvider } from "@/hooks/useStudentAuth";
 import LandingPage from "./pages/LandingPage";
 import Index from "./pages/Index";
 import StudentIndex from "./pages/StudentIndex";
@@ -32,15 +33,17 @@ const App = () => (
       <Sonner />
       <InstallPWA />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Index />} />
-          <Route path="/student" element={<StudentIndex />} />
-          <Route path="/verifikasi" element={<Verifikasi />} />
-          <Route path="/panduan" element={<UserGuide />} />
-          <Route path="/diagram" element={<DiagramPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <StudentAuthProvider>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<Index />} />
+            <Route path="/student" element={<StudentIndex />} />
+            <Route path="/verifikasi" element={<Verifikasi />} />
+            <Route path="/panduan" element={<UserGuide />} />
+            <Route path="/diagram" element={<DiagramPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </StudentAuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
