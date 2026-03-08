@@ -9,6 +9,7 @@ import { InstallPWA } from "@/components/InstallPWA";
 import Index from "./pages/Index";
 import StudentIndex from "./pages/StudentIndex";
 import Verifikasi from "./pages/Verifikasi";
+import LandingPage from "./pages/LandingPage";
 import UserGuide from "./components/UserGuide";
 import NotFound from "./pages/NotFound";
 
