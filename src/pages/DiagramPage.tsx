@@ -814,125 +814,239 @@ const diagrams: DiagramSection[] = [
 ];
 
 // ─── PDF Generator ──────────────────────────────────────────────────
-const generatePDF = async (contentRef: React.RefObject<HTMLDivElement | null>) => {
-  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+const generatePDF = () => {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
-  const m = 15;
+  const m = 20;
   const cw = pw - m * 2;
+  const footerY = ph - 10;
+  let pageNum = 0;
 
-  // Title page
-  doc.setFontSize(24);
+  const addFooter = () => {
+    pageNum++;
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(150);
+    doc.text(`Dokumentasi Sistem Tabungan Siswa Digital`, m, footerY);
+    doc.text(`Halaman ${pageNum}`, pw - m, footerY, { align: "right" });
+    doc.setTextColor(0);
+  };
+
+  const addNewPage = () => {
+    doc.addPage();
+    addFooter();
+    return m + 5;
+  };
+
+  const checkPage = (y: number, needed: number): number => {
+    if (y + needed > ph - 20) {
+      return addNewPage();
+    }
+    return y;
+  };
+
+  // ── Cover Page ──
+  doc.setFillColor(24, 24, 27);
+  doc.rect(0, 0, pw, ph, "F");
+
+  doc.setTextColor(255);
+  doc.setFontSize(28);
   doc.setFont("helvetica", "bold");
-  doc.text("Dokumentasi Diagram Sistem", pw / 2, 45, { align: "center" });
+  doc.text("DOKUMENTASI", pw / 2, 80, { align: "center" });
+  doc.text("DIAGRAM SISTEM", pw / 2, 95, { align: "center" });
+
   doc.setFontSize(14);
   doc.setFont("helvetica", "normal");
-  doc.text("Sistem Tabungan Siswa Digital", pw / 2, 58, { align: "center" });
-  doc.setFontSize(10);
-  doc.text(
-    `Digenerate: ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`,
-    pw / 2,
-    70,
-    { align: "center" }
-  );
+  doc.setTextColor(200);
+  doc.text("Sistem Tabungan Siswa Digital", pw / 2, 115, { align: "center" });
+  doc.text("SMK Globin", pw / 2, 125, { align: "center" });
 
-  // Table of contents
-  doc.addPage();
-  let y = m;
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("Daftar Isi", m, y + 5);
-  y += 14;
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  diagrams.forEach((d, i) => {
-    doc.text(`${d.number}. ${d.title}`, m + 4, y);
-    y += 7;
+  doc.setDrawColor(100);
+  doc.setLineWidth(0.5);
+  doc.line(pw / 2 - 40, 135, pw / 2 + 40, 135);
+
+  doc.setFontSize(10);
+  doc.setTextColor(160);
+  const dateStr = new Date().toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  doc.text(`Digenerate: ${dateStr}`, pw / 2, 148, { align: "center" });
+
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text("Dokumen ini berisi 8 diagram teknis lengkap:", pw / 2, 170, { align: "center" });
+  const diagramList = [
+    "Flowchart | ERD | LRS | DFD",
+    "Use Case | Class | Sequence | Activity",
+  ];
+  doc.setTextColor(180);
+  diagramList.forEach((line, i) => {
+    doc.text(line, pw / 2, 180 + i * 8, { align: "center" });
   });
 
-  // Each diagram
-  diagrams.forEach((d) => {
-    doc.addPage();
-    let y = m;
+  doc.setTextColor(0);
+  addFooter();
 
-    // Title
-    doc.setFontSize(15);
+  // ── Table of Contents ──
+  let y = addNewPage();
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("DAFTAR ISI", m, y);
+  y += 12;
+
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.3);
+  doc.line(m, y, pw - m, y);
+  y += 8;
+
+  diagrams.forEach((d) => {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    const label = `${d.number}.  ${d.title}`;
+    doc.text(label, m + 2, y);
+
+    // Dotted line
+    const textW = doc.getTextWidth(label) + m + 4;
+    const pageLabel = `${d.number + 1}`;
+    const pageLabelW = doc.getTextWidth(pageLabel);
+    doc.setLineDashPattern([1, 1], 0);
+    doc.line(textW, y, pw - m - pageLabelW - 2, y);
+    doc.setLineDashPattern([], 0);
+    doc.text(pageLabel, pw - m, y, { align: "right" });
+    y += 8;
+  });
+
+  // ── Each Diagram Section ──
+  diagrams.forEach((d) => {
+    y = addNewPage();
+
+    // Section header with accent bar
+    doc.setFillColor(24, 24, 27);
+    doc.rect(m, y - 5, 4, 12, "F");
+
+    doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
-    doc.text(`${d.number}. ${d.title}`, m, y + 5);
-    y += 12;
+    doc.text(`${d.number}. ${d.title}`, m + 8, y + 3);
+    y += 14;
+
+    // Badge
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setFillColor(230, 230, 230);
+    const badgeW = doc.getTextWidth(d.badge) + 6;
+    doc.roundedRect(m, y - 3, badgeW, 5, 1, 1, "F");
+    doc.text(d.badge, m + 3, y);
+    y += 10;
 
     // Description
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     const descLines = doc.splitTextToSize(d.description, cw);
-    doc.text(descLines, m, y);
-    y += descLines.length * 4 + 4;
-
-    // Details
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text("Penjelasan Detail:", m, y);
-    y += 6;
-    doc.setFontSize(8.5);
-    doc.setFont("helvetica", "normal");
-    d.details.forEach((detail, idx) => {
-      if (y > ph - 20) {
-        doc.addPage();
-        y = m;
-      }
-      const lines = doc.splitTextToSize(`${idx + 1}. ${detail}`, cw - 4);
-      doc.text(lines, m + 2, y);
-      y += lines.length * 3.8 + 2;
+    descLines.forEach((line: string) => {
+      y = checkPage(y, 6);
+      doc.text(line, m, y);
+      y += 5;
     });
-  });
+    y += 4;
 
-  // Render SVG diagrams as images
-  if (contentRef.current) {
-    const svgs = contentRef.current.querySelectorAll("svg");
-    for (const svg of svgs) {
-      try {
-        const svgClone = svg.cloneNode(true) as SVGElement;
-        // Inline all computed styles to avoid external references
-        const allElements = svgClone.querySelectorAll("*");
-        allElements.forEach((el) => {
-          const computed = window.getComputedStyle(el as Element);
-          (el as HTMLElement).style.cssText = computed.cssText;
-        });
-        if (!svgClone.getAttribute("xmlns")) {
-          svgClone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    // Separator
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.2);
+    doc.line(m, y, pw - m, y);
+    y += 6;
+
+    // Penjelasan Detail header
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    y = checkPage(y, 10);
+    doc.text("Penjelasan Detail", m, y);
+    y += 8;
+
+    // Detail items
+    d.details.forEach((detail, idx) => {
+      doc.setFontSize(9);
+      const numStr = `${idx + 1}.`;
+      const detailLines = doc.splitTextToSize(detail, cw - 10);
+
+      y = checkPage(y, detailLines.length * 4.5 + 4);
+
+      // Number
+      doc.setFont("helvetica", "bold");
+      doc.text(numStr, m + 2, y);
+
+      // Text
+      doc.setFont("helvetica", "normal");
+      detailLines.forEach((line: string, li: number) => {
+        doc.text(line, m + 10, y + li * 4.2);
+      });
+      y += detailLines.length * 4.2 + 3;
+    });
+
+    // Diagram Source Code sections
+    if (d.charts.length > 0) {
+      y += 4;
+      doc.setDrawColor(200);
+      doc.line(m, y, pw - m, y);
+      y += 6;
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      y = checkPage(y, 10);
+      doc.text("Notasi Diagram (Mermaid)", m, y);
+      y += 8;
+
+      d.charts.forEach((chart) => {
+        if (chart.subtitle) {
+          y = checkPage(y, 8);
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "bold");
+          doc.text(chart.subtitle, m + 2, y);
+          y += 6;
         }
-        const svgData = new XMLSerializer().serializeToString(svgClone);
-        const svgBase64 = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        const img = new Image();
 
-        await new Promise<void>((resolve) => {
-          img.onload = () => {
-            const scale = 2;
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
-            ctx!.fillStyle = "#ffffff";
-            ctx!.fillRect(0, 0, canvas.width, canvas.height);
-            ctx!.scale(scale, scale);
-            ctx!.drawImage(img, 0, 0);
+        // Code block background
+        const codeLines = chart.code.trim().split("\n");
+        const lineH = 3.5;
+        const blockH = codeLines.length * lineH + 6;
 
-            const imgData = canvas.toDataURL("image/png");
-            doc.addPage();
-            const imgW = cw;
-            const imgH = (img.height / img.width) * imgW;
-            const finalH = Math.min(imgH, ph - m * 2);
-            doc.addImage(imgData, "PNG", m, m, imgW, finalH);
-            resolve();
-          };
-          img.onerror = () => resolve();
-          img.src = svgBase64;
-        });
-      } catch {
-        // Skip failed SVGs
-      }
+        // Split code into chunks that fit on pages
+        let codeIdx = 0;
+        while (codeIdx < codeLines.length) {
+          const availableH = ph - 25 - y;
+          const fittingLines = Math.max(1, Math.floor((availableH - 6) / lineH));
+          const chunk = codeLines.slice(codeIdx, codeIdx + fittingLines);
+
+          if (y + chunk.length * lineH + 8 > ph - 20) {
+            y = addNewPage();
+          }
+
+          const chunkH = chunk.length * lineH + 6;
+          doc.setFillColor(245, 245, 245);
+          doc.roundedRect(m, y - 2, cw, chunkH, 2, 2, "F");
+          doc.setDrawColor(220);
+          doc.setLineWidth(0.2);
+          doc.roundedRect(m, y - 2, cw, chunkH, 2, 2, "S");
+
+          doc.setFontSize(7);
+          doc.setFont("courier", "normal");
+          chunk.forEach((line, li) => {
+            const cleanLine = line.replace(/\t/g, "    ");
+            const trimmed = cleanLine.length > 95 ? cleanLine.substring(0, 92) + "..." : cleanLine;
+            doc.text(trimmed, m + 3, y + 2 + li * lineH);
+          });
+
+          y += chunkH + 4;
+          codeIdx += chunk.length;
+        }
+
+        doc.setFont("helvetica", "normal");
+        y += 2;
+      });
     }
-  }
+  });
 
   doc.save("Diagram_Sistem_Tabungan_SMK_Globin.pdf");
 };
@@ -954,7 +1068,7 @@ const DiagramPage = () => {
   }, []);
 
   const handleDownload = useCallback(() => {
-    generatePDF(contentRef);
+    generatePDF();
   }, []);
 
   return (
