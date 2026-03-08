@@ -6,24 +6,22 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PerformanceMonitor } from "@/utils/monitoring";
 import { initializeTheme } from "@/utils/theme";
 import { InstallPWA } from "@/components/InstallPWA";
+import LandingPage from "./pages/LandingPage";
 import Index from "./pages/Index";
 import StudentIndex from "./pages/StudentIndex";
 import Verifikasi from "./pages/Verifikasi";
-import LandingPage from "./pages/LandingPage";
 import UserGuide from "./components/UserGuide";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Initialize theme on app load
 initializeTheme();
 
-// Initialize performance monitoring
 if (process.env.NODE_ENV === 'production') {
   setInterval(() => {
     PerformanceMonitor.logSlowOperations();
     PerformanceMonitor.trackMemoryUsage();
-  }, 30000); // Log every 30 seconds in production
+  }, 30000);
 }
 
 const App = () => (
@@ -34,12 +32,11 @@ const App = () => (
       <InstallPWA />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/landing" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Index />} />
           <Route path="/student" element={<StudentIndex />} />
           <Route path="/verifikasi" element={<Verifikasi />} />
           <Route path="/panduan" element={<UserGuide />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
