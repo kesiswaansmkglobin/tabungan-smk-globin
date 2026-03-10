@@ -18,6 +18,7 @@ interface SchoolData {
   jabatan_pengelola: string;
   tahun_ajaran: string;
   logo_sekolah?: string | null;
+  tanda_tangan_pengelola?: string | null;
 }
 
 const Laporan = React.memo(() => {
