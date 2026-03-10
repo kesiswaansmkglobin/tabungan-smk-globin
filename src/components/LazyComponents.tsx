@@ -24,7 +24,12 @@ const componentCache = new Map<string, Promise<any>>();
 const createLazyComponent = (importFn: () => Promise<any>, name: string) => {
   return React.lazy(() => {
     if (!componentCache.has(name)) {
-      componentCache.set(name, importFn());
+      const promise = importFn().catch((err) => {
+        // Remove from cache so retry is possible
+        componentCache.delete(name);
+        throw err;
+      });
+      componentCache.set(name, promise);
     }
     return componentCache.get(name)!;
   });
