@@ -68,7 +68,11 @@ export const prefetchComponent = (component: string) => {
   };
 
   if (imports[component] && !componentCache.has(component)) {
-    componentCache.set(component, imports[component]());
+    const promise = imports[component]().catch((err) => {
+      componentCache.delete(component);
+      throw err;
+    });
+    componentCache.set(component, promise);
   }
 };
 
