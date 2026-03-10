@@ -113,7 +113,7 @@ export default function LandingPage() {
                 Platform digital untuk mengelola tabungan siswa {schoolName} dengan sistem keamanan modern, laporan real-time, dan akses multi-platform.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button size="lg" className="bg-gradient-primary hover:opacity-90 shadow-primary-glow" asChild>
+                <Button size="lg" asChild>
                   <Link to="/login">Mulai Sekarang <ArrowRight className="h-4 w-4 ml-2" /></Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
