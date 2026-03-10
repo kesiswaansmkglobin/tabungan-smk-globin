@@ -113,7 +113,7 @@ export default function LandingPage() {
                 Platform digital untuk mengelola tabungan siswa {schoolName} dengan sistem keamanan modern, laporan real-time, dan akses multi-platform.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button size="lg" className="bg-gradient-primary hover:opacity-90 shadow-primary-glow" asChild>
+                <Button size="lg" asChild>
                   <Link to="/login">Mulai Sekarang <ArrowRight className="h-4 w-4 ml-2" /></Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
@@ -254,14 +254,15 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="max-w-6xl mx-auto px-4 py-16">
         <Reveal>
-          <Card className="bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
-            <CardContent className="p-8 md:p-12 text-center">
+          <Card className="bg-card border-primary/20 overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 pointer-events-none" />
+            <CardContent className="p-8 md:p-12 text-center relative z-10">
               <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">Siap Mengelola Tabungan Secara Digital?</h2>
               <p className="text-muted-foreground max-w-lg mx-auto mb-6">
                 Mulai gunakan sistem tabungan digital {schoolName} sekarang. Login dengan akun yang telah disediakan oleh administrator.
               </p>
               <div className="flex flex-wrap justify-center gap-3">
-                <Button size="lg" className="bg-gradient-primary hover:opacity-90" asChild>
+                <Button size="lg" asChild>
                   <Link to="/login"><LogIn className="h-4 w-4 mr-2" />Login Admin / Staff</Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
