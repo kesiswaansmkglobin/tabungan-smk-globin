@@ -359,9 +359,10 @@ export const exportStudentToPDF = async (options: ExportStudentPDFOptions): Prom
       try {
         const sigImgWidth = 45;
         const sigImgHeight = 18;
+        const imgFormat = schoolData.tanda_tangan_pengelola.includes('image/jpeg') ? 'JPEG' : 'PNG';
         doc.addImage(
           schoolData.tanda_tangan_pengelola, 
-          'PNG', 
+          imgFormat, 
           sigRightX - sigWidth / 2 - sigImgWidth / 2, 
           finalY + 9, 
           sigImgWidth, 

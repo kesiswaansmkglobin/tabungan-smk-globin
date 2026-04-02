@@ -194,22 +194,33 @@ export const useAppData = (): UseAppDataReturn => {
     const todayTransactions = transactions.filter(t => t.tanggal === today);
     const transaksiHariIni = todayTransactions.length;
 
-    // Calculate monthly chart data
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    const monthlyStats: { [key: string]: { setor: number; tarik: number } } = {};
+    // Calculate monthly chart data - Academic Year (Juli - Juni)
+    const academicMonths = ['Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     
-    months.forEach(month => {
+    // Determine academic year: if current month >= July, academic year starts this July
+    // Otherwise, it started last July
+    const now = new Date();
+    const currentMonth = now.getMonth(); // 0-based
+    const academicStartYear = currentMonth >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+    
+    const monthlyStats: { [key: string]: { setor: number; tarik: number } } = {};
+    academicMonths.forEach(month => {
       monthlyStats[month] = { setor: 0, tarik: 0 };
     });
 
-    const currentYear = new Date().getFullYear();
-    const yearTransactions = transactions.filter(t => 
-      new Date(t.tanggal).getFullYear() === currentYear
-    );
+    // Filter transactions within the academic year (July academicStartYear to June academicStartYear+1)
+    const academicStart = new Date(academicStartYear, 6, 1); // July 1
+    const academicEnd = new Date(academicStartYear + 1, 5, 30); // June 30
+    
+    const yearTransactions = transactions.filter(t => {
+      const d = new Date(t.tanggal);
+      return d >= academicStart && d <= academicEnd;
+    });
 
     yearTransactions.forEach(transaction => {
       const month = new Date(transaction.tanggal).getMonth();
-      const monthName = months[month];
+      const monthName = monthNames[month];
       const amount = Number(transaction.jumlah) || 0;
       
       if (transaction.jenis === 'Setor') {
@@ -219,7 +230,7 @@ export const useAppData = (): UseAppDataReturn => {
       }
     });
 
-    const chartData = months.map(month => ({
+    const chartData = academicMonths.map(month => ({
       bulan: month,
       setor: monthlyStats[month].setor,
       tarik: monthlyStats[month].tarik

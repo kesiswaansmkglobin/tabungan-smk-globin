@@ -622,9 +622,10 @@ export const exportPassbookToPDF = async (options: ExportPassbookOptions): Promi
     try {
       const sigImgWidth = 40;
       const sigImgHeight = 16;
+      const imgFormat = schoolData.tanda_tangan_pengelola.includes('image/jpeg') ? 'JPEG' : 'PNG';
       doc.addImage(
         schoolData.tanda_tangan_pengelola, 
-        'PNG', 
+        imgFormat, 
         rightSigX + (sigWidth - sigImgWidth) / 2, 
         yPos + 3, 
         sigImgWidth, 
