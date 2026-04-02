@@ -235,8 +235,8 @@ export const exportToPDF = (options: ExportPDFOptions): void => {
     // Add signature image if available
     if (schoolData?.tanda_tangan_pengelola) {
       try {
-        // Position signature image above the name line
-        doc.addImage(schoolData.tanda_tangan_pengelola, 'PNG', signatureX, finalY + 12, sigWidth, 22);
+        const imgFormat = schoolData.tanda_tangan_pengelola.includes('image/jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(schoolData.tanda_tangan_pengelola, imgFormat, signatureX, finalY + 12, sigWidth, 22);
       } catch (e) {
         console.error('Error adding signature:', e);
       }
