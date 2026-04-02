@@ -107,7 +107,7 @@ const DataSiswa = () => {
       try {
         const { data, error } = await supabase
           .from('school_data')
-          .select('nama_sekolah, alamat_sekolah, nama_pengelola, jabatan_pengelola, tahun_ajaran, logo_sekolah')
+          .select('nama_sekolah, alamat_sekolah, nama_pengelola, jabatan_pengelola, tahun_ajaran, logo_sekolah, tanda_tangan_pengelola')
           .limit(1)
           .maybeSingle();
         if (!error && data) setSchoolData(data);
