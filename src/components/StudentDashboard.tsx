@@ -25,6 +25,13 @@ interface Transaction {
   created_at: string;
 }
 
+// Icon resolver
+const iconMap: Record<string, React.ElementType> = {
+  trophy: Trophy, target: Target, shield: Shield, crown: Crown,
+  gem: Gem, star: Star, medal: Medal, zap: Zap, award: Award, gift: Gift,
+};
+const resolveIcon = (name: string): React.ElementType => iconMap[name] || Trophy;
+
 // --- TIER SYSTEM ---
 interface Tier {
   name: string;
@@ -35,20 +42,41 @@ interface Tier {
   bg: string;
   border: string;
   glow: string;
+  badgeColor: string;
 }
 
-const TIERS: Tier[] = [
-  { name: "Bronze", icon: Shield, minBalance: 0, maxBalance: 50000, color: "text-amber-700", bg: "bg-amber-100 dark:bg-amber-900/30", border: "border-amber-300 dark:border-amber-700", glow: "shadow-amber-200/50 dark:shadow-amber-800/30" },
-  { name: "Silver", icon: Star, minBalance: 50000, maxBalance: 200000, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50", border: "border-slate-300 dark:border-slate-600", glow: "shadow-slate-200/50 dark:shadow-slate-700/30" },
-  { name: "Gold", icon: Crown, minBalance: 200000, maxBalance: 500000, color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-400 dark:border-yellow-600", glow: "shadow-yellow-200/60 dark:shadow-yellow-700/30" },
-  { name: "Platinum", icon: Trophy, minBalance: 500000, maxBalance: Infinity, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-400 dark:border-purple-600", glow: "shadow-purple-200/60 dark:shadow-purple-700/30" },
+// Fallback tiers if DB is empty
+const DEFAULT_TIERS: Tier[] = [
+  { name: "Bronze", icon: Shield, minBalance: 0, maxBalance: 50000, color: "text-amber-700", bg: "bg-amber-100 dark:bg-amber-900/30", border: "border-amber-300 dark:border-amber-700", glow: "shadow-amber-200/50 dark:shadow-amber-800/30", badgeColor: "#CD7F32" },
+  { name: "Silver", icon: Star, minBalance: 50000, maxBalance: 200000, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50", border: "border-slate-300 dark:border-slate-600", glow: "shadow-slate-200/50 dark:shadow-slate-700/30", badgeColor: "#C0C0C0" },
+  { name: "Gold", icon: Crown, minBalance: 200000, maxBalance: 500000, color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-400 dark:border-yellow-600", glow: "shadow-yellow-200/60 dark:shadow-yellow-700/30", badgeColor: "#FFD700" },
+  { name: "Platinum", icon: Trophy, minBalance: 500000, maxBalance: Infinity, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-400 dark:border-purple-600", glow: "shadow-purple-200/60 dark:shadow-purple-700/30", badgeColor: "#E5E4E2" },
 ];
 
-const getTier = (balance: number): Tier => {
-  for (let i = TIERS.length - 1; i >= 0; i--) {
-    if (balance >= TIERS[i].minBalance) return TIERS[i];
+const buildTiersFromDB = (dbTiers: any[]): Tier[] => {
+  if (!dbTiers.length) return DEFAULT_TIERS;
+  const sorted = [...dbTiers].sort((a, b) => a.sort_order - b.sort_order);
+  return sorted.map((t, i) => {
+    const next = sorted[i + 1];
+    return {
+      name: t.name,
+      icon: resolveIcon(t.badge_icon),
+      minBalance: t.min_saldo,
+      maxBalance: next ? next.min_saldo : Infinity,
+      color: `text-[${t.badge_color}]`,
+      badgeColor: t.badge_color,
+      bg: "bg-muted",
+      border: "border-border",
+      glow: "",
+    };
+  });
+};
+
+const getTier = (balance: number, tiers: Tier[]): Tier => {
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    if (balance >= tiers[i].minBalance) return tiers[i];
   }
-  return TIERS[0];
+  return tiers[0];
 };
 
 const getXP = (balance: number) => Math.floor(balance / 1000);
@@ -70,20 +98,45 @@ interface Quest {
   reward: string;
 }
 
-const QUESTS: Quest[] = [
+const buildQuestsFromDB = (dbQuests: any[]): Quest[] => {
+  if (!dbQuests.length) return DEFAULT_QUESTS;
+  return dbQuests.filter(q => q.is_active).map(q => ({
+    id: q.id,
+    title: q.title,
+    description: q.description,
+    icon: resolveIcon(q.icon),
+    reward: `+${q.reward_xp} XP`,
+    check: (transactions: Transaction[], balance: number): boolean => {
+      switch (q.quest_type) {
+        case 'first_deposit':
+          return transactions.some(tx => tx.jenis?.toLowerCase() === 'setor');
+        case 'monthly_deposit_count': {
+          const now = new Date();
+          const thisMonth = transactions.filter(tx => {
+            const d = new Date(tx.tanggal);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.jenis?.toLowerCase() === 'setor';
+          });
+          return thisMonth.length >= q.target_value;
+        }
+        case 'reach_balance':
+          return balance >= q.target_value;
+        case 'total_deposits':
+          return transactions.filter(tx => tx.jenis?.toLowerCase() === 'setor').length >= q.target_value;
+        default:
+          return false;
+      }
+    },
+  }));
+};
+
+const DEFAULT_QUESTS: Quest[] = [
   { id: "first_deposit", title: "Langkah Pertama", description: "Lakukan setoran pertama", icon: Zap, check: (t) => t.some(tx => tx.jenis?.toLowerCase() === 'setor'), reward: "+10 XP" },
   { id: "save_3_month", title: "Penabung Rutin", description: "Setor 3 kali bulan ini", icon: Target, check: (t) => {
     const now = new Date();
-    const thisMonth = t.filter(tx => {
-      const d = new Date(tx.tanggal);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.jenis?.toLowerCase() === 'setor';
-    });
-    return thisMonth.length >= 3;
+    return t.filter(tx => { const d = new Date(tx.tanggal); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.jenis?.toLowerCase() === 'setor'; }).length >= 3;
   }, reward: "+30 XP" },
   { id: "reach_silver", title: "Naik Peringkat!", description: "Capai Silver Tier (Rp 50.000)", icon: Star, check: (_, b) => b >= 50000, reward: "Silver Badge" },
   { id: "reach_gold", title: "Emas Berkilau", description: "Capai Gold Tier (Rp 200.000)", icon: Crown, check: (_, b) => b >= 200000, reward: "Gold Badge" },
-  { id: "save_10", title: "Kolektor Tabungan", description: "Lakukan total 10 kali setoran", icon: Medal, check: (t) => t.filter(tx => tx.jenis?.toLowerCase() === 'setor').length >= 10, reward: "+50 XP" },
-  { id: "reach_100k", title: "Pencapaian 100K", description: "Saldo mencapai Rp 100.000", icon: Gift, check: (_, b) => b >= 100000, reward: "Special Badge" },
 ];
 
 const formatCurrency = (amount: number) =>
