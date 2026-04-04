@@ -74,6 +74,78 @@ export type Database = {
         }
         Relationships: []
       }
+      gamification_quests: {
+        Row: {
+          created_at: string
+          description: string
+          icon: string | null
+          id: string
+          is_active: boolean
+          quest_type: string
+          reward_xp: number
+          target_value: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          quest_type?: string
+          reward_xp?: number
+          target_value?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          quest_type?: string
+          reward_xp?: number
+          target_value?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gamification_tiers: {
+        Row: {
+          badge_color: string | null
+          badge_icon: string | null
+          created_at: string
+          id: string
+          min_saldo: number
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          badge_color?: string | null
+          badge_icon?: string | null
+          created_at?: string
+          id?: string
+          min_saldo?: number
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          badge_color?: string | null
+          badge_icon?: string | null
+          created_at?: string
+          id?: string
+          min_saldo?: number
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           admin_whatsapp_number: string

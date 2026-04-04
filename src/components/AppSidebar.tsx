@@ -9,7 +9,8 @@ import {
   User,
   Settings,
   Shield,
-  BarChart3
+  BarChart3,
+  Gamepad2
 } from "lucide-react";
 import {
   Sidebar,
@@ -40,6 +41,7 @@ const adminMenuItems = [
   { title: "Laporan", key: "laporan", icon: FileText },
   { title: "Riwayat Harian", key: "riwayat-harian", icon: Calendar },
   { title: "Audit Logs", key: "audit-logs", icon: Shield },
+  { title: "Gamifikasi", key: "gamifikasi", icon: Gamepad2 },
   { title: "Pengaturan", key: "pengaturan", icon: Settings },
 ];
 

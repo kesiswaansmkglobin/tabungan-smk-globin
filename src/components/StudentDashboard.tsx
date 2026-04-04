@@ -9,7 +9,7 @@ import { useStudentAuth } from "@/hooks/useStudentAuth";
 import {
   LogOut, User, Wallet, RefreshCw, TrendingUp, TrendingDown,
   Star, Trophy, Shield, Crown, Target, CheckCircle2, Lock,
-  ArrowUpRight, ArrowDownRight, Sparkles, Zap, Gift, Medal,
+  ArrowUpRight, ArrowDownRight, Sparkles, Zap, Gift, Medal, Gem, Award,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +25,13 @@ interface Transaction {
   created_at: string;
 }
 
+// Icon resolver
+const iconMap: Record<string, React.ElementType> = {
+  trophy: Trophy, target: Target, shield: Shield, crown: Crown,
+  gem: Gem, star: Star, medal: Medal, zap: Zap, award: Award, gift: Gift,
+};
+const resolveIcon = (name: string): React.ElementType => iconMap[name] || Trophy;
+
 // --- TIER SYSTEM ---
 interface Tier {
   name: string;
@@ -35,20 +42,41 @@ interface Tier {
   bg: string;
   border: string;
   glow: string;
+  badgeColor: string;
 }
 
-const TIERS: Tier[] = [
-  { name: "Bronze", icon: Shield, minBalance: 0, maxBalance: 50000, color: "text-amber-700", bg: "bg-amber-100 dark:bg-amber-900/30", border: "border-amber-300 dark:border-amber-700", glow: "shadow-amber-200/50 dark:shadow-amber-800/30" },
-  { name: "Silver", icon: Star, minBalance: 50000, maxBalance: 200000, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50", border: "border-slate-300 dark:border-slate-600", glow: "shadow-slate-200/50 dark:shadow-slate-700/30" },
-  { name: "Gold", icon: Crown, minBalance: 200000, maxBalance: 500000, color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-400 dark:border-yellow-600", glow: "shadow-yellow-200/60 dark:shadow-yellow-700/30" },
-  { name: "Platinum", icon: Trophy, minBalance: 500000, maxBalance: Infinity, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-400 dark:border-purple-600", glow: "shadow-purple-200/60 dark:shadow-purple-700/30" },
+// Fallback tiers if DB is empty
+const DEFAULT_TIERS: Tier[] = [
+  { name: "Bronze", icon: Shield, minBalance: 0, maxBalance: 50000, color: "text-amber-700", bg: "bg-amber-100 dark:bg-amber-900/30", border: "border-amber-300 dark:border-amber-700", glow: "shadow-amber-200/50 dark:shadow-amber-800/30", badgeColor: "#CD7F32" },
+  { name: "Silver", icon: Star, minBalance: 50000, maxBalance: 200000, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50", border: "border-slate-300 dark:border-slate-600", glow: "shadow-slate-200/50 dark:shadow-slate-700/30", badgeColor: "#C0C0C0" },
+  { name: "Gold", icon: Crown, minBalance: 200000, maxBalance: 500000, color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-900/20", border: "border-yellow-400 dark:border-yellow-600", glow: "shadow-yellow-200/60 dark:shadow-yellow-700/30", badgeColor: "#FFD700" },
+  { name: "Platinum", icon: Trophy, minBalance: 500000, maxBalance: Infinity, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-400 dark:border-purple-600", glow: "shadow-purple-200/60 dark:shadow-purple-700/30", badgeColor: "#E5E4E2" },
 ];
 
-const getTier = (balance: number): Tier => {
-  for (let i = TIERS.length - 1; i >= 0; i--) {
-    if (balance >= TIERS[i].minBalance) return TIERS[i];
+const buildTiersFromDB = (dbTiers: any[]): Tier[] => {
+  if (!dbTiers.length) return DEFAULT_TIERS;
+  const sorted = [...dbTiers].sort((a, b) => a.sort_order - b.sort_order);
+  return sorted.map((t, i) => {
+    const next = sorted[i + 1];
+    return {
+      name: t.name,
+      icon: resolveIcon(t.badge_icon),
+      minBalance: t.min_saldo,
+      maxBalance: next ? next.min_saldo : Infinity,
+      color: `text-[${t.badge_color}]`,
+      badgeColor: t.badge_color,
+      bg: "bg-muted",
+      border: "border-border",
+      glow: "",
+    };
+  });
+};
+
+const getTier = (balance: number, tiers: Tier[]): Tier => {
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    if (balance >= tiers[i].minBalance) return tiers[i];
   }
-  return TIERS[0];
+  return tiers[0];
 };
 
 const getXP = (balance: number) => Math.floor(balance / 1000);
@@ -70,20 +98,45 @@ interface Quest {
   reward: string;
 }
 
-const QUESTS: Quest[] = [
+const buildQuestsFromDB = (dbQuests: any[]): Quest[] => {
+  if (!dbQuests.length) return DEFAULT_QUESTS;
+  return dbQuests.filter(q => q.is_active).map(q => ({
+    id: q.id,
+    title: q.title,
+    description: q.description,
+    icon: resolveIcon(q.icon),
+    reward: `+${q.reward_xp} XP`,
+    check: (transactions: Transaction[], balance: number): boolean => {
+      switch (q.quest_type) {
+        case 'first_deposit':
+          return transactions.some(tx => tx.jenis?.toLowerCase() === 'setor');
+        case 'monthly_deposit_count': {
+          const now = new Date();
+          const thisMonth = transactions.filter(tx => {
+            const d = new Date(tx.tanggal);
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.jenis?.toLowerCase() === 'setor';
+          });
+          return thisMonth.length >= q.target_value;
+        }
+        case 'reach_balance':
+          return balance >= q.target_value;
+        case 'total_deposits':
+          return transactions.filter(tx => tx.jenis?.toLowerCase() === 'setor').length >= q.target_value;
+        default:
+          return false;
+      }
+    },
+  }));
+};
+
+const DEFAULT_QUESTS: Quest[] = [
   { id: "first_deposit", title: "Langkah Pertama", description: "Lakukan setoran pertama", icon: Zap, check: (t) => t.some(tx => tx.jenis?.toLowerCase() === 'setor'), reward: "+10 XP" },
   { id: "save_3_month", title: "Penabung Rutin", description: "Setor 3 kali bulan ini", icon: Target, check: (t) => {
     const now = new Date();
-    const thisMonth = t.filter(tx => {
-      const d = new Date(tx.tanggal);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.jenis?.toLowerCase() === 'setor';
-    });
-    return thisMonth.length >= 3;
+    return t.filter(tx => { const d = new Date(tx.tanggal); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && tx.jenis?.toLowerCase() === 'setor'; }).length >= 3;
   }, reward: "+30 XP" },
   { id: "reach_silver", title: "Naik Peringkat!", description: "Capai Silver Tier (Rp 50.000)", icon: Star, check: (_, b) => b >= 50000, reward: "Silver Badge" },
   { id: "reach_gold", title: "Emas Berkilau", description: "Capai Gold Tier (Rp 200.000)", icon: Crown, check: (_, b) => b >= 200000, reward: "Gold Badge" },
-  { id: "save_10", title: "Kolektor Tabungan", description: "Lakukan total 10 kali setoran", icon: Medal, check: (t) => t.filter(tx => tx.jenis?.toLowerCase() === 'setor').length >= 10, reward: "+50 XP" },
-  { id: "reach_100k", title: "Pencapaian 100K", description: "Saldo mencapai Rp 100.000", icon: Gift, check: (_, b) => b >= 100000, reward: "Special Badge" },
 ];
 
 const formatCurrency = (amount: number) =>
@@ -198,6 +251,21 @@ export default React.memo(function StudentDashboard() {
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const welcomeShown = useRef(false);
   const fetchedRef = useRef(false);
+  const [gameTiers, setGameTiers] = useState<Tier[]>(DEFAULT_TIERS);
+  const [gameQuests, setGameQuests] = useState<Quest[]>(DEFAULT_QUESTS);
+
+  // Fetch gamification settings from DB
+  useEffect(() => {
+    const fetchGamification = async () => {
+      const [tiersRes, questsRes] = await Promise.all([
+        supabase.from("gamification_tiers").select("*").order("sort_order"),
+        supabase.from("gamification_quests").select("*").order("created_at"),
+      ]);
+      if (tiersRes.data?.length) setGameTiers(buildTiersFromDB(tiersRes.data));
+      if (questsRes.data?.length) setGameQuests(buildQuestsFromDB(questsRes.data));
+    };
+    fetchGamification();
+  }, []);
 
   const fetchTransactions = useCallback(async () => {
     if (!sessionToken) return;
@@ -257,7 +325,7 @@ export default React.memo(function StudentDashboard() {
     return () => { supabase.removeChannel(channel); };
   }, [student?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tier = useMemo(() => student ? getTier(student.saldo) : TIERS[0], [student?.saldo]);
+  const tier = useMemo(() => student ? getTier(student.saldo, gameTiers) : gameTiers[0], [student?.saldo, gameTiers]);
   const xp = useMemo(() => student ? getXP(student.saldo) : 0, [student?.saldo]);
   const tierProgress = useMemo(() => student ? getTierProgress(student.saldo, tier) : 0, [student?.saldo, tier]);
   const recentDeposit = useMemo(() => {
@@ -275,8 +343,8 @@ export default React.memo(function StudentDashboard() {
   }, [transactions]);
 
   const completedQuests = useMemo(() =>
-    QUESTS.filter(q => q.check(transactions, student?.saldo || 0)),
-    [transactions, student?.saldo]
+    gameQuests.filter(q => q.check(transactions, student?.saldo || 0)),
+    [transactions, student?.saldo, gameQuests]
   );
 
   if (!student) return null;
@@ -356,7 +424,7 @@ export default React.memo(function StudentDashboard() {
                 <div className="md:w-48">
                   <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                     <span>{tier.name}</span>
-                    {tier.maxBalance !== Infinity && <span>{TIERS[TIERS.indexOf(tier) + 1]?.name || "Max"}</span>}
+                    {tier.maxBalance !== Infinity && <span>{gameTiers[gameTiers.indexOf(tier) + 1]?.name || "Max"}</span>}
                   </div>
                   <Progress value={tierProgress} className="h-3" />
                   {tier.maxBalance !== Infinity && (
@@ -416,12 +484,12 @@ export default React.memo(function StudentDashboard() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <Target className="h-5 w-5 text-primary" />
                 Misi Menabung
-                <Badge variant="secondary" className="ml-auto">{completedQuests.length}/{QUESTS.length}</Badge>
+                <Badge variant="secondary" className="ml-auto">{completedQuests.length}/{gameQuests.length}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {QUESTS.map((quest) => {
+                {gameQuests.map((quest) => {
                   const completed = quest.check(transactions, student.saldo);
                   const QuestIcon = quest.icon;
                   return (

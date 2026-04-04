@@ -48,6 +48,7 @@ export const LazyWaliKelasDataSiswa = createLazyComponent(() => import('./WaliKe
 export const LazyAuditLogs = createLazyComponent(() => import('./AuditLogs'), 'AuditLogs');
 export const LazyStaffDashboard = createLazyComponent(() => import('./StaffDashboard'), 'StaffDashboard');
 export const LazyStaffClassSummary = createLazyComponent(() => import('./StaffClassSummary'), 'StaffClassSummary');
+export const LazyGamifikasiSettings = createLazyComponent(() => import('./GamifikasiSettings'), 'GamifikasiSettings');
 
 // Prefetch function with caching
 export const prefetchComponent = (component: string) => {
@@ -65,6 +66,7 @@ export const prefetchComponent = (component: string) => {
     'audit-logs': () => import('./AuditLogs'),
     'staff-dashboard': () => import('./StaffDashboard'),
     'staff-class-summary': () => import('./StaffClassSummary'),
+    'gamifikasi': () => import('./GamifikasiSettings'),
   };
 
   if (imports[component] && !componentCache.has(component)) {
@@ -95,6 +97,7 @@ const componentTypeMap: Record<string, string> = {
   DataSekolah: 'form',
   Pengaturan: 'form',
   StaffClassSummary: 'table',
+  GamifikasiSettings: 'form',
   WaliKelasView: 'dashboard',
   WaliKelasDataSiswa: 'table',
 };
