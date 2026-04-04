@@ -9,7 +9,7 @@ import { useStudentAuth } from "@/hooks/useStudentAuth";
 import {
   LogOut, User, Wallet, RefreshCw, TrendingUp, TrendingDown,
   Star, Trophy, Shield, Crown, Target, CheckCircle2, Lock,
-  ArrowUpRight, ArrowDownRight, Sparkles, Zap, Gift, Medal,
+  ArrowUpRight, ArrowDownRight, Sparkles, Zap, Gift, Medal, Gem, Award,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
