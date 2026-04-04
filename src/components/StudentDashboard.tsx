@@ -343,8 +343,8 @@ export default React.memo(function StudentDashboard() {
   }, [transactions]);
 
   const completedQuests = useMemo(() =>
-    QUESTS.filter(q => q.check(transactions, student?.saldo || 0)),
-    [transactions, student?.saldo]
+    gameQuests.filter(q => q.check(transactions, student?.saldo || 0)),
+    [transactions, student?.saldo, gameQuests]
   );
 
   if (!student) return null;
