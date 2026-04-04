@@ -66,6 +66,7 @@ export const prefetchComponent = (component: string) => {
     'audit-logs': () => import('./AuditLogs'),
     'staff-dashboard': () => import('./StaffDashboard'),
     'staff-class-summary': () => import('./StaffClassSummary'),
+    'gamifikasi': () => import('./GamifikasiSettings'),
   };
 
   if (imports[component] && !componentCache.has(component)) {
