@@ -484,7 +484,7 @@ export default React.memo(function StudentDashboard() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <Target className="h-5 w-5 text-primary" />
                 Misi Menabung
-                <Badge variant="secondary" className="ml-auto">{completedQuests.length}/{QUESTS.length}</Badge>
+                <Badge variant="secondary" className="ml-auto">{completedQuests.length}/{gameQuests.length}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
