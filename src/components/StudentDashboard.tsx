@@ -251,6 +251,21 @@ export default React.memo(function StudentDashboard() {
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const welcomeShown = useRef(false);
   const fetchedRef = useRef(false);
+  const [gameTiers, setGameTiers] = useState<Tier[]>(DEFAULT_TIERS);
+  const [gameQuests, setGameQuests] = useState<Quest[]>(DEFAULT_QUESTS);
+
+  // Fetch gamification settings from DB
+  useEffect(() => {
+    const fetchGamification = async () => {
+      const [tiersRes, questsRes] = await Promise.all([
+        supabase.from("gamification_tiers").select("*").order("sort_order"),
+        supabase.from("gamification_quests").select("*").order("created_at"),
+      ]);
+      if (tiersRes.data?.length) setGameTiers(buildTiersFromDB(tiersRes.data));
+      if (questsRes.data?.length) setGameQuests(buildQuestsFromDB(questsRes.data));
+    };
+    fetchGamification();
+  }, []);
 
   const fetchTransactions = useCallback(async () => {
     if (!sessionToken) return;
