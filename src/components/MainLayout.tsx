@@ -17,6 +17,7 @@ import {
   LazyAuditLogs,
   LazyStaffDashboard,
   LazyStaffClassSummary,
+  LazyGamifikasiSettings,
   LazyWrapper,
   prefetchComponent,
   usePrefetchOnIdle
