@@ -9,7 +9,8 @@ import {
   User,
   Settings,
   Shield,
-  BarChart3
+  BarChart3,
+  Gamepad2
 } from "lucide-react";
 import {
   Sidebar,
