@@ -48,6 +48,7 @@ export const LazyWaliKelasDataSiswa = createLazyComponent(() => import('./WaliKe
 export const LazyAuditLogs = createLazyComponent(() => import('./AuditLogs'), 'AuditLogs');
 export const LazyStaffDashboard = createLazyComponent(() => import('./StaffDashboard'), 'StaffDashboard');
 export const LazyStaffClassSummary = createLazyComponent(() => import('./StaffClassSummary'), 'StaffClassSummary');
+export const LazyGamifikasiSettings = createLazyComponent(() => import('./GamifikasiSettings'), 'GamifikasiSettings');
 
 // Prefetch function with caching
 export const prefetchComponent = (component: string) => {
