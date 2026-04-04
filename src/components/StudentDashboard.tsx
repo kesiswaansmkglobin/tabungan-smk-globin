@@ -325,7 +325,7 @@ export default React.memo(function StudentDashboard() {
     return () => { supabase.removeChannel(channel); };
   }, [student?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tier = useMemo(() => student ? getTier(student.saldo) : TIERS[0], [student?.saldo]);
+  const tier = useMemo(() => student ? getTier(student.saldo, gameTiers) : gameTiers[0], [student?.saldo, gameTiers]);
   const xp = useMemo(() => student ? getXP(student.saldo) : 0, [student?.saldo]);
   const tierProgress = useMemo(() => student ? getTierProgress(student.saldo, tier) : 0, [student?.saldo, tier]);
   const recentDeposit = useMemo(() => {
