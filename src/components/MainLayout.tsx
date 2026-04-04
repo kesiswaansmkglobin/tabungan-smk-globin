@@ -121,6 +121,7 @@ const MainLayout = React.memo(({ onLogout }: MainLayoutProps) => {
       case "laporan": return <LazyWrapper><LazyLaporan /></LazyWrapper>;
       case "riwayat-harian": return <LazyWrapper><LazyRiwayatHarian /></LazyWrapper>;
       case "audit-logs": return <LazyWrapper><LazyAuditLogs /></LazyWrapper>;
+      case "gamifikasi": return <LazyWrapper><LazyGamifikasiSettings /></LazyWrapper>;
       case "pengaturan": return <LazyWrapper><LazyPengaturan /></LazyWrapper>;
       default: return <Dashboard />;
     }

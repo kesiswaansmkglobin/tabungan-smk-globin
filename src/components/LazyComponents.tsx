@@ -97,6 +97,7 @@ const componentTypeMap: Record<string, string> = {
   DataSekolah: 'form',
   Pengaturan: 'form',
   StaffClassSummary: 'table',
+  GamifikasiSettings: 'form',
   WaliKelasView: 'dashboard',
   WaliKelasDataSiswa: 'table',
 };
