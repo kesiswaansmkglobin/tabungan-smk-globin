@@ -424,7 +424,7 @@ export default React.memo(function StudentDashboard() {
                 <div className="md:w-48">
                   <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                     <span>{tier.name}</span>
-                    {tier.maxBalance !== Infinity && <span>{TIERS[TIERS.indexOf(tier) + 1]?.name || "Max"}</span>}
+                    {tier.maxBalance !== Infinity && <span>{gameTiers[gameTiers.indexOf(tier) + 1]?.name || "Max"}</span>}
                   </div>
                   <Progress value={tierProgress} className="h-3" />
                   {tier.maxBalance !== Infinity && (
