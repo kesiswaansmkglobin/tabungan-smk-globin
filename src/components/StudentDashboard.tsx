@@ -274,35 +274,30 @@ export default React.memo(function StudentDashboard() {
     fetchGamification();
   }, []);
 
-  // Fetch school data for PDF exports
+  // Fetch school data for PDF exports + class name
   useEffect(() => {
-    const fetchSchoolData = async () => {
+    const fetchSchoolAndClass = async () => {
       try {
-        // Use RPC to get school name (accessible without admin role)
-        const { data: schoolName } = await supabase.rpc('get_school_name');
-        if (schoolName) {
-          setSchoolData({ nama_sekolah: schoolName });
+        const [schoolRes, classFetch] = await Promise.all([
+          supabase.rpc('get_school_data_public' as any),
+          student?.nis ? supabase.rpc('verify_student_passbook', { student_nis: student.nis }) : null,
+        ]);
+        
+        const schoolResponse = schoolRes?.data as any;
+        if (schoolResponse?.success) {
+          setSchoolData(schoolResponse);
+        }
+        
+        if (classFetch) {
+          const classResponse = classFetch.data as any;
+          if (classResponse?.success && classResponse.student?.kelas) {
+            setClassName(classResponse.student.kelas);
+          }
         }
       } catch {}
     };
-    fetchSchoolData();
-  }, []);
-
-  // Fetch class name
-  useEffect(() => {
-    if (!student?.kelas_id) return;
-    const fetchClass = async () => {
-      // Try via verify_student_passbook which is publicly accessible
-      if (student?.nis) {
-        const { data } = await supabase.rpc('verify_student_passbook', { student_nis: student.nis });
-        const response = data as any;
-        if (response?.success && response.student?.kelas) {
-          setClassName(response.student.kelas);
-        }
-      }
-    };
-    fetchClass();
-  }, [student?.kelas_id, student?.nis]);
+    fetchSchoolAndClass();
+  }, [student?.nis]);
 
   const fetchTransactions = useCallback(async () => {
     if (!sessionToken) return;
