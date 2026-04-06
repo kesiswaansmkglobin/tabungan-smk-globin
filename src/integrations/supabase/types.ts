@@ -528,6 +528,7 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_school_data_public: { Args: never; Returns: Json }
       get_school_name: { Args: never; Returns: string }
       get_student_info_secure: { Args: { token: string }; Returns: Json }
       get_student_transactions: {
