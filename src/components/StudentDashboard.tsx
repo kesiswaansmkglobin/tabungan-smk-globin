@@ -256,19 +256,53 @@ export default React.memo(function StudentDashboard() {
   const fetchedRef = useRef(false);
   const [gameTiers, setGameTiers] = useState<Tier[]>(DEFAULT_TIERS);
   const [gameQuests, setGameQuests] = useState<Quest[]>(DEFAULT_QUESTS);
+  const [schoolData, setSchoolData] = useState<any>(null);
+  const [className, setClassName] = useState<string>('');
+  const [downloading, setDownloading] = useState<string | null>(null);
 
-  // Fetch gamification settings from DB
+  // Fetch gamification settings + school data from DB
   useEffect(() => {
     const fetchGamification = async () => {
-      const [tiersRes, questsRes] = await Promise.all([
+      const [tiersRes, questsRes, schoolRes] = await Promise.all([
         supabase.from("gamification_tiers").select("*").order("sort_order"),
         supabase.from("gamification_quests").select("*").order("created_at"),
+        supabase.rpc('get_school_name'),
       ]);
       if (tiersRes.data?.length) setGameTiers(buildTiersFromDB(tiersRes.data));
       if (questsRes.data?.length) setGameQuests(buildQuestsFromDB(questsRes.data));
     };
     fetchGamification();
   }, []);
+
+  // Fetch school data for PDF exports
+  useEffect(() => {
+    const fetchSchoolData = async () => {
+      try {
+        // Use RPC to get school name (accessible without admin role)
+        const { data: schoolName } = await supabase.rpc('get_school_name');
+        if (schoolName) {
+          setSchoolData({ nama_sekolah: schoolName });
+        }
+      } catch {}
+    };
+    fetchSchoolData();
+  }, []);
+
+  // Fetch class name
+  useEffect(() => {
+    if (!student?.kelas_id) return;
+    const fetchClass = async () => {
+      // Try via verify_student_passbook which is publicly accessible
+      if (student?.nis) {
+        const { data } = await supabase.rpc('verify_student_passbook', { student_nis: student.nis });
+        const response = data as any;
+        if (response?.success && response.student?.kelas) {
+          setClassName(response.student.kelas);
+        }
+      }
+    };
+    fetchClass();
+  }, [student?.kelas_id, student?.nis]);
 
   const fetchTransactions = useCallback(async () => {
     if (!sessionToken) return;
