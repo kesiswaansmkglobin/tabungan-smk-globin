@@ -551,7 +551,57 @@ export default React.memo(function StudentDashboard() {
           </motion.div>
         )}
 
-        {/* Quest Board */}
+        {/* Download Section */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Download className="h-5 w-5 text-primary" />
+                Unduh Dokumen
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto py-4 flex flex-col items-center gap-2 border-2 hover:border-primary/50 hover:bg-primary/5"
+                    onClick={() => handleDownloadPDF('rekap')}
+                    disabled={!!downloading || transactions.length === 0}
+                  >
+                    <FileText className={`h-8 w-8 ${downloading === 'rekap' ? 'animate-pulse' : ''} text-primary`} />
+                    <div className="text-center">
+                      <p className="font-semibold text-sm">Rekap Tabungan</p>
+                      <p className="text-xs text-muted-foreground">Laporan lengkap dengan statistik</p>
+                    </div>
+                    {downloading === 'rekap' && <span className="text-xs text-muted-foreground">Mengunduh...</span>}
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto py-4 flex flex-col items-center gap-2 border-2 hover:border-primary/50 hover:bg-primary/5"
+                    onClick={() => handleDownloadPDF('passbook')}
+                    disabled={!!downloading || transactions.length === 0}
+                  >
+                    <BookOpen className={`h-8 w-8 ${downloading === 'passbook' ? 'animate-pulse' : ''} text-primary`} />
+                    <div className="text-center">
+                      <p className="font-semibold text-sm">Buku Tabungan</p>
+                      <p className="text-xs text-muted-foreground">Format buku tabungan premium</p>
+                    </div>
+                    {downloading === 'passbook' && <span className="text-xs text-muted-foreground">Mengunduh...</span>}
+                  </Button>
+                </motion.div>
+              </div>
+              {transactions.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center mt-3">
+                  Dokumen bisa diunduh setelah ada transaksi
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardHeader className="pb-3">
