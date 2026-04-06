@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['lovable-uploads/fb998a82-7c22-4111-ae69-8c0f3d94f9e0.png', 'icon-192.png'],
+      includeAssets: ['saving-icon.png'],
       devOptions: { enabled: false },
       manifest: {
         name: 'Tabungan SMK Globin',
@@ -44,26 +44,21 @@ export default defineConfig(({ mode }) => ({
         start_url: '/',
         icons: [
           {
-            src: '/lovable-uploads/fb998a82-7c22-4111-ae69-8c0f3d94f9e0.png',
+            src: '/saving-icon.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/lovable-uploads/fb998a82-7c22-4111-ae69-8c0f3d94f9e0.png',
+            src: '/saving-icon.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable'
-          },
-          {
-            src: '/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any'
           }
         ]
       },
       workbox: {
+        navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
