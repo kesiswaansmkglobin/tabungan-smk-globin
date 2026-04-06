@@ -10,9 +10,12 @@ import {
   LogOut, User, Wallet, RefreshCw, TrendingUp, TrendingDown,
   Star, Trophy, Shield, Crown, Target, CheckCircle2, Lock,
   ArrowUpRight, ArrowDownRight, Sparkles, Zap, Gift, Medal, Gem, Award,
+  Download, BookOpen, FileText,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
+import { exportStudentToPDF } from "@/utils/studentPdfExport";
+import { exportPassbookToPDF } from "@/utils/passbookPdfExport";
 
 interface Transaction {
   id: string;
@@ -253,19 +256,53 @@ export default React.memo(function StudentDashboard() {
   const fetchedRef = useRef(false);
   const [gameTiers, setGameTiers] = useState<Tier[]>(DEFAULT_TIERS);
   const [gameQuests, setGameQuests] = useState<Quest[]>(DEFAULT_QUESTS);
+  const [schoolData, setSchoolData] = useState<any>(null);
+  const [className, setClassName] = useState<string>('');
+  const [downloading, setDownloading] = useState<string | null>(null);
 
-  // Fetch gamification settings from DB
+  // Fetch gamification settings + school data from DB
   useEffect(() => {
     const fetchGamification = async () => {
-      const [tiersRes, questsRes] = await Promise.all([
+      const [tiersRes, questsRes, schoolRes] = await Promise.all([
         supabase.from("gamification_tiers").select("*").order("sort_order"),
         supabase.from("gamification_quests").select("*").order("created_at"),
+        supabase.rpc('get_school_name'),
       ]);
       if (tiersRes.data?.length) setGameTiers(buildTiersFromDB(tiersRes.data));
       if (questsRes.data?.length) setGameQuests(buildQuestsFromDB(questsRes.data));
     };
     fetchGamification();
   }, []);
+
+  // Fetch school data for PDF exports
+  useEffect(() => {
+    const fetchSchoolData = async () => {
+      try {
+        // Use RPC to get school name (accessible without admin role)
+        const { data: schoolName } = await supabase.rpc('get_school_name');
+        if (schoolName) {
+          setSchoolData({ nama_sekolah: schoolName });
+        }
+      } catch {}
+    };
+    fetchSchoolData();
+  }, []);
+
+  // Fetch class name
+  useEffect(() => {
+    if (!student?.kelas_id) return;
+    const fetchClass = async () => {
+      // Try via verify_student_passbook which is publicly accessible
+      if (student?.nis) {
+        const { data } = await supabase.rpc('verify_student_passbook', { student_nis: student.nis });
+        const response = data as any;
+        if (response?.success && response.student?.kelas) {
+          setClassName(response.student.kelas);
+        }
+      }
+    };
+    fetchClass();
+  }, [student?.kelas_id, student?.nis]);
 
   const fetchTransactions = useCallback(async () => {
     if (!sessionToken) return;
@@ -346,6 +383,43 @@ export default React.memo(function StudentDashboard() {
     gameQuests.filter(q => q.check(transactions, student?.saldo || 0)),
     [transactions, student?.saldo, gameQuests]
   );
+
+  const handleDownloadPDF = useCallback(async (type: 'rekap' | 'passbook') => {
+    if (!student || downloading) return;
+    setDownloading(type);
+    try {
+      const studentData = {
+        id: student.id,
+        nis: student.nis,
+        nama: student.nama,
+        saldo: student.saldo,
+        kelas_nama: className || '-',
+      };
+
+      const school = schoolData ? {
+        nama_sekolah: schoolData.nama_sekolah || 'Sekolah',
+        alamat_sekolah: schoolData.alamat_sekolah || '',
+        nama_pengelola: schoolData.nama_pengelola || '',
+        jabatan_pengelola: schoolData.jabatan_pengelola || '',
+        tahun_ajaran: schoolData.tahun_ajaran || new Date().getFullYear().toString(),
+        logo_sekolah: schoolData.logo_sekolah || null,
+        tanda_tangan_pengelola: schoolData.tanda_tangan_pengelola || null,
+      } : null;
+
+      if (type === 'rekap') {
+        await exportStudentToPDF({ student: studentData, transactions, schoolData: school });
+        toast({ title: "Berhasil", description: "Rekap tabungan berhasil diunduh" });
+      } else {
+        await exportPassbookToPDF({ student: studentData, transactions, schoolData: school });
+        toast({ title: "Berhasil", description: "Buku tabungan berhasil diunduh" });
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      toast({ title: "Gagal", description: "Terjadi kesalahan saat mengunduh", variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  }, [student, transactions, schoolData, className, downloading]);
 
   if (!student) return null;
 
@@ -477,7 +551,57 @@ export default React.memo(function StudentDashboard() {
           </motion.div>
         )}
 
-        {/* Quest Board */}
+        {/* Download Section */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Download className="h-5 w-5 text-primary" />
+                Unduh Dokumen
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto py-4 flex flex-col items-center gap-2 border-2 hover:border-primary/50 hover:bg-primary/5"
+                    onClick={() => handleDownloadPDF('rekap')}
+                    disabled={!!downloading || transactions.length === 0}
+                  >
+                    <FileText className={`h-8 w-8 ${downloading === 'rekap' ? 'animate-pulse' : ''} text-primary`} />
+                    <div className="text-center">
+                      <p className="font-semibold text-sm">Rekap Tabungan</p>
+                      <p className="text-xs text-muted-foreground">Laporan lengkap dengan statistik</p>
+                    </div>
+                    {downloading === 'rekap' && <span className="text-xs text-muted-foreground">Mengunduh...</span>}
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    className="w-full h-auto py-4 flex flex-col items-center gap-2 border-2 hover:border-primary/50 hover:bg-primary/5"
+                    onClick={() => handleDownloadPDF('passbook')}
+                    disabled={!!downloading || transactions.length === 0}
+                  >
+                    <BookOpen className={`h-8 w-8 ${downloading === 'passbook' ? 'animate-pulse' : ''} text-primary`} />
+                    <div className="text-center">
+                      <p className="font-semibold text-sm">Buku Tabungan</p>
+                      <p className="text-xs text-muted-foreground">Format buku tabungan premium</p>
+                    </div>
+                    {downloading === 'passbook' && <span className="text-xs text-muted-foreground">Mengunduh...</span>}
+                  </Button>
+                </motion.div>
+              </div>
+              {transactions.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center mt-3">
+                  Dokumen bisa diunduh setelah ada transaksi
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
           <Card>
             <CardHeader className="pb-3">
