@@ -10,9 +10,12 @@ import {
   LogOut, User, Wallet, RefreshCw, TrendingUp, TrendingDown,
   Star, Trophy, Shield, Crown, Target, CheckCircle2, Lock,
   ArrowUpRight, ArrowDownRight, Sparkles, Zap, Gift, Medal, Gem, Award,
+  Download, BookOpen, FileText,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
+import { exportStudentToPDF } from "@/utils/studentPdfExport";
+import { exportPassbookToPDF } from "@/utils/passbookPdfExport";
 
 interface Transaction {
   id: string;
