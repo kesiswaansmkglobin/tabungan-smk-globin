@@ -384,6 +384,43 @@ export default React.memo(function StudentDashboard() {
     [transactions, student?.saldo, gameQuests]
   );
 
+  const handleDownloadPDF = useCallback(async (type: 'rekap' | 'passbook') => {
+    if (!student || downloading) return;
+    setDownloading(type);
+    try {
+      const studentData = {
+        id: student.id,
+        nis: student.nis,
+        nama: student.nama,
+        saldo: student.saldo,
+        kelas_nama: className || '-',
+      };
+
+      const school = schoolData ? {
+        nama_sekolah: schoolData.nama_sekolah || 'Sekolah',
+        alamat_sekolah: schoolData.alamat_sekolah || '',
+        nama_pengelola: schoolData.nama_pengelola || '',
+        jabatan_pengelola: schoolData.jabatan_pengelola || '',
+        tahun_ajaran: schoolData.tahun_ajaran || new Date().getFullYear().toString(),
+        logo_sekolah: schoolData.logo_sekolah || null,
+        tanda_tangan_pengelola: schoolData.tanda_tangan_pengelola || null,
+      } : null;
+
+      if (type === 'rekap') {
+        await exportStudentToPDF({ student: studentData, transactions, schoolData: school });
+        toast({ title: "Berhasil", description: "Rekap tabungan berhasil diunduh" });
+      } else {
+        await exportPassbookToPDF({ student: studentData, transactions, schoolData: school });
+        toast({ title: "Berhasil", description: "Buku tabungan berhasil diunduh" });
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      toast({ title: "Gagal", description: "Terjadi kesalahan saat mengunduh", variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  }, [student, transactions, schoolData, className, downloading]);
+
   if (!student) return null;
 
   const TierIcon = tier.icon;
