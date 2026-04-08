@@ -811,6 +811,85 @@ const diagrams: DiagramSection[] = [
       },
     ],
   },
+  {
+    id: "gamification",
+    number: 9,
+    title: "Flowchart Gamifikasi — Alur Tier, XP, dan Quest",
+    badge: "Gamification",
+    description:
+      "Flowchart ini menggambarkan alur sistem gamifikasi yang memotivasi siswa menabung melalui mekanisme Tier (tingkatan), XP (Experience Points), dan Quest (misi). Sistem ini terintegrasi dengan data saldo dan transaksi siswa secara real-time.",
+    details: [
+      "XP (Experience Points) dihitung dengan rumus: XP = floor(saldo / 1000). Setiap Rp 1.000 saldo menghasilkan 1 XP. Contoh: siswa dengan saldo Rp 150.000 memiliki 150 XP.",
+      "Tier ditentukan berdasarkan saldo siswa. Default: Bronze (Rp 0 - 50.000), Silver (Rp 50.000 - 200.000), Gold (Rp 200.000 - 500.000), Platinum (Rp 500.000+). Tier dapat dikonfigurasi admin melalui tabel gamification_tiers.",
+      "Tier Progress dihitung dengan rumus: progress = ((saldo - minBalance) / (maxBalance - minBalance)) x 100%. Jika tier terakhir (maxBalance = Infinity), progress otomatis 100%.",
+      "Quest (Misi) dievaluasi secara real-time berdasarkan data transaksi. Terdapat 4 tipe: first_deposit (setoran pertama), monthly_deposit_count (jumlah setor bulanan), reach_balance (capai saldo tertentu), total_deposits (total setoran).",
+      "Visual feedback: animasi confetti ditampilkan saat siswa login dalam 24 jam setelah setoran. Welcome Modal menampilkan info saldo terbaru.",
+      "Implementasi di src/components/StudentDashboard.tsx (XP baris 85, getTier baris 78-83, getTierProgress baris 87-92, buildQuestsFromDB baris 104-133). Admin kelola di src/components/GamifikasiSettings.tsx.",
+    ],
+    charts: [
+      {
+        subtitle: "a. Alur Utama Gamifikasi",
+        code: `flowchart TD
+    A([Siswa Login]) --> B[Ambil Data Saldo dan Transaksi]
+    B --> C[Ambil Konfigurasi Tier dari DB]
+    C --> D[Ambil Konfigurasi Quest dari DB]
+    D --> E[Hitung XP = floor saldo / 1000]
+    E --> F[Tentukan Tier Berdasarkan Saldo]
+    F --> G[Hitung Progress ke Tier Berikutnya]
+    G --> H[Evaluasi Semua Quest Aktif]
+    H --> I{Ada Quest Selesai?}
+    I -->|Ya| J[Tandai Quest Completed + Reward XP]
+    I -->|Tidak| K[Tampilkan Progress Quest]
+    J --> L[Render Dashboard Siswa]
+    K --> L
+    L --> M{Setoran Baru < 24 Jam?}
+    M -->|Ya| N[Tampilkan Confetti Animation]
+    N --> O[Welcome Modal + Info Saldo Baru]
+    M -->|Tidak| P[Welcome Modal Normal]
+    O --> Q([Dashboard Siap])
+    P --> Q`,
+      },
+      {
+        subtitle: "b. Alur Evaluasi Quest",
+        code: `flowchart TD
+    A([Mulai Evaluasi]) --> B{Tipe Quest?}
+    B -->|first_deposit| C{Ada Transaksi Setor?}
+    C -->|Ya| D[Quest Completed]
+    C -->|Tidak| E[Quest Belum Selesai]
+    B -->|monthly_deposit_count| F[Hitung Setor Bulan Ini]
+    F --> G{Jumlah >= Target?}
+    G -->|Ya| D
+    G -->|Tidak| E
+    B -->|reach_balance| H{Saldo >= Target?}
+    H -->|Ya| D
+    H -->|Tidak| E
+    B -->|total_deposits| I[Hitung Total Semua Setor]
+    I --> J{Jumlah >= Target?}
+    J -->|Ya| D
+    J -->|Tidak| E
+    D --> K[Tampilkan Badge Hijau + Reward]
+    E --> L[Tampilkan Progress Bar]
+    K --> M([Selesai])
+    L --> M`,
+      },
+      {
+        subtitle: "c. Alur Penentuan Tier",
+        code: `flowchart TD
+    A([Input Saldo]) --> B[Ambil Daftar Tier - Sorted by sort_order]
+    B --> C[Loop dari Tier Tertinggi ke Terendah]
+    C --> D{Saldo >= minBalance?}
+    D -->|Ya| E[Tier Ditemukan]
+    D -->|Tidak| F[Cek Tier Berikutnya] --> D
+    E --> G[Hitung Progress]
+    G --> H{Tier Terakhir?}
+    H -->|Ya| I[Progress = 100%]
+    H -->|Tidak| J["Progress = ((saldo - min) / (max - min)) x 100"]
+    I --> K[Render Badge + Progress Bar]
+    J --> K
+    K --> L([Selesai])`,
+      },
+    ],
+  },
 ];
 
 // ─── PDF Generator ──────────────────────────────────────────────────
