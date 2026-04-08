@@ -1199,7 +1199,6 @@ const DiagramPage = () => {
           <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
             Dokumentasi teknis lengkap Sistem Tabungan Siswa Digital — mencakup 9 jenis diagram standar industri dengan penjelasan detail setiap komponen.
           </p>
-          </p>
         </div>
 
         {/* Table of Contents */}
