@@ -958,15 +958,15 @@ const generatePDF = () => {
   // Diagram list on cover
   doc.setTextColor(130);
   doc.setFontSize(9);
-  doc.text("Berisi 8 diagram teknis:", pw / 2, 175, { align: "center" });
+  doc.text("Berisi 9 diagram teknis:", pw / 2, 175, { align: "center" });
   doc.setTextColor(180);
   doc.setFontSize(10);
   const coverItems = [
-    "1. Flowchart",  "2. ERD",  "3. LRS",  "4. DFD",
-    "5. Use Case",  "6. Class Diagram",  "7. Sequence Diagram",  "8. Activity Diagram",
+    "1. Flowchart",  "2. ERD",  "3. LRS",  "4. DFD",  "5. Use Case",
+    "6. Class Diagram",  "7. Sequence Diagram",  "8. Activity Diagram",  "9. Gamifikasi",
   ];
-  const col1 = coverItems.slice(0, 4);
-  const col2 = coverItems.slice(4);
+  const col1 = coverItems.slice(0, 5);
+  const col2 = coverItems.slice(5);
   col1.forEach((item, i) => doc.text(item, pw / 2 - 35, 186 + i * 7));
   col2.forEach((item, i) => doc.text(item, pw / 2 + 15, 186 + i * 7));
 
@@ -1197,7 +1197,8 @@ const DiagramPage = () => {
         <div className="text-center space-y-2 pb-4">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dokumentasi Diagram Sistem</h1>
           <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-            Dokumentasi teknis lengkap Sistem Tabungan Siswa Digital — mencakup 8 jenis diagram standar industri dengan penjelasan detail setiap komponen.
+            Dokumentasi teknis lengkap Sistem Tabungan Siswa Digital — mencakup 9 jenis diagram standar industri dengan penjelasan detail setiap komponen.
+          </p>
           </p>
         </div>
 
