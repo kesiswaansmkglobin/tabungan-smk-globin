@@ -123,7 +123,7 @@ export const exportWaliKelasRekapPdf = async (options: ExportOptions) => {
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
-  doc.text(`${schoolData?.alamat_sekolah ? schoolData.alamat_sekolah.split(',')[0] : ''}, ${format(new Date(), 'dd MMMM yyyy', { locale: localeId })}`, sigX, finalY, { align: 'center' });
+  doc.text(`Kabupaten Bogor, ${format(new Date(), 'dd MMMM yyyy', { locale: localeId })}`, sigX, finalY, { align: 'center' });
 
   doc.text(schoolData?.jabatan_pengelola || 'Pengelola', sigX, finalY + 5, { align: 'center' });
 
