@@ -105,6 +105,7 @@ export const exportWaliKelasRekapPdf = async (options: ExportOptions) => {
     head: [['No', 'NIS', 'Nama Siswa', 'Saldo']],
     body: tableData,
     foot: [['', '', 'TOTAL', formatCurrency(totalSaldo)]],
+    showFoot: 'lastPage',
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
     footStyles: { fillColor: [230, 240, 255], fontStyle: 'bold', textColor: [0, 0, 0] },
