@@ -4,9 +4,10 @@ import { OptimizedTable } from "@/components/OptimizedTable";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, Eye } from "lucide-react";
+import { Users, Eye, FileDown, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { exportWaliKelasRekapPdf, exportWaliKelasRekapExcel } from "@/utils/waliKelasExport";
 
 interface Student {
   id: string;
