@@ -237,13 +237,27 @@ export default function WaliKelasDataSiswa() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Data Siswa - Kelas {waliKelasInfo.classes?.nama_kelas}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Wali Kelas: {waliKelasInfo.nama}
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Data Siswa - Kelas {waliKelasInfo.classes?.nama_kelas}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Wali Kelas: {waliKelasInfo.nama}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting || students.length === 0}>
+                <FileDown className="h-4 w-4 mr-1" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={students.length === 0}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" />
+                Excel
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <OptimizedTable
