@@ -4,9 +4,10 @@ import { OptimizedTable } from "@/components/OptimizedTable";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Users, Eye } from "lucide-react";
+import { Users, Eye, FileDown, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { exportWaliKelasRekapPdf, exportWaliKelasRekapExcel } from "@/utils/waliKelasExport";
 
 interface Student {
   id: string;
@@ -39,6 +40,8 @@ export default function WaliKelasDataSiswa() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [schoolData, setSchoolData] = useState<any>(null);
+  const [exporting, setExporting] = useState(false);
 
   const fetchStudents = async () => {
     if (!waliKelasInfo?.kelas_id) {
@@ -109,10 +112,50 @@ export default function WaliKelasDataSiswa() {
   useEffect(() => {
     if (isWaliKelas && waliKelasInfo) {
       fetchStudents().finally(() => setLoading(false));
+      // Fetch school data for exports
+      supabase.rpc('get_school_data_public').then(({ data }) => {
+        if (data && (data as any).success) setSchoolData(data);
+      });
     } else {
       setLoading(false);
     }
   }, [isWaliKelas, waliKelasInfo]);
+
+  const getExportOptions = () => ({
+    students,
+    className: waliKelasInfo?.classes?.nama_kelas || '-',
+    waliKelasName: waliKelasInfo?.nama || '-',
+    schoolData: schoolData ? {
+      nama_sekolah: schoolData.nama_sekolah,
+      alamat_sekolah: schoolData.alamat_sekolah,
+      nama_pengelola: schoolData.nama_pengelola,
+      jabatan_pengelola: schoolData.jabatan_pengelola,
+      tahun_ajaran: schoolData.tahun_ajaran,
+      logo_sekolah: schoolData.logo_sekolah,
+      tanda_tangan_pengelola: schoolData.tanda_tangan_pengelola,
+    } : null,
+  });
+
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      await exportWaliKelasRekapPdf(getExportOptions());
+      toast({ title: "Berhasil", description: "Rekap saldo berhasil diunduh (PDF)" });
+    } catch (e) {
+      toast({ title: "Error", description: "Gagal mengunduh rekap", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      exportWaliKelasRekapExcel(getExportOptions());
+      toast({ title: "Berhasil", description: "Rekap saldo berhasil diunduh (Excel)" });
+    } catch {
+      toast({ title: "Error", description: "Gagal mengunduh rekap", variant: "destructive" });
+    }
+  };
 
   if (!isWaliKelas) {
     return (
@@ -194,13 +237,27 @@ export default function WaliKelasDataSiswa() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Data Siswa - Kelas {waliKelasInfo.classes?.nama_kelas}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Wali Kelas: {waliKelasInfo.nama}
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Data Siswa - Kelas {waliKelasInfo.classes?.nama_kelas}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Wali Kelas: {waliKelasInfo.nama}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportPdf} disabled={exporting || students.length === 0}>
+                <FileDown className="h-4 w-4 mr-1" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={students.length === 0}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" />
+                Excel
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <OptimizedTable
