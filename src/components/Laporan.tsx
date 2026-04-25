@@ -33,7 +33,7 @@ const Laporan = React.memo(() => {
   const [kelasFilter, setKelasFilter] = useState("all");
   const [siswaFilter, setSiswaFilter] = useState("all");
 
-  const { transactions, totalCount, totalPages, kelasList, siswaList, isLoading } = useReportData({
+  const { transactions, totalCount, totalPages, kelasList, siswaList, isLoading, fetchAllFiltered } = useReportData({
     page: currentPage,
     pageSize,
     dateFrom,
