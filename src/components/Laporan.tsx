@@ -97,32 +97,56 @@ const Laporan = React.memo(() => {
     setSiswaFilter("all");
   }, []);
 
-  const handleExportPDF = useCallback(() => {
+  const handleExportPDF = useCallback(async () => {
     try {
+      const allData = await fetchAllFiltered();
+      if (allData.length === 0) {
+        toast({ title: "Tidak ada data", description: "Tidak ada transaksi sesuai filter untuk diekspor", variant: "destructive" });
+        return;
+      }
+
+      // Recompute stats from full filtered dataset
+      const fullStats = allData.reduce(
+        (acc, t) => {
+          if (t.jenis === 'Setor') acc.totalSetor += t.jumlah;
+          else if (t.jenis === 'Tarik') acc.totalTarik += t.jumlah;
+          acc.jumlahTransaksi++;
+          return acc;
+        },
+        { totalSetor: 0, totalTarik: 0, jumlahTransaksi: 0, netFlow: 0 }
+      );
+      fullStats.netFlow = fullStats.totalSetor - fullStats.totalTarik;
+
       const selectedStudent = siswaFilter !== 'all'
         ? siswaList.find(s => s.nis === siswaFilter)
         : null;
 
       exportToPDF({
-        transactions,
+        transactions: allData,
         schoolData,
-        reportStats,
+        reportStats: fullStats,
         filters: { dateFrom, dateTo, kelasFilter, siswaFilter, jenisFilter },
         studentName: selectedStudent?.nama,
         className: kelasFilter !== 'all' ? kelasFilter : undefined,
       });
 
-      toast({ title: "PDF Berhasil Dibuat", description: "Laporan transaksi berhasil diekspor ke PDF" });
+      toast({ title: "PDF Berhasil Dibuat", description: `Mengekspor ${allData.length} transaksi ke PDF` });
     } catch (error) {
       console.error('Error exporting PDF:', error);
       toast({ title: "Error", description: "Gagal mengekspor laporan ke PDF", variant: "destructive" });
     }
-  }, [transactions, schoolData, reportStats, dateFrom, dateTo, kelasFilter, siswaFilter, jenisFilter, siswaList]);
+  }, [fetchAllFiltered, schoolData, dateFrom, dateTo, kelasFilter, siswaFilter, jenisFilter, siswaList]);
 
-  const exportToExcel = useCallback(() => {
+  const exportToExcel = useCallback(async () => {
     try {
+      const allData = await fetchAllFiltered();
+      if (allData.length === 0) {
+        toast({ title: "Tidak ada data", description: "Tidak ada transaksi sesuai filter untuk diekspor", variant: "destructive" });
+        return;
+      }
+
       const headers = ['Tanggal', 'NIS', 'Nama', 'Kelas', 'Jenis', 'Jumlah', 'Saldo Setelah', 'Admin'];
-      const csvData = transactions.map(trans => [
+      const csvData = allData.map(trans => [
         new Date(trans.tanggal).toLocaleDateString('id-ID'),
         trans.students?.nis || '-',
         trans.students?.nama || '-',
@@ -160,11 +184,11 @@ const Laporan = React.memo(() => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast({ title: "Laporan Diekspor", description: "Laporan transaksi berhasil diekspor ke CSV" });
+      toast({ title: "Laporan Diekspor", description: `Mengekspor ${allData.length} transaksi ke CSV` });
     } catch {
       toast({ title: "Error", description: "Gagal mengekspor laporan", variant: "destructive" });
     }
-  }, [transactions, siswaFilter, kelasFilter, dateFrom, dateTo, siswaList]);
+  }, [fetchAllFiltered, siswaFilter, kelasFilter, dateFrom, dateTo, siswaList]);
 
   if (isLoading && transactions.length === 0) {
     return (
