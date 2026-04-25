@@ -130,6 +130,58 @@ export const useReportData = (options?: UseReportDataOptions) => {
     };
   }, [loadTransactions]);
 
+  // Fetch ALL filtered transactions (no pagination) for export
+  const fetchAllFiltered = useCallback(async (): Promise<Transaction[]> => {
+    try {
+      let query = supabase
+        .from('transactions')
+        .select(`
+          *,
+          students (
+            nis,
+            nama,
+            classes (
+              nama_kelas
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (dateFrom) query = query.gte('tanggal', dateFrom);
+      if (dateTo) query = query.lte('tanggal', dateTo);
+      if (jenisFilter && jenisFilter !== 'all') query = query.eq('jenis', jenisFilter);
+
+      if (siswaFilter && siswaFilter !== 'all') {
+        const student = siswaList.find(s => s.nis === siswaFilter);
+        if (student) query = query.eq('student_id', student.id);
+      }
+
+      // Batch fetch to bypass 1000 row limit
+      const pageSizeBatch = 1000;
+      let allRows: Transaction[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await query.range(from, from + pageSizeBatch - 1);
+        if (error) throw error;
+        const batch = (data || []) as unknown as Transaction[];
+        allRows = allRows.concat(batch);
+        if (batch.length < pageSizeBatch) break;
+        from += pageSizeBatch;
+      }
+
+      // Client-side class filter
+      if (kelasFilter && kelasFilter !== 'all') {
+        allRows = allRows.filter(t => t.students?.classes?.nama_kelas === kelasFilter);
+      }
+
+      return allRows;
+    } catch (error) {
+      console.error('Error fetching all filtered transactions:', error);
+      toast({ title: "Error", description: "Gagal mengambil seluruh data terfilter", variant: "destructive" });
+      return [];
+    }
+  }, [dateFrom, dateTo, jenisFilter, kelasFilter, siswaFilter, siswaList]);
+
   return {
     transactions,
     totalCount,
@@ -138,6 +190,7 @@ export const useReportData = (options?: UseReportDataOptions) => {
     siswaList,
     isLoading,
     refreshData: loadTransactions,
+    fetchAllFiltered,
   };
 };
 
