@@ -21,15 +21,21 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, hints: diagnoseError(error) };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const hints = diagnoseError(error);
     console.error('Error caught by boundary:', error, errorInfo);
+    if (hints.length > 0) {
+      console.group('%c💡 Saran perbaikan', 'color:#10b981;font-weight:bold');
+      hints.forEach((h) => console.warn(h));
+      console.groupEnd();
+    }
   }
 
   private handleRetry = () => {
-    this.setState({ hasError: false, error: undefined });
+    this.setState({ hasError: false, error: undefined, hints: undefined });
   };
 
   public render() {
@@ -51,7 +57,15 @@ class ErrorBoundary extends Component<Props, State> {
               <p className="text-muted-foreground">
                 Maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi.
               </p>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {this.state.hints && this.state.hints.length > 0 && (
+                <div className="text-left text-xs bg-muted p-3 rounded space-y-1">
+                  <p className="font-semibold">💡 Saran perbaikan:</p>
+                  {this.state.hints.map((h, i) => (
+                    <pre key={i} className="whitespace-pre-wrap font-mono">{h}</pre>
+                  ))}
+                </div>
+              )}
+              {import.meta.env.DEV && this.state.error && (
                 <details className="text-left text-xs bg-muted p-2 rounded">
                   <summary className="cursor-pointer font-medium">Detail Error</summary>
                   <pre className="mt-2 whitespace-pre-wrap">{this.state.error.message}</pre>
