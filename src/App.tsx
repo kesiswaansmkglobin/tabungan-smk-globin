@@ -19,11 +19,26 @@ const queryClient = new QueryClient();
 
 initializeTheme();
 
-if (process.env.NODE_ENV === 'production') {
+if (import.meta.env.PROD) {
   setInterval(() => {
     PerformanceMonitor.logSlowOperations();
     PerformanceMonitor.trackMemoryUsage();
   }, 30000);
+}
+
+// Runtime preflight: log actionable install commands if a critical dep is missing
+if (import.meta.env.DEV) {
+  import("@/utils/preflight").then(({ runPreflight }) => {
+    runPreflight().then((issues) => {
+      if (issues.length > 0) {
+        console.group("%c⚠ Preflight: missing modules", "color:#f59e0b;font-weight:bold");
+        issues.forEach((i) => {
+          console.error(`✗ ${i.module}\n  → ${i.installCmd}\n  (${i.reason})`);
+        });
+        console.groupEnd();
+      }
+    });
+  });
 }
 
 const App = () => (
